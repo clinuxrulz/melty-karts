@@ -1,0 +1,22 @@
+{
+  "name": "melty-karts-monorepo",
+  "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "dev": "pnpm --filter @melty-karts/melty-karts dev",
+    "build": "pnpm --filter @melty-karts/melty-karts build",
+    "serve": "pnpm --filter @melty-karts/melty-karts serve"
+  },
+  "dependencies": {
+    "@solidjs/web": "2.0.0-beta.3",
+    "babel-preset-solid": "2.0.0-beta.3",
+    "solid-js": "2.0.0-beta.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}

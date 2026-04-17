@@ -1,0 +1,337 @@
+import * as THREE from "three";
+
+export const TRACK_WIDTH = 2.5;
+export const BARRIER_HEIGHT = 0.25;
+
+class PerlinNoise2D {
+  private perm: number[] = [];
+  
+  constructor(seed: number = 0) {
+    const p: number[] = [];
+    for (let i = 0; i < 256; i++) p[i] = i;
+    
+    let n = seed;
+    for (let i = 255; i > 0; i--) {
+      n = (n * 1103515245 + 12345) & 0x7fffffff;
+      const j = n % (i + 1);
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    
+    for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+  }
+  
+  private fade(t: number): number {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+  
+  private lerp(a: number, b: number, t: number): number {
+    return a + t * (b - a);
+  }
+  
+  private grad(hash: number, x: number, z: number): number {
+    const h = hash & 3;
+    const u = h < 2 ? x : z;
+    const v = h < 2 ? z : x;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+  
+  noise(x: number, z: number): number {
+    const X = Math.floor(x) & 255;
+    const Z = Math.floor(z) & 255;
+    x -= Math.floor(x);
+    z -= Math.floor(z);
+    const u = this.fade(x);
+    const v = this.fade(z);
+    
+    const A = this.perm[X] + Z;
+    const B = this.perm[X + 1] + Z;
+    
+    return this.lerp(
+      this.lerp(this.grad(this.perm[A], x, z), this.grad(this.perm[B], x - 1, z), u),
+      this.lerp(this.grad(this.perm[A + 1], x, z - 1), this.grad(this.perm[B + 1], x - 1, z - 1), u),
+      v
+    );
+  }
+  
+  fbm(x: number, z: number, octaves: number = 4): number {
+    let value = 0;
+    let amplitude = 1;
+    let frequency = 1;
+    let maxValue = 0;
+    
+    for (let i = 0; i < octaves; i++) {
+      value += amplitude * this.noise(x * frequency, z * frequency);
+      maxValue += amplitude;
+      amplitude *= 0.5;
+      frequency *= 2;
+    }
+    
+    return value / maxValue;
+  }
+}
+
+export const groundNoise = new PerlinNoise2D(54321);
+export const trackNoise = new PerlinNoise2D(12345);
+
+export function getGroundHeight(x: number, z: number, roadY?: number): number {
+  const scale = 0.08;
+  const groundY = groundNoise.fbm(x * scale, z * scale, 4) * 2;
+  if (roadY !== undefined) {
+    const blendDist = 4;
+    const blend = Math.max(0, 1 - Math.abs(groundY - roadY) / blendDist);
+    return groundY * (1 - blend) + (roadY - 0.15) * blend;
+  }
+  return groundY;
+}
+
+function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; curve: THREE.CatmullRomCurve3 } {
+  const group = new THREE.Group();
+  const rng = (n: number) => {
+    const x = Math.sin(seed * 9999 + n * 7919) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  const anchorCount = 12 + Math.floor(rng(0) * 6);
+  const centerX = 15;
+  const centerZ = 15;
+  const baseRadius = 10;
+  
+  const controlPoints: THREE.Vector3[] = [];
+  for (let i = 0; i < anchorCount; i++) {
+    const angle = (i / anchorCount) * Math.PI * 2;
+    const radiusVar = 0.7 + rng(i + 1) * 0.6;
+    const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
+    const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
+    const y = getGroundHeight(x, z) + 0.1;
+    controlPoints.push(new THREE.Vector3(x, y, z));
+  }
+  
+  const curve = new THREE.CatmullRomCurve3(controlPoints);
+  curve.closed = true;
+  curve.curveType = "centripetal";
+  curve.tension = 0.5;
+  
+  const segments = 400;
+  const points = curve.getSpacedPoints(segments);
+  
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const uvs: number[] = [];
+  
+  const hw = TRACK_WIDTH / 2;
+  const totalLength = curve.getLength();
+  const texScale = 10;
+  
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const pos = points[i];
+    const tangent = curve.getTangentAt(t);
+    
+    const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+    const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+    
+    const u = (t * totalLength) / texScale;
+    
+    vertices.push(
+      pos.x + normal2D.x * hw, pos.y + 0.05, pos.z + normal2D.y * hw,
+      pos.x - normal2D.x * hw, pos.y + 0.05, pos.z - normal2D.y * hw
+    );
+    
+    uvs.push(0, u, 1, u);
+    
+    if (i < segments) {
+      const a = i * 2;
+      const b = i * 2 + 1;
+      const c = (i + 1) * 2;
+      const d = (i + 1) * 2 + 1;
+      
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  
+  const roadGeometry = new THREE.BufferGeometry();
+  roadGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  roadGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  roadGeometry.setIndex(indices);
+  roadGeometry.computeVertexNormals();
+  
+  const roadMaterial = new THREE.MeshStandardMaterial({
+    color: 0x333333,
+    roughness: 0.8,
+    side: THREE.DoubleSide,
+  });
+  
+  const roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
+  roadMesh.receiveShadow = true;
+  group.add(roadMesh);
+  
+  for (let side = 0; side < 2; side++) {
+    const offsetPoints: THREE.Vector3[] = [];
+    
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const pos = points[i];
+      const tangent = curve.getTangentAt(t);
+      
+      const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+      const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+      
+      const offset = side === 0 ? -hw - 0.2 : hw + 0.2;
+      const worldX = pos.x + normal2D.x * offset;
+      const worldZ = pos.z + normal2D.y * offset;
+      offsetPoints.push(new THREE.Vector3(worldX, pos.y + 0.15, worldZ));
+    }
+    
+    const barrierCurve = new THREE.CatmullRomCurve3(offsetPoints);
+    barrierCurve.closed = true;
+    
+    const barrierGeo = new THREE.TubeGeometry(barrierCurve, segments, 0.06, 6, true);
+    const barrierMat = new THREE.MeshStandardMaterial({
+      color: side === 0 ? 0xcc0000 : 0xdddddd,
+      roughness: 0.3,
+      metalness: 0.5,
+    });
+    
+    const barrierMesh = new THREE.Mesh(barrierGeo, barrierMat);
+    barrierMesh.castShadow = true;
+    group.add(barrierMesh);
+    
+    const postCount = 12;
+    for (let i = 0; i < postCount; i++) {
+      const t = i / postCount;
+      const idx = Math.floor(t * segments);
+      const pos = offsetPoints[idx];
+      const tangent = curve.getTangentAt(idx / segments);
+      const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+      const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+      
+      const postGeo = new THREE.BoxGeometry(0.12, 0.35, 0.12);
+      const postMesh = new THREE.Mesh(postGeo, barrierMat);
+      postMesh.position.set(
+        pos.x,
+        pos.y + 0.175,
+        pos.z
+      );
+      postMesh.castShadow = true;
+      group.add(postMesh);
+    }
+  }
+  
+  return { group, curve };
+}
+
+export function generateTrack(
+  pointCount: number = 18,
+  boundarySize: number = 30,
+  seed: number = 12345
+): THREE.Group {
+  const { group, curve } = generateProceduralTrack(seed);
+  return group;
+}
+
+export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
+  const rng = (n: number) => {
+    const x = Math.sin(seed * 9999 + n * 7919) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  const anchorCount = 12 + Math.floor(rng(0) * 6);
+  const centerX = 15;
+  const centerZ = 15;
+  const baseRadius = 10;
+  
+  const controlPoints: THREE.Vector3[] = [];
+  for (let i = 0; i < anchorCount; i++) {
+    const angle = (i / anchorCount) * Math.PI * 2;
+    const radiusVar = 0.7 + rng(i + 1) * 0.6;
+    const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
+    const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
+    const y = getGroundHeight(x, z) + 0.1;
+    controlPoints.push(new THREE.Vector3(x, y, z));
+  }
+  
+  const curve = new THREE.CatmullRomCurve3(controlPoints);
+  curve.closed = true;
+  curve.curveType = "centripetal";
+  curve.tension = 0.5;
+  
+  return curve;
+}
+
+export function getTrackHeightAt(t: number, curve?: THREE.CatmullRomCurve3): number {
+  if (!curve) return 0;
+  const pos = curve.getPointAt(t % 1);
+  return getGroundHeight(pos.x, pos.z) + 0.1;
+}
+
+export function createStartFinishLine(curve: THREE.CatmullRomCurve3, t: number = 0): THREE.Group {
+  const group = new THREE.Group();
+  const pos = curve.getPointAt(t);
+  const tangent = curve.getTangentAt(t);
+  const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+  const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+  
+  const lineWidth = TRACK_WIDTH + 0.4;
+  const lineLength = 0.6;
+  const checkSize = 0.15;
+  const checksX = Math.ceil(lineWidth / checkSize);
+  const checksZ = Math.ceil(lineLength / checkSize);
+  
+  for (let cx = 0; cx < checksX; cx++) {
+    for (let cz = 0; cz < checksZ; cz++) {
+      const isWhite = (cx + cz) % 2 === 0;
+      const geo = new THREE.PlaneGeometry(checkSize, checkSize);
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: isWhite ? 0xffffff : 0x222222, 
+        side: THREE.DoubleSide 
+      });
+      const check = new THREE.Mesh(geo, mat);
+      const xOffset = (cx - checksX / 2 + 0.5) * checkSize;
+      const zOffset = (cz - checksZ / 2 + 0.5) * checkSize;
+      check.position.set(
+        pos.x + normal2D.x * xOffset - tangent2D.x * zOffset,
+        pos.y + 0.06,
+        pos.z + normal2D.y * xOffset - tangent2D.y * zOffset
+      );
+      check.rotation.x = -Math.PI / 2;
+      check.rotation.z = Math.atan2(tangent.x, tangent.z);
+      group.add(check);
+    }
+  }
+  
+  const bannerHeight = 2.5;
+  const postGeo = new THREE.CylinderGeometry(0.05, 0.05, bannerHeight, 8);
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5 });
+  
+  const leftPost = new THREE.Mesh(postGeo, postMat);
+  leftPost.position.set(
+    pos.x - normal2D.x * (lineWidth / 2 + 0.3),
+    pos.y + bannerHeight / 2,
+    pos.z - normal2D.y * (lineWidth / 2 + 0.3)
+  );
+  leftPost.castShadow = true;
+  group.add(leftPost);
+  
+  const rightPost = new THREE.Mesh(postGeo, postMat);
+  rightPost.position.set(
+    pos.x + normal2D.x * (lineWidth / 2 + 0.3),
+    pos.y + bannerHeight / 2,
+    pos.z + normal2D.y * (lineWidth / 2 + 0.3)
+  );
+  rightPost.castShadow = true;
+  group.add(rightPost);
+  
+  const bannerWidth = lineWidth + 1;
+  const bannerGeo = new THREE.PlaneGeometry(bannerWidth, 0.4);
+  const bannerMat = new THREE.MeshStandardMaterial({ 
+    color: 0xff0000, 
+    side: THREE.DoubleSide,
+    metalness: 0.3
+  });
+  const banner = new THREE.Mesh(bannerGeo, bannerMat);
+  banner.position.set(pos.x, pos.y + bannerHeight, pos.z);
+  banner.rotation.y = Math.atan2(tangent.x, tangent.z);
+  group.add(banner);
+  
+  return group;
+}
