@@ -4,10 +4,12 @@ import * as THREE from "three";
 let [ meltyLib, setMeltyLib, ] = createSignal<typeof import("../../melty-karts/src/models/melty")>();
 let [ cubeyLib, setCubeyLib, ] = createSignal<typeof import("../../melty-karts/src/models/cubey")>();
 let [ solidLogoLib, setSolidLogoLib, ] = createSignal<typeof import("../../melty-karts/src/models/SolidLogo")>();
+let [ kartLib, setKartLib, ] = createSignal<typeof import("../../melty-karts/src/models/Kart")>();
 
 import("../../melty-karts/src/models/melty").then(setMeltyLib);
 import("../../melty-karts/src/models/cubey").then(setCubeyLib);
 import("../../melty-karts/src/models/SolidLogo").then(setSolidLogoLib);
+import("../../melty-karts/src/models/Kart").then(setKartLib);
 
 export function createMeltyModelHMR(): Accessor<THREE.Object3D | undefined> {
   return createMemo(() => {
@@ -39,6 +41,16 @@ export function createSolidLogoModelHMR(): Accessor<THREE.Object3D | undefined> 
   });
 }
 
+export function createKartModelHMR(): Accessor<THREE.Object3D | undefined> {
+  let result_ = createMemo(() => {
+    let kartLib2 = kartLib();
+    if (kartLib2 == undefined) {
+      return undefined;
+    }
+    return createMemo(async () => await kartLib2.loadKartModel());
+  });
+  return createMemo(() => result_()?.());
+}
 
 if (import.meta.hot) {
   import.meta.hot.accept("../../melty-karts/src/models/melty", (lib) => {
@@ -49,5 +61,8 @@ if (import.meta.hot) {
   });
   import.meta.hot.accept("../../melty-karts/src/models/SolidLogo", (lib) => {
     setSolidLogoLib(lib as any);
+  });
+  import.meta.hot.accept("../../melty-karts/src/models/Kart", (lib) => {
+    setKartLib(lib as any);
   });
 }

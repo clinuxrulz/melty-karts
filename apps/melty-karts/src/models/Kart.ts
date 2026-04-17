@@ -44,13 +44,17 @@ export async function loadKartModel(): Promise<THREE.Group> {
     const scale = targetSize / maxDim;
     kart.scale.setScalar(scale);
     
+    let group = new THREE.Group();
     box.setFromObject(kart);
-    const center = box.getCenter(new THREE.Vector3());
-    kart.position.x -= center.x;
-    kart.position.y -= center.y;
-    kart.position.z -= center.z;
-    
-    return kart;
+    kart.rotateY(0.5 * Math.PI);
+    kart.position.set(
+      0.0,
+      -box.min.y,
+      0.0,
+    );
+    group.add(kart);
+
+    return group;
   } catch (e) {
     console.error("Failed to load kart:", e);
     throw e;

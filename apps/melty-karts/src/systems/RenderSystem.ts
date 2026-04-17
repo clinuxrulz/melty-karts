@@ -1,4 +1,4 @@
-import { createMemo, onCleanup, createRoot, mapArray } from "solid-js";
+import { createEffect, createMemo, onCleanup, createRoot, mapArray, createRenderEffect } from "solid-js";
 import * as THREE from "three";
 import type { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
@@ -24,7 +24,7 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
         }
         return result;
       }),
-      async (kartEntityId) => {
+      (kartEntityId) => {
         let kartEntity = ecs.entity(kartEntityId());
         let playerConfig = { 
           playerType: kartEntity.getField(RegisteredPlayerConfig, "playerType"), 
@@ -32,11 +32,15 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
         };
         
         const kartGroup = new THREE.Group();
-        const kartModel = await loadKartModel();
-        kartGroup.add(kartModel);
+        createRenderEffect(
+          async () => await loadKartModel(),
+          (kartModel) => {
+            kartGroup.add(kartModel);
+          },
+        );
 
         const solidLogo = createSolidLogo();
-        solidLogo.position.set(0, 0.6, 0);
+        solidLogo.position.set(0, 0.32, 0);
         solidLogo.scale.setScalar(0.5);
         kartGroup.add(solidLogo);
 

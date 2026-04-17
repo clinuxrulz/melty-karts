@@ -1,11 +1,11 @@
 import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component } from "solid-js";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { createCubeyModelHMR, createMeltyModelHMR, createSolidLogoModelHMR } from "./model-tester";
+import { createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createSolidLogoModelHMR } from "./model-tester";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart",
   }>({
     model: "SolidLogo",
   });
@@ -104,6 +104,7 @@ const App: Component = () => {
     let meltyModel = createMeltyModelHMR();
     let cubeyModel = createCubeyModelHMR();
     let solidLogoModel = createSolidLogoModelHMR();
+    let kartModel = createKartModelHMR();
     createMemo(() => {
       let model: Accessor<THREE.Object3D | undefined>;
       switch (state.model) {
@@ -115,6 +116,9 @@ const App: Component = () => {
           break;
         case "SolidLogo":
           model = solidLogoModel;
+          break;
+        case "Kart":
+          model = kartModel;
           break;
       }
       createEffect(
@@ -161,6 +165,7 @@ const App: Component = () => {
         <option value="Melty" selected={state.model == "Melty"}>Melty</option>
         <option value="Cubey" selected={state.model == "Cubey"}>Cubey</option>
         <option value="SolidLogo" selected={state.model == "SolidLogo"}>SolidLogo</option>
+        <option value="Kart" selected={state.model == "Kart"}>Kart</option>
       </select>
     </div>
   );
