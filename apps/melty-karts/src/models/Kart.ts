@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OBJLoader } from "three-stdlib";
 import { TRACK_WIDTH } from "./Track";
+import { WHEEL_OFFSET_X, WHEEL_OFFSET_Y, WHEEL_OFFSET_Z, WHEEL_RADIUS, SUSPENSION_REST_LENGTH } from "../systems/KartPhysicsSystem";
 
 export async function loadKartModel(): Promise<THREE.Group> {
   const loader = new OBJLoader();
@@ -54,6 +55,33 @@ export async function loadKartModel(): Promise<THREE.Group> {
     );
     group.add(kart);
 
+    // DEBUG: Add wheel position markers - START
+    // Position wheels at local Y = WHEEL_OFFSET_Y - SUSPENSION_REST_LENGTH so they sit at ground level
+    const wheelY = (WHEEL_OFFSET_Y - SUSPENSION_REST_LENGTH) * scale;
+    const wheelGeometry = new THREE.SphereGeometry(WHEEL_RADIUS * 0.5, 8, 8);
+    const wheelMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    
+    // Front left wheel
+    const flWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    flWheel.position.set(-WHEEL_OFFSET_X * scale, wheelY, WHEEL_OFFSET_Z * scale);
+    group.add(flWheel);
+    
+    // Front right wheel
+    const frWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    frWheel.position.set(WHEEL_OFFSET_X * scale, wheelY, WHEEL_OFFSET_Z * scale);
+    group.add(frWheel);
+    
+    // Rear left wheel
+    const rlWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rlWheel.position.set(-WHEEL_OFFSET_X * scale, wheelY, -WHEEL_OFFSET_Z * scale);
+    group.add(rlWheel);
+    
+    // Rear right wheel
+    const rrWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rrWheel.position.set(WHEEL_OFFSET_X * scale, wheelY, -WHEEL_OFFSET_Z * scale);
+    group.add(rrWheel);
+    // DEBUG: Add wheel position markers - END
+  
     return group;
   } catch (e) {
     console.error("Failed to load kart:", e);

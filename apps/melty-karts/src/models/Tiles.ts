@@ -7,7 +7,7 @@ export enum TileType {
   House = 3,
 }
 
-export const TILE_SIZE = 2;
+export const TILE_SIZE = 4;
 
 export const ROAD_TYPE = TileType.Road;
 export const TREE_TYPE = TileType.Tree;

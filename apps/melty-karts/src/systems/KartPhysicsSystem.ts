@@ -5,10 +5,22 @@ import {
   RegisteredVelocity,
   RegisteredOrientation,
   RegisteredKartConfig,
+  RegisteredGlobalGravity,
 } from "../World";
 import { EntityID } from "@oasys/oecs";
 import { Accessor } from "solid-js";
-import { getGroundHeight } from "../models/Track";
+import { getGroundHeight, getTrackCurveForPhysics, TRACK_WIDTH, getDistanceToTrackCenter } from "../models/Track";
+
+// DEBUG: Wheel physics constants - START
+export const WHEEL_OFFSET_X = 0.95;  // Doubled from 0.35
+export const WHEEL_OFFSET_Z = 0.95;  // Doubled from 0.4
+export const WHEEL_OFFSET_Y = 0.25;   // Vertical offset from kart center
+export const SUSPENSION_REST_LENGTH = 0.15;
+export const SUSPENSION_STRENGTH = 200.0;
+export const SUSPENSION_DAMPER = 10.0;
+export const KART_MASS = 1.0;
+export const WHEEL_RADIUS = 0.1;
+// DEBUG: Wheel physics constants - END
 
 export function createKartPhysicsSystem(params: {
   ecs: ReactiveECS,
@@ -22,22 +34,36 @@ export function createKartPhysicsSystem(params: {
 }) {
   let { ecs, entityId, leftDown, rightDown, upDown, downDown, actionDown, driftDown, } = params;
   
-  const MAX_SPEED = 15.0;
-  const MAX_BOOST_SPEED = 25.0;
-  const ACCELERATION = 3.0;
-  const DECELERATION = 8.0;
-  const TURN_SPEED = 6.0;
+  const MAX_SPEED = 20.0;
+  const MAX_BOOST_SPEED = 36.0;
+  const ACCELERATION = 2.0;
+  const DECELERATION = 6.0;
+  const TURN_SPEED = 3.0;
   const FRICTION = 0.98;
   const DRIFT_FRICTION = 0.96;
   const LATERAL_FRICTION = 0.92;
+  
+// DEBUG: Wheel offsets definition - START
+const wheelOffsets = [
+  new THREE.Vector3(-WHEEL_OFFSET_X, WHEEL_OFFSET_Y, WHEEL_OFFSET_Z),
+  new THREE.Vector3(WHEEL_OFFSET_X, WHEEL_OFFSET_Y, WHEEL_OFFSET_Z),
+  new THREE.Vector3(-WHEEL_OFFSET_X, WHEEL_OFFSET_Y, -WHEEL_OFFSET_Z),
+  new THREE.Vector3(WHEEL_OFFSET_X, WHEEL_OFFSET_Y, -WHEEL_OFFSET_Z),
+];
+// DEBUG: Wheel offsets definition - END
   
   let currentSpeed = 0;
   let driftCharge = 0;
   let isDrifting = false;
   let driftDirection = 0;
+  let suspensionCompression = [0, 0, 0, 0];
+  let prevSuspensionCompression = [0, 0, 0, 0];
   
   return {
     update(dt: number) {
+      const gravity = ecs.resource(RegisteredGlobalGravity);
+      const gravityY = gravity.get("y");
+      
       const posX = ecs.entity(entityId).getField(RegisteredPosition, "x");
       const posY = ecs.entity(entityId).getField(RegisteredPosition, "y");
       const posZ = ecs.entity(entityId).getField(RegisteredPosition, "z");
@@ -120,10 +146,6 @@ export function createKartPhysicsSystem(params: {
       }
 
       q.normalize();
-      ecs.set_field(entityId, RegisteredOrientation, "x", q.x);
-      ecs.set_field(entityId, RegisteredOrientation, "y", q.y);
-      ecs.set_field(entityId, RegisteredOrientation, "z", q.z);
-      ecs.set_field(entityId, RegisteredOrientation, "w", q.w);
 
       const newForward = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
       newForward.y = 0;
@@ -152,17 +174,125 @@ export function createKartPhysicsSystem(params: {
         newVel.z *= scale;
       }
 
+      let newPos = kartPos.add(newVel.clone().multiplyScalar(dt));
+      
+      const trackCurve = getTrackCurveForPhysics();
+      
+      // Barrier collision detection
+      if (trackCurve) {
+        const trackHalfWidth = TRACK_WIDTH / 2;
+        const distToTrack = getDistanceToTrackCenter(newPos.x, newPos.z);
+        const barrierRadius = trackHalfWidth + 0.3;
+        
+        if (distToTrack > barrierRadius && distToTrack < 50 && Number.isFinite(newPos.x) && Number.isFinite(newPos.z)) {
+          // Find nearest point on track
+          const segments = 50;
+          let nearestX = 0, nearestZ = 0, minDist = Infinity;
+          for (let j = 0; j <= segments; j++) {
+            const t = j / segments;
+            const point = trackCurve.getPointAt(t);
+            const dx = point.x - newPos.x;
+            const dz = point.z - newPos.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestX = point.x;
+              nearestZ = point.z;
+            }
+          }
+          
+          // Normal direction from track center towards kart
+          const normalX = (newPos.x - nearestX) / minDist;
+          const normalZ = (newPos.z - nearestZ) / minDist;
+          
+          // Calculate normal velocity component (how fast moving outwards)
+          const normalVel = newVel.x * normalX + newVel.z * normalZ;
+          
+          // Only bounce if moving outwards
+          if (normalVel > 0) {
+            // Push back along normal direction
+            const overshoot = distToTrack - barrierRadius;
+            newPos.x -= normalX * overshoot * 0.5;
+            newPos.z -= normalZ * overshoot * 0.5;
+            
+            // Remove outward velocity component, keep tangential
+            newVel.x -= normalX * normalVel;
+            newVel.z -= normalZ * normalVel;
+          }
+        }
+      }
+      
+      for (let i = 0; i < 4; i++) {
+        prevSuspensionCompression[i] = suspensionCompression[i];
+      }
+      
+      let wheelHeights: number[] = [];
+      
+      for (let i = 0; i < 4; i++) {
+        const wheelOffset = wheelOffsets[i].clone();
+        wheelOffset.applyQuaternion(q);
+        const wheelPos = new THREE.Vector3(newPos.x, newPos.y, newPos.z).add(wheelOffset);
+        
+        let groundY = getGroundHeight(wheelPos.x, wheelPos.z);
+        
+        // If track curve is available, blend in road height near the track
+        if (trackCurve) {
+          const segments = 100;
+          let minDist = Infinity;
+          let nearestY = 0;
+          for (let j = 0; j < segments; j++) {
+            const t = j / segments;
+            const trackPoint = trackCurve.getPointAt(t);
+            const dx = trackPoint.x - wheelPos.x;
+            const dz = trackPoint.z - wheelPos.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestY = trackPoint.y;
+            }
+          }
+          
+          // Blend with road height near the track (matching mesh logic)
+          const blendDist = TRACK_WIDTH / 2 + 3;
+          if (minDist < blendDist) {
+            const blend = Math.max(0, 1 - minDist / blendDist);
+            groundY = groundY * (1 - blend) + (nearestY - 0.15) * blend;
+          }
+        }
+        
+        const targetWheelY = groundY + WHEEL_RADIUS + SUSPENSION_REST_LENGTH;
+        
+        wheelHeights.push(targetWheelY);
+      }
+      
+      const minWheelHeight = Math.min(...wheelHeights);
+      
+      newPos.y = minWheelHeight + SUSPENSION_REST_LENGTH;
+      
+      const frontAvgHeight = (wheelHeights[0] + wheelHeights[1]) / 2;
+      const backAvgHeight = (wheelHeights[2] + wheelHeights[3]) / 2;
+      const leftAvgHeight = (wheelHeights[0] + wheelHeights[2]) / 2;
+      const rightAvgHeight = (wheelHeights[1] + wheelHeights[3]) / 2;
+      
+      const targetPitch = Math.atan2(backAvgHeight - frontAvgHeight, WHEEL_OFFSET_Z * 2);
+      const targetRoll = Math.atan2(rightAvgHeight - leftAvgHeight, WHEEL_OFFSET_X * 2);
+      
+      const currentEuler = new THREE.Euler().setFromQuaternion(q, 'YXZ');
+      const smoothFactor = Math.min(1, dt * 8);
+      currentEuler.x = THREE.MathUtils.lerp(currentEuler.x, targetPitch, smoothFactor);
+      currentEuler.z = THREE.MathUtils.lerp(currentEuler.z, targetRoll, smoothFactor);
+      
+      q.setFromEuler(currentEuler);
+      
+      ecs.set_field(entityId, RegisteredOrientation, "x", q.x);
+      ecs.set_field(entityId, RegisteredOrientation, "y", q.y);
+      ecs.set_field(entityId, RegisteredOrientation, "z", q.z);
+      ecs.set_field(entityId, RegisteredOrientation, "w", q.w);
+
       ecs.set_field(entityId, RegisteredVelocity, "x", newVel.x);
       ecs.set_field(entityId, RegisteredVelocity, "y", newVel.y);
       ecs.set_field(entityId, RegisteredVelocity, "z", newVel.z);
 
-      const newPos = kartPos.add(newVel.clone().multiplyScalar(dt));
-      const groundY = getGroundHeight(newPos.x, newPos.z);
-      const kartHeight = 0;
-      if (newPos.y < groundY + kartHeight) {
-        newPos.y = groundY + kartHeight;
-        newVel.y = 0;
-      }
       ecs.set_field(entityId, RegisteredPosition, "x", newPos.x);
       ecs.set_field(entityId, RegisteredPosition, "y", newPos.y);
       ecs.set_field(entityId, RegisteredPosition, "z", newPos.z);

@@ -7,6 +7,7 @@ import {
   InputControlled,
   Renderable,
   KartConfig,
+  GlobalGravity,
   Orientation,
 } from "./components";
 
@@ -20,11 +21,14 @@ export const RegisteredPlayerConfig = baseEcs.register_component(PlayerConfig.de
 export const RegisteredInputControlled = baseEcs.register_component(InputControlled.def);
 export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
+export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 
 export function World(): {
   ecs: ReactiveECS,
 } {
   baseEcs.startup();
+  
+  baseEcs.set_resource(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
   
   return {
     ecs: reactiveEcs,

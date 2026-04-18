@@ -57,7 +57,7 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
   const trackPoints = curve.getSpacedPoints(200);
   const treeCount = 40;
   const buildingCount = 15;
-  const minDistFromTrack = 5;
+  const minDistFromTrack = 25;
   const spread = 18;
   
   const rng = (i: number) => {
@@ -182,6 +182,8 @@ function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bound
 
 let [ canvasSize, setCanvasSize ] = createSignal<THREE.Vector2>();
 
+let [ getOrbitMode, setOrbitMode ] = createSignal(false);
+
 let [ upDown, setUpDown, ] = createSignal(false);
 let [ downDown, setDownDown, ] = createSignal(false);
 let [ leftDown, setLeftDown, ] = createSignal(false);
@@ -243,6 +245,8 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
   const direction = new THREE.Vector3().subVectors(lookAheadPos, startPos).normalize();
   
   const startVel = new THREE.Vector3(0, 0, 0);
+  const initialHeight = getGroundHeight(startPos.x, startPos.z) + 0.3;
+  startPos.y = initialHeight;
   const kartEntityId = createKart({
     position: startPos,
     velocity: startVel,
@@ -269,6 +273,99 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
 
   const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
 
+  let orbitYaw = 0;
+  let orbitPitch = 0.5;
+  let orbitDistance = 5;
+  let isDragging = false;
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+  let lastTouchDist = 0;
+  let lastTapTime = 0;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    (canvas as any).setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging || !getOrbitMode()) return;
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+    orbitYaw -= dx * 0.01;
+    orbitPitch = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, orbitPitch + dy * 0.01));
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    isDragging = false;
+  });
+
+  canvas.addEventListener('pointercancel', () => { isDragging = false; });
+
+  // Prevent context menu on long press
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Touch events for single finger orbit (more reliable than pointer on mobile)
+  let touchDragging = false;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touchDragging = true;
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!getOrbitMode()) return;
+    e.preventDefault();
+    if (e.touches.length === 1 && touchDragging) {
+      const dx = e.touches[0].clientX - lastMouseX;
+      const dy = e.touches[0].clientY - lastMouseY;
+      orbitYaw -= dx * 0.01;
+      orbitPitch = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, orbitPitch + dy * 0.01));
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    touchDragging = false;
+  });
+
+  // Pinch to zoom (need separate touch events for multi-touch)
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!getOrbitMode() || e.touches.length !== 2) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    orbitDistance = Math.max(1, Math.min(20, orbitDistance - (dist - lastTouchDist) * 0.02));
+    lastTouchDist = dist;
+  }, { passive: false });
+
+  canvas.addEventListener('wheel', (e) => {
+    if (getOrbitMode()) {
+      orbitDistance = Math.max(1, Math.min(20, orbitDistance + e.deltaY * 0.01));
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'o' || e.key === 'O') {
+      setOrbitMode(!getOrbitMode());
+    }
+  });
+
   let resizeObserver = new ResizeObserver(() => {
     let rect = canvasDiv.getBoundingClientRect();
     setCanvasSize(new THREE.Vector2(rect.width, rect.height));
@@ -283,11 +380,17 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
     resizeObserver.disconnect();
   });
 
-  const cameraHeight = 1.2;
-  const cameraBehind = 2.5;
+  const cameraHeight = 3.0;
+  const cameraBehind = 6;
+
+  let smoothYaw = 0;
+  let smoothCameraPos = new THREE.Vector3();
+  let smoothCameraLookAt = new THREE.Vector3();
+  const CAMERA_SMOOTH_SPEED = 12;
 
   let running = true;
   let lastTime = performance.now();
+  let isFirstFrame = true;
   const animate = () => {
     if (!running) return;
     
@@ -295,30 +398,81 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
     
-    updatePhysics(dt);
-    
+    // Get kart position
     const posX = ecs.entity(kartEntityId).getField(RegisteredPosition, "x");
     const posY = ecs.entity(kartEntityId).getField(RegisteredPosition, "y");
     const posZ = ecs.entity(kartEntityId).getField(RegisteredPosition, "z");
-
     const kartPos = new THREE.Vector3(posX, posY, posZ);
+    
+    // Calculate yaw from forward vector (more reliable than Euler angles for Y-only rotation)
     const qX = ecs.entity(kartEntityId).getField(RegisteredOrientation, "x");
     const qY = ecs.entity(kartEntityId).getField(RegisteredOrientation, "y");
     const qZ = ecs.entity(kartEntityId).getField(RegisteredOrientation, "z");
     const qW = ecs.entity(kartEntityId).getField(RegisteredOrientation, "w");
-    let yaw = 0;
     const q = new THREE.Quaternion(qX, qY, qZ, qW);
-    const euler = new THREE.Euler().setFromQuaternion(q);
-    yaw = euler.y;
-
-    const cameraOffset = new THREE.Vector3(
-      -Math.sin(yaw) * cameraBehind,
-      cameraHeight,
-      -Math.cos(yaw) * cameraBehind
-    );
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    forward.y = 0; // Project to horizontal plane
+    let yaw = 0;
+    if (forward.length() > 0.001) {
+      forward.normalize();
+      // Yaw is the angle in the XZ plane: atan2(x, z)
+      yaw = Math.atan2(forward.x, forward.z);
+    }
     
-    camera.position.copy(kartPos).add(cameraOffset);
-    camera.lookAt(kartPos.x, kartPos.y + 0.3, kartPos.z);
+    updatePhysics(dt);
+    
+    // Initialize camera on first frame
+    if (isFirstFrame) {
+      isFirstFrame = false;
+      smoothCameraPos.copy(kartPos);
+      smoothCameraLookAt.copy(kartPos);
+      
+      // Initialize smooth yaw
+      smoothYaw = yaw;
+    }
+    
+    if (getOrbitMode()) {
+      // Orbit relative to kart's facing direction
+      const orbitYawAbsolute = yaw + orbitYaw;
+      const target = kartPos;
+      camera.position.set(
+        target.x + orbitDistance * Math.sin(orbitYawAbsolute) * Math.cos(orbitPitch),
+        target.y + orbitDistance * Math.sin(orbitPitch),
+        target.z + orbitDistance * Math.cos(orbitYawAbsolute) * Math.cos(orbitPitch)
+      );
+      camera.lookAt(target);
+    } else {
+      // Calculate target yaw with smoothing
+      let yawDiff = yaw - smoothYaw;
+      // Handle angle wrapping
+      while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+      while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+      smoothYaw += yawDiff * Math.min(1, CAMERA_SMOOTH_SPEED * dt);
+      
+      // Target camera position behind kart
+      const targetOffset = new THREE.Vector3(
+        -Math.sin(smoothYaw) * cameraBehind,
+        cameraHeight,
+        -Math.cos(smoothYaw) * cameraBehind
+      );
+      const targetPos = kartPos.clone().add(targetOffset);
+      
+      // Target look-at point slightly ahead of kart
+      const targetLookAt = kartPos.clone().add(
+        new THREE.Vector3(
+          Math.sin(smoothYaw) * 2,
+          0.3,
+          Math.cos(smoothYaw) * 2
+        )
+      );
+      
+      // Smoothly interpolate camera position
+      smoothCameraPos.lerp(targetPos, 1 - Math.exp(-CAMERA_SMOOTH_SPEED * dt * 3)); // Faster position smoothing
+      smoothCameraLookAt.lerp(targetLookAt, 1 - Math.exp(-CAMERA_SMOOTH_SPEED * dt * 3));
+      
+      camera.position.copy(smoothCameraPos);
+      camera.lookAt(smoothCameraLookAt);
+    }
     
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -397,8 +551,18 @@ function App() {
     >
       <canvas
         ref={setCanvas}
-        style={{ width: "100%", height: "100%", display: "block" }}
+        style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
       />
+      <div style={{ position: "absolute", top: "10px", left: "10px", "z-index": 100 }}>
+        <label style={{ color: "white", "font-family": "sans-serif", "font-size": "14px" }}>
+          <input
+            type="checkbox"
+            checked={getOrbitMode()}
+            onChange={(e) => setOrbitMode(e.target.checked)}
+          />
+          {' '}Orbit Camera
+        </label>
+      </div>
       <joystick.UI/>
       <actionButton.UI/>
     </div>

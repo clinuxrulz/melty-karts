@@ -42,3 +42,9 @@ export const KartConfig = {
     schema: { speed: 0.0 },
     name: "KartConfig"
 };
+
+export const GlobalGravity = {
+    def: { x: "f64", y: "f64", z: "f64" } as const,
+    schema: { x: 0.0, y: -10.0, z: 0.0 },
+    name: "GlobalGravity"
+};

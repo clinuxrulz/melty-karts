@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const TRACK_WIDTH = 2.5;
+export const TRACK_WIDTH = 7.5;
 export const BARRIER_HEIGHT = 0.25;
 
 class PerlinNoise2D {
@@ -72,6 +72,39 @@ class PerlinNoise2D {
 
 export const groundNoise = new PerlinNoise2D(54321);
 export const trackNoise = new PerlinNoise2D(12345);
+let trackCurveInstance: THREE.CatmullRomCurve3 | null = null;
+
+export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
+  if (trackCurveInstance) return trackCurveInstance;
+  
+  const rng = (n: number) => {
+    const x = Math.sin(seed * 9999 + n * 7919) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  const anchorCount = 12 + Math.floor(rng(0) * 6);
+  const centerX = 15;
+  const centerZ = 15;
+  const baseRadius = 80;
+  
+  const controlPoints: THREE.Vector3[] = [];
+  for (let i = 0; i < anchorCount; i++) {
+    const angle = (i / anchorCount) * Math.PI * 2;
+    const radiusVar = 0.7 + rng(i + 1) * 0.6;
+    const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
+    const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
+    const y = getGroundHeight(x, z) + 0.1;
+    controlPoints.push(new THREE.Vector3(x, y, z));
+  }
+  
+  const curve = new THREE.CatmullRomCurve3(controlPoints);
+  curve.closed = true;
+  curve.curveType = "centripetal";
+  curve.tension = 0.5;
+  
+  trackCurveInstance = curve;
+  return curve;
+}
 
 export function getGroundHeight(x: number, z: number, roadY?: number): number {
   const scale = 0.08;
@@ -94,7 +127,7 @@ function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; cu
   const anchorCount = 12 + Math.floor(rng(0) * 6);
   const centerX = 15;
   const centerZ = 15;
-  const baseRadius = 10;
+  const baseRadius = 80;
   
   const controlPoints: THREE.Vector3[] = [];
   for (let i = 0; i < anchorCount; i++) {
@@ -212,50 +245,120 @@ function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; cu
         pos.y + 0.175,
         pos.z
       );
-      postMesh.castShadow = true;
+postMesh.castShadow = true;
       group.add(postMesh);
     }
   }
   
+  for (let side = 0; side < 2; side++) {
+    const propCount = 20;
+    for (let i = 0; i < propCount; i++) {
+      const t = i / propCount;
+      const idx = Math.floor(t * segments);
+      const pos = points[idx];
+      const tangent = curve.getTangentAt(idx / segments);
+      const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+      const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+      
+      const offset = side === 0 ? -hw - 36 - Math.random() * 48 : hw + 36 + Math.random() * 48;
+      const worldX = pos.x + normal2D.x * offset;
+      const worldZ = pos.z + normal2D.y * offset;
+      const y = getGroundHeight(worldX, worldZ) + 0.1;
+      
+      if (Math.random() > 0.5) {
+        const trunkH = 0.6;
+        const trunkR = 0.1;
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8),
+          new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+        );
+        trunk.position.set(worldX, y + trunkH / 2, worldZ);
+        trunk.castShadow = true;
+        group.add(trunk);
+
+        const foliageR = 0.35;
+        const foliageH = 0.5;
+        const foliage = new THREE.Mesh(
+          new THREE.ConeGeometry(foliageR, foliageH, 8),
+          new THREE.MeshStandardMaterial({ color: 0x228b22 })
+        );
+        foliage.position.set(worldX, y + trunkH + foliageH / 2 - 0.05, worldZ);
+        foliage.castShadow = true;
+        group.add(foliage);
+      } else {
+        const rockR = 0.2 + Math.random() * 0.3;
+        const rock = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(rockR, 0),
+          new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 })
+        );
+        rock.position.set(worldX, y + rockR * 0.5, worldZ);
+        rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        rock.castShadow = true;
+        group.add(rock);
+      }
+    }
+  }
+   
   return { group, curve };
 }
 
 export function generateTrack(
   pointCount: number = 18,
-  boundarySize: number = 30,
+  boundarySize: number = 120,
   seed: number = 12345
 ): THREE.Group {
   const { group, curve } = generateProceduralTrack(seed);
   return group;
 }
 
-export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
-  const rng = (n: number) => {
-    const x = Math.sin(seed * 9999 + n * 7919) * 10000;
-    return x - Math.floor(x);
-  };
+export function getTrackCurveForPhysics(): THREE.CatmullRomCurve3 | null {
+  return trackCurveInstance;
+}
+
+export function getTrackWidth(): number {
+  return TRACK_WIDTH;
+}
+
+export function isPointOnTrack(x: number, z: number, margin: number = 0): boolean {
+  const curve = trackCurveInstance;
+  if (!curve) return false;
   
-  const anchorCount = 12 + Math.floor(rng(0) * 6);
-  const centerX = 15;
-  const centerZ = 15;
-  const baseRadius = 10;
+  const segments = 100;
+  let minDist = Infinity;
   
-  const controlPoints: THREE.Vector3[] = [];
-  for (let i = 0; i < anchorCount; i++) {
-    const angle = (i / anchorCount) * Math.PI * 2;
-    const radiusVar = 0.7 + rng(i + 1) * 0.6;
-    const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
-    const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
-    const y = getGroundHeight(x, z) + 0.1;
-    controlPoints.push(new THREE.Vector3(x, y, z));
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const point = curve.getPointAt(t);
+    const dx = point.x - x;
+    const dz = point.z - z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < minDist) {
+      minDist = dist;
+    }
   }
   
-  const curve = new THREE.CatmullRomCurve3(controlPoints);
-  curve.closed = true;
-  curve.curveType = "centripetal";
-  curve.tension = 0.5;
+  return minDist <= TRACK_WIDTH / 2 + margin;
+}
+
+export function getDistanceToTrackCenter(x: number, z: number): number {
+  const curve = trackCurveInstance;
+  if (!curve) return Infinity;
   
-  return curve;
+  const segments = 100;
+  let minDist = Infinity;
+  
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const point = curve.getPointAt(t);
+    const dx = point.x - x;
+    const dz = point.z - z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < minDist) {
+      minDist = dist;
+    }
+  }
+  
+  return minDist;
 }
 
 export function getTrackHeightAt(t: number, curve?: THREE.CatmullRomCurve3): number {
