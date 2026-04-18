@@ -12,8 +12,8 @@ import { Accessor } from "solid-js";
 import { getGroundHeight, getTrackCurveForPhysics, TRACK_WIDTH, getDistanceToTrackCenter } from "../models/Track";
 
 // DEBUG: Wheel physics constants - START
-export const WHEEL_OFFSET_X = 0.95;  // Doubled from 0.35
-export const WHEEL_OFFSET_Z = 0.95;  // Doubled from 0.4
+export const WHEEL_OFFSET_X = 0.45;  // Doubled from 0.35
+export const WHEEL_OFFSET_Z = 0.45;  // Doubled from 0.4
 export const WHEEL_OFFSET_Y = 0.25;   // Vertical offset from kart center
 export const SUSPENSION_REST_LENGTH = 0.15;
 export const SUSPENSION_STRENGTH = 200.0;
@@ -57,6 +57,7 @@ const wheelOffsets = [
   let driftDirection = 0;
   let suspensionCompression = [0, 0, 0, 0];
   let prevSuspensionCompression = [0, 0, 0, 0];
+  let verticalVelocity = 0;
   
   return {
     update(dt: number) {
@@ -224,13 +225,13 @@ const wheelOffsets = [
         const wheelPos = new THREE.Vector3(newPos.x, newPos.y, newPos.z).add(wheelOffset);
         
         let groundY = getGroundHeight(wheelPos.x, wheelPos.z);
-        
-        // If track curve is available, blend in road height near the track
+
+        // If track curve is available, calculate the road height based on lateral distance
         if (trackCurve) {
-          const segments = 100;
+          const segments = 200; // More segments for better precision
           let minDist = Infinity;
           let nearestY = 0;
-          for (let j = 0; j < segments; j++) {
+          for (let j = 0; j <= segments; j++) {
             const t = j / segments;
             const trackPoint = trackCurve.getPointAt(t);
             const dx = trackPoint.x - wheelPos.x;
@@ -242,27 +243,39 @@ const wheelOffsets = [
             }
           }
           
-          // Blend with road height near the track (matching mesh logic)
-          const blendDist = TRACK_WIDTH / 2 + 3;
-          if (minDist < blendDist) {
-            const blend = Math.max(0, 1 - minDist / blendDist);
-            groundY = groundY * (1 - blend) + (nearestY - 0.15) * blend;
+          const halfWidth = TRACK_WIDTH / 2;
+          const blendMargin = 3.0;
+          let height = groundY;
+          
+          if (minDist <= halfWidth + blendMargin) {
+            const roadSurfaceY = nearestY;
+            if (minDist <= halfWidth) {
+              height = roadSurfaceY;
+            } else {
+              const blendFactor = (minDist - halfWidth) / blendMargin;
+              height = (roadSurfaceY * (1 - blendFactor)) + (height * blendFactor);
+            }
           }
+          groundY = Math.max(height, nearestY);
         }
-        
+
         const targetWheelY = groundY + WHEEL_RADIUS + SUSPENSION_REST_LENGTH;
         
         wheelHeights.push(targetWheelY);
       }
       
-      const minWheelHeight = Math.min(...wheelHeights);
-      
-      newPos.y = minWheelHeight + SUSPENSION_REST_LENGTH;
-      
       const frontAvgHeight = (wheelHeights[0] + wheelHeights[1]) / 2;
       const backAvgHeight = (wheelHeights[2] + wheelHeights[3]) / 2;
       const leftAvgHeight = (wheelHeights[0] + wheelHeights[2]) / 2;
       const rightAvgHeight = (wheelHeights[1] + wheelHeights[3]) / 2;
+      
+      const avgHeight = (frontAvgHeight + backAvgHeight) / 2;
+      const targetY = avgHeight - WHEEL_OFFSET_Y;
+      
+      const suspensionError = targetY - newPos.y;
+      const springForce = (suspensionError * SUSPENSION_STRENGTH) - (verticalVelocity * SUSPENSION_DAMPER);
+      verticalVelocity += springForce * dt;
+      newPos.y += verticalVelocity * dt;
       
       const targetPitch = Math.atan2(backAvgHeight - frontAvgHeight, WHEEL_OFFSET_Z * 2);
       const targetRoll = Math.atan2(rightAvgHeight - leftAvgHeight, WHEEL_OFFSET_X * 2);

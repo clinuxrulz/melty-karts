@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const TRACK_WIDTH = 7.5;
+export const TRACK_WIDTH = 12;
 export const BARRIER_HEIGHT = 0.25;
 
 class PerlinNoise2D {
@@ -93,7 +93,15 @@ export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
     const radiusVar = 0.7 + rng(i + 1) * 0.6;
     const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
     const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
-    const y = getGroundHeight(x, z) + 0.1;
+    
+    // Add a dip halfway along the track
+    const t = i / anchorCount;
+    const dipCenter = 0.5;
+    const dipWidth = 0.08;
+    const dipDepth = 6.0;
+    const dipAmount = Math.exp(-Math.pow(t - dipCenter, 2) / (2 * Math.pow(dipWidth, 2)));
+    
+    const y = getGroundHeight(x, z) + 0.1 - dipAmount * dipDepth;
     controlPoints.push(new THREE.Vector3(x, y, z));
   }
   
@@ -106,43 +114,15 @@ export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
   return curve;
 }
 
-export function getGroundHeight(x: number, z: number, roadY?: number): number {
-  const scale = 0.08;
-  const groundY = groundNoise.fbm(x * scale, z * scale, 4) * 2;
-  if (roadY !== undefined) {
-    const blendDist = 4;
-    const blend = Math.max(0, 1 - Math.abs(groundY - roadY) / blendDist);
-    return groundY * (1 - blend) + (roadY - 0.15) * blend;
-  }
+export function getGroundHeight(x: number, z: number): number {
+  const scale = 0.12;
+  const groundY = groundNoise.fbm(x * scale, z * scale, 4) * 10;//5;
   return groundY;
 }
 
 function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; curve: THREE.CatmullRomCurve3 } {
   const group = new THREE.Group();
-  const rng = (n: number) => {
-    const x = Math.sin(seed * 9999 + n * 7919) * 10000;
-    return x - Math.floor(x);
-  };
-  
-  const anchorCount = 12 + Math.floor(rng(0) * 6);
-  const centerX = 15;
-  const centerZ = 15;
-  const baseRadius = 80;
-  
-  const controlPoints: THREE.Vector3[] = [];
-  for (let i = 0; i < anchorCount; i++) {
-    const angle = (i / anchorCount) * Math.PI * 2;
-    const radiusVar = 0.7 + rng(i + 1) * 0.6;
-    const x = centerX + Math.cos(angle) * baseRadius * radiusVar;
-    const z = centerZ + Math.sin(angle) * baseRadius * radiusVar;
-    const y = getGroundHeight(x, z) + 0.1;
-    controlPoints.push(new THREE.Vector3(x, y, z));
-  }
-  
-  const curve = new THREE.CatmullRomCurve3(controlPoints);
-  curve.closed = true;
-  curve.curveType = "centripetal";
-  curve.tension = 0.5;
+  const curve = getTrackCurve(seed);
   
   const segments = 400;
   const points = curve.getSpacedPoints(segments);
@@ -298,17 +278,57 @@ postMesh.castShadow = true;
       }
     }
   }
+
+  // Add rock tunnel
+  const tunnelT = 0.5;
+  const tunnelRange = 0.09; // Range in T (tripled from 0.03)
+  const rockSegments = 75; // Number of rings (tripled from 25)
+  const rocksPerSegment = 10; // Rocks per ring
+  
+  for (let i = 0; i <= rockSegments; i++) {
+    const t = tunnelT - tunnelRange + (i / rockSegments) * (tunnelRange * 2);
+    // Use modulo for safety, though t should be within [0, 1]
+    const pos = curve.getPointAt((t + 1) % 1);
+    const tangent = curve.getTangentAt((t + 1) % 1);
+    
+    const tangent2D = new THREE.Vector2(tangent.x, tangent.z).normalize();
+    const normal2D = new THREE.Vector2(-tangent2D.y, tangent2D.x);
+    const normal = new THREE.Vector3(normal2D.x, 0, normal2D.y);
+    const up = new THREE.Vector3(0, 1, 0);
+
+    for (let j = 0; j < rocksPerSegment; j++) {
+      const angle = (j / (rocksPerSegment - 1)) * Math.PI;
+      const radius = TRACK_WIDTH * 0.85 + Math.random() * 1.0;
+      
+      const rockPos = pos.clone()
+        .add(normal.clone().multiplyScalar(Math.cos(angle) * radius))
+        .add(up.clone().multiplyScalar(Math.sin(angle) * radius * 0.9)); // Slightly lower arch but wider
+        
+      const rockSize = 1.5 + Math.random() * 1.0;
+      const rockGeo = new THREE.DodecahedronGeometry(rockSize, 0);
+      const rockMat = new THREE.MeshStandardMaterial({ 
+        color: 0x555555, 
+        roughness: 0.9,
+        flatShading: true 
+      });
+      const rock = new THREE.Mesh(rockGeo, rockMat);
+      rock.position.copy(rockPos);
+      rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      group.add(rock);
+    }
+  }
    
   return { group, curve };
 }
 
 export function generateTrack(
-  pointCount: number = 18,
-  boundarySize: number = 120,
   seed: number = 12345
-): THREE.Group {
-  const { group, curve } = generateProceduralTrack(seed);
-  return group;
+): { group: THREE.Group; curve: THREE.CatmullRomCurve3 } {
+  let r = generateProceduralTrack(seed);
+  trackCurveInstance = r.curve;
+  return r;
 }
 
 export function getTrackCurveForPhysics(): THREE.CatmullRomCurve3 | null {
@@ -364,7 +384,7 @@ export function getDistanceToTrackCenter(x: number, z: number): number {
 export function getTrackHeightAt(t: number, curve?: THREE.CatmullRomCurve3): number {
   if (!curve) return 0;
   const pos = curve.getPointAt(t % 1);
-  return getGroundHeight(pos.x, pos.z) + 0.1;
+  return pos.y;
 }
 
 export function createStartFinishLine(curve: THREE.CatmullRomCurve3, t: number = 0): THREE.Group {

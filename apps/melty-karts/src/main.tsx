@@ -1,5 +1,5 @@
 import { render } from "@solidjs/web";
-import { createEffect, createMemo, createRoot, createSignal, onCleanup } from "solid-js";
+import { Accessor, createEffect, createMemo, createRoot, createSignal, onCleanup } from "solid-js";
 import * as THREE from "three";
 import { generateTrack, getTrackCurve, getGroundHeight, TRACK_WIDTH, createStartFinishLine } from "./models/Track";
 import { World, RegisteredPosition, RegisteredVelocity, RegisteredOrientation } from "./World";
@@ -53,51 +53,74 @@ function createBuilding(width: number, height: number, depth: number): THREE.Gro
 }
 
 function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
-  const bounds = computeWorldBounds(curve, 18);
-  const trackPoints = curve.getSpacedPoints(200);
-  const treeCount = 40;
-  const buildingCount = 15;
-  const minDistFromTrack = 25;
-  const spread = 18;
-  
+  const treeCount = 80;
+  const buildingCount = 25;
+  const totalProps = treeCount + buildingCount;
+
   const rng = (i: number) => {
     const x = Math.sin(i * 7919) * 10000;
     return x - Math.floor(x);
   };
-  
-  for (let i = 0; i < treeCount + buildingCount; i++) {
-    let x: number, z: number, dist: number;
-    let attempts = 0;
-    do {
-      x = (rng(i * 2) - 0.5) * spread * 2 + bounds.centerX;
-      z = (rng(i * 2 + 1) - 0.5) * spread * 2 + bounds.centerZ;
-      dist = Infinity;
-      for (const tp of trackPoints) {
-        const d = Math.sqrt((tp.x - x) ** 2 + (tp.z - z) ** 2);
-        if (d < dist) dist = d;
-      }
-      attempts++;
-    } while (dist < minDistFromTrack && attempts < 20);
+
+  for (let i = 0; i < totalProps; i++) {
+    // Pick a random spot along the track
+    const t = rng(i * 13);
     
-    if (dist < minDistFromTrack) continue;
-    
-    const groundY = getGroundHeight(x, z);
-    
+    // Skip if near the rock tunnel (t ~ 0.5)
+    if (Math.abs(t - 0.5) < 0.11) continue;
+
+    const pos = curve.getPointAt(t);
+    const tangent = curve.getTangentAt(t);
+
+    // Calculate normal for side offset
+    const nx = -tangent.z;
+    const nz = tangent.x;
+    const nLen = Math.sqrt(nx * nx + nz * nz);
+    const normalizedNx = nx / nLen;
+    const normalizedNz = nz / nLen;
+
+    const side = rng(i * 17) > 0.5 ? 1 : -1;
+    const distanceOffset = (TRACK_WIDTH / 2 + 4) + rng(i * 19) * 25;
+
+    const x = pos.x + normalizedNx * distanceOffset * side;
+    const z = pos.z + normalizedNz * distanceOffset * side;
+
+    const terrainHeight = getGroundHeight(x, z);
+    const halfWidth = TRACK_WIDTH / 2;
+    const blendMargin = 6.0;
+    let height = terrainHeight;
+
+    // Apply same carving logic as terrain mesh
+    if (distanceOffset <= halfWidth + blendMargin) {
+      const roadTargetY = pos.y + 0.02;
+      const blendFactor = (distanceOffset - halfWidth) / blendMargin;
+      const cutHeight = Math.min(terrainHeight, roadTargetY);
+      height = cutHeight * (1 - blendFactor) + terrainHeight * blendFactor;
+    }
+
     if (i < treeCount) {
       const tree = createTree(1.5 + rng(i * 7) * 2);
-      tree.position.set(x, groundY, z);
+      tree.position.set(x, height, z);
       scene.add(tree);
     } else {
       const w = 1 + rng(i * 3) * 2;
       const h = 1.5 + rng(i * 4) * 3;
       const d = 1 + rng(i * 5) * 2;
       const building = createBuilding(w, h, d);
-      building.position.set(x, groundY, z);
+      let height2 = Math.min(
+        height,
+        getGroundHeight(x - 0.5 * w, z - 0.5 * d),
+        getGroundHeight(x - 0.5 * w, z + 0.5 * d),
+        getGroundHeight(x + 0.5 * w, z - 0.5 * d),
+        getGroundHeight(x + 0.5 * w, z + 0.5 * d),
+      );
+      building.position.set(x, height2, z);
+      // Face the building towards the track
+      building.lookAt(pos.x, height, pos.z);
       scene.add(building);
     }
   }
 }
-
 function computeWorldBounds(curve: THREE.CatmullRomCurve3, propSpread: number) {
   const points = curve.getSpacedPoints(200);
   let minX = Infinity, maxX = -Infinity;
@@ -146,7 +169,24 @@ function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bound
         }
       }
       
-      const height = getGroundHeight(worldX, worldZ, minDist < TRACK_WIDTH / 2 + 3 ? roadY : undefined);
+      const halfWidth = TRACK_WIDTH / 2;
+      const blendMargin = 3.0;
+      let height = getGroundHeight(worldX, worldZ);
+      
+      if (minDist <= halfWidth + blendMargin) {
+        const roadSurfaceY = roadY - 0.2; // Slightly deeper carving
+        if (minDist <= halfWidth) {
+          height = roadSurfaceY;
+        } else {
+          const blendFactor = (minDist - halfWidth) / blendMargin;
+          // Interpolate with original ground height
+          const originalHeight = getGroundHeight(worldX, worldZ);
+          const interpolatedHeight = (roadSurfaceY * (1 - blendFactor)) + (originalHeight * blendFactor);
+          // NEW: Force the terrain to stay below the road level near the edges
+          const heightCap = roadSurfaceY + blendFactor * 1.5;
+          height = Math.min(interpolatedHeight, heightCap);
+        }
+      }
       
       vertices.push(worldX, height, worldZ);
       uvs.push(x / resolution * 4, z / resolution * 4);
@@ -216,9 +256,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
   dir.shadow.mapSize.height = 2048;
   scene.add(dir);
   
-  const curve = getTrackCurve(42);
-  
-  const trackGroup = generateTrack(18, 30, 42);
+  const { curve, group: trackGroup, } = generateTrack(42);
   trackGroup.position.set(0, 0, 0);
   scene.add(trackGroup);
   
@@ -245,7 +283,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
   const direction = new THREE.Vector3().subVectors(lookAheadPos, startPos).normalize();
   
   const startVel = new THREE.Vector3(0, 0, 0);
-  const initialHeight = getGroundHeight(startPos.x, startPos.z) + 0.3;
+  const initialHeight = startPos.y + 0.1;
   startPos.y = initialHeight;
   const kartEntityId = createKart({
     position: startPos,
@@ -259,7 +297,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
   const turnAmount = createMemo(() => {
     const joyX = joystickValue().x;
     if (Math.abs(joyX) > 0.01) {
-      return joyX * 2; // Joystick value is -0.5 to 0.5
+      return joyX * 2; // Joystick value is -0.5 to 0.55
     }
     if (leftDown()) return -1;
     if (rightDown()) return 1;
