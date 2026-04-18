@@ -202,7 +202,7 @@ declare global {
   }
 }
 
-function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
+function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystickValue: Accessor<THREE.Vector2>) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x5ba8c9);
   
@@ -256,11 +256,20 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
   });
   
   const { dispose: disposeRender } = createRenderSystem(ecs, scene);
+  const turnAmount = createMemo(() => {
+    const joyX = joystickValue().x;
+    if (Math.abs(joyX) > 0.01) {
+      return joyX * 2; // Joystick value is -0.5 to 0.5
+    }
+    if (leftDown()) return -1;
+    if (rightDown()) return 1;
+    return 0;
+  });
+
   const { update: updatePhysics } = createKartPhysicsSystem({
     ecs,
     entityId: kartEntityId,
-    leftDown,
-    rightDown,
+    turnAmount,
     upDown,
     downDown,
     actionDown,
@@ -514,16 +523,6 @@ function App() {
     size: () => actionButtonSize,
   });
 
-  createEffect(() => joystick.value(), (joyValue) => {
-    if (Math.abs(joyValue.x) > 0.1) {
-      setLeftDown(joyValue.x < -0.1);
-      setRightDown(joyValue.x > 0.1);
-    } else {
-      setLeftDown(false);
-      setRightDown(false);
-    }
-  });
-
   createEffect(() => actionButton.pressed(), (pressed) => {
     setActionDown(pressed);
   });
@@ -536,7 +535,7 @@ function App() {
       return;
     }
     createRoot((dispose) => {
-      initScene(canvasDivVal, canvasVal);
+      initScene(canvasDivVal, canvasVal, joystick.value);
       return dispose;
     });
   });

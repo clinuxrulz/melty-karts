@@ -25,14 +25,13 @@ export const WHEEL_RADIUS = 0.1;
 export function createKartPhysicsSystem(params: {
   ecs: ReactiveECS,
   entityId: EntityID,
-  leftDown: Accessor<boolean>,
-  rightDown: Accessor<boolean>,
+  turnAmount: Accessor<number>,
   upDown: Accessor<boolean>,
   downDown: Accessor<boolean>,
   actionDown: Accessor<boolean>,
   driftDown: Accessor<boolean>,
 }) {
-  let { ecs, entityId, leftDown, rightDown, upDown, downDown, actionDown, driftDown, } = params;
+  let { ecs, entityId, turnAmount, upDown, downDown, actionDown, driftDown, } = params;
   
   const MAX_SPEED = 20.0;
   const MAX_BOOST_SPEED = 36.0;
@@ -109,14 +108,11 @@ const wheelOffsets = [
 
       ecs.set_field(entityId, RegisteredKartConfig, "speed", newSpeed);
 
-      let steering = 0;
+      let steering = -turnAmount() * TURN_SPEED * dt;
       let turnDirection = 0;
-      if (leftDown()) {
-        steering += TURN_SPEED * dt;
+      if (turnAmount() < -0.1) {
         turnDirection = -1;
-      }
-      if (rightDown()) {
-        steering -= TURN_SPEED * dt;
+      } else if (turnAmount() > 0.1) {
         turnDirection = 1;
       }
 
