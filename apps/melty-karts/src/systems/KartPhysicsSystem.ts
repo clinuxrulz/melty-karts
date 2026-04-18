@@ -178,11 +178,11 @@ const wheelOffsets = [
       if (trackCurve) {
         const trackHalfWidth = TRACK_WIDTH / 2;
         const distToTrack = getDistanceToTrackCenter(newPos.x, newPos.z);
-        const barrierRadius = trackHalfWidth + 0.3;
+        const barrierRadius = trackHalfWidth; // Strict barrier
         
         if (distToTrack > barrierRadius && distToTrack < 50 && Number.isFinite(newPos.x) && Number.isFinite(newPos.z)) {
           // Find nearest point on track
-          const segments = 50;
+          const segments = 100; // Increased segments for better accuracy
           let nearestX = 0, nearestZ = 0, minDist = Infinity;
           for (let j = 0; j <= segments; j++) {
             const t = j / segments;
@@ -201,23 +201,17 @@ const wheelOffsets = [
           const normalX = (newPos.x - nearestX) / minDist;
           const normalZ = (newPos.z - nearestZ) / minDist;
           
-          // Calculate normal velocity component (how fast moving outwards)
-          const normalVel = newVel.x * normalX + newVel.z * normalZ;
+          // Project position back to track boundary (no velocity modification)
+          const overshoot = distToTrack - barrierRadius;
+          newPos.x -= normalX * overshoot;
+          newPos.z -= normalZ * overshoot;
           
-          // Only bounce if moving outwards
-          if (normalVel > 0) {
-            // Push back along normal direction
-            const overshoot = distToTrack - barrierRadius;
-            newPos.x -= normalX * overshoot * 0.5;
-            newPos.z -= normalZ * overshoot * 0.5;
-            
-            // Remove outward velocity component, keep tangential
-            newVel.x -= normalX * normalVel;
-            newVel.z -= normalZ * normalVel;
-          }
-        }
-      }
-      
+          // Note: We intentionally do NOT modify velocity here
+          // This allows the kart to continue moving naturally after being repositioned
+          // which prevents confusion about direction of travel
+         }
+       }
+    
       for (let i = 0; i < 4; i++) {
         prevSuspensionCompression[i] = suspensionCompression[i];
       }
