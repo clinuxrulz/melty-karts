@@ -1,10 +1,13 @@
 import { render } from "@solidjs/web";
-import { createEffect, createMemo, createOwner, createRoot, createSignal, onCleanup, onSettled } from "solid-js";
+import { createEffect, createMemo, createRoot, createSignal, onCleanup } from "solid-js";
 import * as THREE from "three";
 import { generateTrack, getTrackCurve, getGroundHeight, TRACK_WIDTH, createStartFinishLine } from "./models/Track";
-import { World, RegisteredPosition, RegisteredVelocity } from "./World";
+import { World, RegisteredPosition, RegisteredVelocity, RegisteredOrientation } from "./World";
 import { createKart } from "./Kart";
 import { createRenderSystem } from "./systems/RenderSystem";
+import { createKartPhysicsSystem } from "./systems/KartPhysicsSystem";
+import { Joystick } from "./Joystick";
+import { ActionButton } from "./ActionButton";
 
 function createTree(height: number): THREE.Group {
   const group = new THREE.Group();
@@ -177,6 +180,26 @@ function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bound
   return { mesh: new THREE.Mesh(geometry, material), bounds };
 }
 
+let [ canvasSize, setCanvasSize ] = createSignal<THREE.Vector2>();
+
+let [ upDown, setUpDown, ] = createSignal(false);
+let [ downDown, setDownDown, ] = createSignal(false);
+let [ leftDown, setLeftDown, ] = createSignal(false);
+let [ rightDown, setRightDown, ] = createSignal(false);
+let [ actionDown, setActionDown, ] = createSignal(false);
+let [ driftDown, setDriftDown, ] = createSignal(false);
+
+declare global {
+  interface Window {
+    upDown: boolean;
+    downDown: boolean;
+    leftDown: boolean;
+    rightDown: boolean;
+    actionDown: boolean;
+    driftDown: boolean;
+  }
+}
+
 function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x5ba8c9);
@@ -215,6 +238,10 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
   
   const t = 0.01;
   const startPos = curve.getPointAt(t);
+  const lookAheadT = t + 0.01;
+  const lookAheadPos = curve.getPointAt(lookAheadT);
+  const direction = new THREE.Vector3().subVectors(lookAheadPos, startPos).normalize();
+  
   const startVel = new THREE.Vector3(0, 0, 0);
   const kartEntityId = createKart({
     position: startPos,
@@ -225,7 +252,17 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
   });
   
   const { dispose: disposeRender } = createRenderSystem(ecs, scene);
-  
+  const { update: updatePhysics } = createKartPhysicsSystem({
+    ecs,
+    entityId: kartEntityId,
+    leftDown,
+    rightDown,
+    upDown,
+    downDown,
+    actionDown,
+    driftDown,
+  });
+
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -234,6 +271,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
 
   let resizeObserver = new ResizeObserver(() => {
     let rect = canvasDiv.getBoundingClientRect();
+    setCanvasSize(new THREE.Vector2(rect.width, rect.height));
     renderer.setSize(rect.width, rect.height);
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
@@ -244,41 +282,43 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement) {
     resizeObserver.unobserve(canvasDiv);
     resizeObserver.disconnect();
   });
-  
-  let progress = 0;
-  const speed = 0.0008;
-  const lookAheadDistance = 0.025;
+
   const cameraHeight = 1.2;
   const cameraBehind = 2.5;
-  
+
   let running = true;
+  let lastTime = performance.now();
   const animate = () => {
     if (!running) return;
     
-    progress += speed;
-    if (progress > 1) progress -= 1;
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
     
-    const currentPos = curve.getPointAt(progress);
-    const terrainHeight = currentPos.y;
+    updatePhysics(dt);
     
-    ecs.set_field(kartEntityId, RegisteredPosition, "x", currentPos.x);
-    ecs.set_field(kartEntityId, RegisteredPosition, "y", terrainHeight);
-    ecs.set_field(kartEntityId, RegisteredPosition, "z", currentPos.z);
-    
-    let lookAheadT = progress + lookAheadDistance;
-    if (lookAheadT > 1) lookAheadT -= 1;
-    const lookAheadPos = curve.getPointAt(lookAheadT);
-    
-    const direction = new THREE.Vector3().subVectors(lookAheadPos, currentPos).normalize();
-    
-    const cameraPos = new THREE.Vector3(
-      currentPos.x - direction.x * cameraBehind,
-      terrainHeight + cameraHeight,
-      currentPos.z - direction.z * cameraBehind
+    const posX = ecs.entity(kartEntityId).getField(RegisteredPosition, "x");
+    const posY = ecs.entity(kartEntityId).getField(RegisteredPosition, "y");
+    const posZ = ecs.entity(kartEntityId).getField(RegisteredPosition, "z");
+
+    const kartPos = new THREE.Vector3(posX, posY, posZ);
+    const qX = ecs.entity(kartEntityId).getField(RegisteredOrientation, "x");
+    const qY = ecs.entity(kartEntityId).getField(RegisteredOrientation, "y");
+    const qZ = ecs.entity(kartEntityId).getField(RegisteredOrientation, "z");
+    const qW = ecs.entity(kartEntityId).getField(RegisteredOrientation, "w");
+    let yaw = 0;
+    const q = new THREE.Quaternion(qX, qY, qZ, qW);
+    const euler = new THREE.Euler().setFromQuaternion(q);
+    yaw = euler.y;
+
+    const cameraOffset = new THREE.Vector3(
+      -Math.sin(yaw) * cameraBehind,
+      cameraHeight,
+      -Math.cos(yaw) * cameraBehind
     );
     
-    camera.position.copy(cameraPos);
-    camera.lookAt(lookAheadPos.x, lookAheadPos.y + 0.3, lookAheadPos.z);
+    camera.position.copy(kartPos).add(cameraOffset);
+    camera.lookAt(kartPos.x, kartPos.y + 0.3, kartPos.z);
     
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -296,27 +336,56 @@ function App() {
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
 
-  createEffect(
-    () => [
-      canvasDiv(),
-      canvas(),
-    ] as const,
-    ([
-      canvasDiv,
-      canvas,
-    ]) => {
-      if (canvasDiv == undefined) {
-        return;
-      }
-      if (canvas === undefined) {
-        return;
-      }
-      createRoot((dispose) => {
-        initScene(canvasDiv, canvas);
-        return dispose;
-      });
-    },
-  );
+  let joystickHitAreaSize = 150;
+  let joystick = Joystick({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        50.0,
+        (canvasSize()?.y ?? 0) - 50 - joystickHitAreaSize,
+      )
+    ),
+    hitAreaSize: joystickHitAreaSize,
+    outerRingSize: () => 0.8 * joystickHitAreaSize,
+    knobSize: () => 70,
+  });
+
+  let actionButtonSize = 100;
+  let actionButton = ActionButton({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        (canvasSize()?.x ?? 0) - 50 - actionButtonSize,
+        (canvasSize()?.y ?? 0) - 50 - actionButtonSize,
+      )
+    ),
+    size: () => actionButtonSize,
+  });
+
+  createEffect(() => joystick.value(), (joyValue) => {
+    if (Math.abs(joyValue.x) > 0.1) {
+      setLeftDown(joyValue.x < -0.1);
+      setRightDown(joyValue.x > 0.1);
+    } else {
+      setLeftDown(false);
+      setRightDown(false);
+    }
+  });
+
+  createEffect(() => actionButton.pressed(), (pressed) => {
+    setActionDown(pressed);
+  });
+
+  createEffect(() => [canvasDiv(), canvas()] as const, ([canvasDivVal, canvasVal]) => {
+    if (canvasDivVal == undefined) {
+      return;
+    }
+    if (canvasVal === undefined) {
+      return;
+    }
+    createRoot((dispose) => {
+      initScene(canvasDivVal, canvasVal);
+      return dispose;
+    });
+  });
   
   return (
     <div
@@ -330,9 +399,59 @@ function App() {
         ref={setCanvas}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
+      <joystick.UI/>
+      <actionButton.UI/>
     </div>
   );
 }
 
 const root = document.getElementById("root");
 if (root) render(() => <App />, root);
+
+document.addEventListener("keydown", (e) => {
+  switch (e.key) {
+    case "ArrowUp":
+      setUpDown(true);
+      break;
+    case "ArrowDown":
+      setDownDown(true);
+      break;
+    case "ArrowLeft":
+      setLeftDown(true);
+      break;
+    case "ArrowRight":
+      setRightDown(true);
+      break;
+    case " ":
+      setActionDown(true);
+      break;
+    case "z":
+    case "Z":
+      setDriftDown(true);
+      break;
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  switch (e.key) {
+    case "ArrowUp":
+      setUpDown(false);
+      break;
+    case "ArrowDown":
+      setDownDown(false);
+      break;
+    case "ArrowLeft":
+      setLeftDown(false);
+      break;
+    case "ArrowRight":
+      setRightDown(false);
+      break;
+    case " ":
+      setActionDown(false);
+      break;
+    case "z":
+    case "Z":
+      setDriftDown(false);
+      break;
+  }
+});

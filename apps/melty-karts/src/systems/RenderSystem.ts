@@ -6,6 +6,7 @@ import {
   RegisteredPosition,
   RegisteredPlayerConfig,
   RegisteredKartConfig,
+  RegisteredOrientation,
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -16,7 +17,7 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
     createMemo(mapArray(
       createMemo(() => {
         let result: EntityID[] = [];
-        for (let arch of ecs.query(RegisteredPosition, RegisteredPlayerConfig)) {
+        for (let arch of ecs.query(RegisteredPosition, RegisteredOrientation, RegisteredPlayerConfig)) {
           let entityIds = arch.entity_ids;
           for (let i = 0; i < arch.entity_count; ++i) {
             result.push(entityIds[i] as EntityID);
@@ -53,14 +54,13 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
           let positionX = kartEntity.getField(RegisteredPosition, "x");
           let positionY = kartEntity.getField(RegisteredPosition, "y");
           let positionZ = kartEntity.getField(RegisteredPosition, "z");
-          let facingForward = kartEntity.getField(RegisteredPlayerConfig, "facingForward");
+          let qX = kartEntity.getField(RegisteredOrientation, "x");
+          let qY = kartEntity.getField(RegisteredOrientation, "y");
+          let qZ = kartEntity.getField(RegisteredOrientation, "z");
+          let qW = kartEntity.getField(RegisteredOrientation, "w");
           
           kartGroup.position.set(positionX, positionY, positionZ);
-          if (facingForward === 1) { 
-            kartGroup.quaternion.set(0.0, 1.0, 0.0, 0.0);
-          } else {
-            kartGroup.quaternion.set(0.0, 0.0, 0.0, 1.0);
-          }
+          kartGroup.quaternion.set(qX, qY, qZ, qW);
         });
       },
     ));

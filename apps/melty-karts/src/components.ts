@@ -12,6 +12,12 @@ export const Velocity = {
     name: "Velocity"
 };
 
+export const Orientation = {
+    def: { x: "f64", y: "f64", z: "f64", w: "f64", } as const,
+    schema: { x: 0.0, y: 0.0, z: 0.0, w: 1.0, },
+    name: "Orientation",
+};
+
 export type PlayerTypeEnum = 0 | 1;
 export const PlayerConfig = {
     def: { playerType: "u8", facingForward: "u8" } as const,
