@@ -202,20 +202,29 @@ const wheelOffsets = [
           const normalX = (newPos.x - nearestX) / minDist;
           const normalZ = (newPos.z - nearestZ) / minDist;
           
-          // Project position back to track boundary (no velocity modification)
+          // Project position back to track boundary
           const overshoot = distToTrack - barrierRadius;
           newPos.x -= normalX * overshoot;
           newPos.z -= normalZ * overshoot;
           
-          // Store collision intensity for sound system
+          // Bounce off barrier and penalize speed
           const speed = ecs.entity(entityId).getField(RegisteredKartConfig, "speed");
           if (overshoot > 0.02 && speed > 2) {
+            // Calculate bounce: reflect velocity about the barrier normal
+            const dot = newVel.x * normalX + newVel.z * normalZ;
+            newVel.x = newVel.x - 2 * dot * normalX;
+            newVel.z = newVel.z - 2 * dot * normalZ;
+            
+            // Reduce speed by 30% on collision
+            const bouncePenalty = 0.7;
+            newVel.x *= bouncePenalty;
+            newVel.z *= bouncePenalty;
+            
+            // Store collision intensity for sound system
             (ecs as any)._lastCollision = Math.min(overshoot * 5 + speed / 40, 1.0);
           }
 
-          // Note: We intentionally do NOT modify velocity here
-          // This allows the kart to continue moving naturally after being repositioned
-          // which prevents confusion about direction of travel
+          // Apply position change
          }
        }
     

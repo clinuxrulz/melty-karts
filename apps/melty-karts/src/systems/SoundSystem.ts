@@ -1,9 +1,10 @@
 import { Howl } from "howler";
+import type { Accessor } from "solid-js";
 import type { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
 import { RegisteredKartConfig } from "../World";
 
-export function createSoundSystem(ecs: ReactiveECS) {
+export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<boolean>) {
   const engineSound = new Howl({
     src: ["/engine.mp3"],
     loop: true,
@@ -21,15 +22,31 @@ export function createSoundSystem(ecs: ReactiveECS) {
 
   let engineStarted = false;
   let lastEngineSpeed = 0;
+  let wasEnabled = true;
 
   const update = (dt: number, playerEntityId: EntityID) => {
-    const speed = ecs.entity(playerEntityId).getField(RegisteredKartConfig, "speed");
+    const isEnabled = getSoundEnabled ? getSoundEnabled() : true;
     
-    if (!engineStarted) {
+    if (!isEnabled && engineStarted) {
+      engineSound.stop();
+      engineStarted = false;
+      console.log("Sound disabled, stopped engine");
+    }
+    
+    if (!isEnabled) {
+      return;
+    }
+    
+    if (!engineStarted && wasEnabled) {
       engineSound.play();
       engineStarted = true;
+      console.log("Sound enabled, started engine");
     }
+    
+    wasEnabled = isEnabled;
 
+    const speed = ecs.entity(playerEntityId).getField(RegisteredKartConfig, "speed");
+    
     if (Math.abs(speed - lastEngineSpeed) > 0.5 || speed < 1) {
       const pitch = 0.6 + (speed / 40) * 1.2;
       engineSound.rate(Math.max(0.5, Math.min(pitch, 2.0)));

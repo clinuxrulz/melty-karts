@@ -224,6 +224,7 @@ function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bound
 let [ canvasSize, setCanvasSize ] = createSignal<THREE.Vector2>();
 
 let [ getOrbitMode, setOrbitMode ] = createSignal(false);
+let [ getSoundEnabled, setSoundEnabled ] = createSignal(true);
 
 let [ upDown, setUpDown, ] = createSignal(false);
 let [ downDown, setDownDown, ] = createSignal(false);
@@ -315,7 +316,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
     driftDown,
   });
 
-  const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs);
+  const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs, getSoundEnabled);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
@@ -603,6 +604,15 @@ function App() {
             onChange={(e) => setOrbitMode(e.target.checked)}
           />
           {' '}Orbit Camera
+        </label>
+        <br/>
+        <label style={{ color: "white", "font-family": "sans-serif", "font-size": "14px" }}>
+          <input
+            type="checkbox"
+            checked={getSoundEnabled()}
+            onChange={(e) => setSoundEnabled(e.target.checked)}
+          />
+          {' '}Sound
         </label>
       </div>
       <joystick.UI/>
