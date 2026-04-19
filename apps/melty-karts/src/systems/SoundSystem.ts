@@ -6,7 +6,7 @@ import { RegisteredKartConfig } from "../World";
 
 export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<boolean>) {
   const engineSound = new Howl({
-    src: ["/engine.mp3"],
+    src: ["./engine.mp3"],
     loop: true,
     volume: 0.5,
     autoplay: false,
@@ -15,7 +15,7 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
   });
 
   const hitSound = new Howl({
-    src: ["/crash.ogg"],
+    src: ["./crash.ogg"],
     volume: 0.5,
     onloaderror: (id, err) => console.error("Crash load error:", err),
   });
