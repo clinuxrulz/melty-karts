@@ -207,6 +207,12 @@ const wheelOffsets = [
           newPos.x -= normalX * overshoot;
           newPos.z -= normalZ * overshoot;
           
+          // Store collision intensity for sound system
+          const speed = ecs.entity(entityId).getField(RegisteredKartConfig, "speed");
+          if (overshoot > 0.02 && speed > 2) {
+            (ecs as any)._lastCollision = Math.min(overshoot * 5 + speed / 40, 1.0);
+          }
+
           // Note: We intentionally do NOT modify velocity here
           // This allows the kart to continue moving naturally after being repositioned
           // which prevents confusion about direction of travel

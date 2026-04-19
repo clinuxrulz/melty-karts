@@ -5,6 +5,7 @@ import { generateTrack, getTrackCurve, getGroundHeight, TRACK_WIDTH, createStart
 import { World, RegisteredPosition, RegisteredVelocity, RegisteredOrientation } from "./World";
 import { createKart } from "./Kart";
 import { createRenderSystem } from "./systems/RenderSystem";
+import { createSoundSystem } from "./systems/SoundSystem";
 import { createKartPhysicsSystem } from "./systems/KartPhysicsSystem";
 import { Joystick } from "./Joystick";
 import { ActionButton } from "./ActionButton";
@@ -314,6 +315,8 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
     driftDown,
   });
 
+  const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs);
+
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -467,6 +470,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
     }
     
     updatePhysics(dt);
+    updateSound(dt, kartEntityId);
     
     // Initialize camera on first frame
     if (isFirstFrame) {
@@ -529,6 +533,7 @@ function initScene(canvasDiv: HTMLDivElement, canvas: HTMLCanvasElement, joystic
   return () => {
     running = false;
     disposeRender();
+    disposeSound();
     renderer.dispose();
   };
 }

@@ -10,6 +10,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@types/howler": "^2.2.12",
     "@types/three": "^0.183.1",
     "babel-preset-solid": "2.0.0-beta.3",
     "typescript": "^5.7.2",
@@ -20,6 +21,7 @@
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "^0.2.1",
     "@solidjs/web": "2.0.0-beta.3",
+    "howler": "^2.2.4",
     "solid-js": "2.0.0-beta.3",
     "three": "^0.183.2",
     "three-stdlib": "^2.36.1"
