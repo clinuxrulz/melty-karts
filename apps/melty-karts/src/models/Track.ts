@@ -115,8 +115,8 @@ export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
 }
 
 export function getGroundHeight(x: number, z: number): number {
-  const scale = 0.12;
-  const groundY = groundNoise.fbm(x * scale, z * scale, 4) * 10;//5;
+  const scale = 0.01;
+  const groundY = groundNoise.fbm(x * scale, z * scale, 4) * 40;//5;
   return groundY;
 }
 
