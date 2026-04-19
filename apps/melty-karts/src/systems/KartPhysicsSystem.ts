@@ -215,8 +215,8 @@ const wheelOffsets = [
             newVel.x = newVel.x - 2 * dot * normalX;
             newVel.z = newVel.z - 2 * dot * normalZ;
             
-            // Reduce speed by 30% on collision
-            const bouncePenalty = 0.7;
+            // Reduce speed significantly on collision (decelerate by 70%)
+            const bouncePenalty = 0.3;
             newVel.x *= bouncePenalty;
             newVel.z *= bouncePenalty;
             
