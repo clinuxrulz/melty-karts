@@ -33,7 +33,7 @@ export function createKartPhysicsSystem(params: {
 }) {
   let { ecs, entityId, turnAmount, upDown, downDown, actionDown, driftDown, } = params;
   
-  const MAX_SPEED = 45.0;
+  const MAX_SPEED = 30.0;
   const MAX_BOOST_SPEED = 67.5;
   const ACCELERATION = 2.0;
   const DECELERATION = 6.0;
