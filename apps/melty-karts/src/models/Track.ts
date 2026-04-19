@@ -292,6 +292,15 @@ postMesh.castShadow = true;
   });
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
 
+  const totalRocks = (rockSegments + 1) * rocksPerSegment;
+  const instancedRocks = new THREE.InstancedMesh(rockGeo, rockMat, totalRocks);
+  instancedRocks.castShadow = true;
+  instancedRocks.receiveShadow = true;
+  group.add(instancedRocks);
+
+  const dummy = new THREE.Object3D();
+  let rockIndex = 0;
+
   for (let i = 0; i <= rockSegments; i++) {
     const t = tunnelT - tunnelRange + (i / rockSegments) * (tunnelRange * 2);
     // Use modulo for safety, though t should be within [0, 1]
@@ -318,13 +327,11 @@ postMesh.castShadow = true;
         .add(normal.clone().multiplyScalar(Math.cos(angle) * radius))
         .add(up.clone().multiplyScalar(Math.max(-0.2, Math.sin(angle)) * radius * 0.8));
         
-      const rock = new THREE.Mesh(rockGeo, rockMat);
-      rock.position.copy(rockPos);
-      rock.scale.setScalar(rockSize);
-      rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      rock.castShadow = true;
-      rock.receiveShadow = true;
-      group.add(rock);
+      dummy.position.copy(rockPos);
+      dummy.scale.setScalar(rockSize);
+      dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      dummy.updateMatrix();
+      instancedRocks.setMatrixAt(rockIndex++, dummy.matrix);
     }
   }
    
