@@ -85,7 +85,7 @@ export function getTrackCurve(seed: number = 12345): THREE.CatmullRomCurve3 {
   const anchorCount = 12 + Math.floor(rng(0) * 6);
   const centerX = 15;
   const centerZ = 15;
-  const baseRadius = 80;
+  const baseRadius = 160;
   
   const controlPoints: THREE.Vector3[] = [];
   for (let i = 0; i < anchorCount; i++) {
@@ -124,7 +124,7 @@ function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; cu
   const group = new THREE.Group();
   const curve = getTrackCurve(seed);
   
-  const segments = 400;
+  const segments = 800;
   const points = curve.getSpacedPoints(segments);
   
   const vertices: number[] = [];
@@ -209,7 +209,7 @@ function generateProceduralTrack(seed: number = 12345): { group: THREE.Group; cu
     barrierMesh.castShadow = true;
     group.add(barrierMesh);
     
-    const postCount = 12;
+    const postCount = 24;
     for (let i = 0; i < postCount; i++) {
       const t = i / postCount;
       const idx = Math.floor(t * segments);
@@ -231,7 +231,7 @@ postMesh.castShadow = true;
   }
   
   for (let side = 0; side < 2; side++) {
-    const propCount = 20;
+    const propCount = 40;
     for (let i = 0; i < propCount; i++) {
       const t = i / propCount;
       const idx = Math.floor(t * segments);
@@ -281,10 +281,17 @@ postMesh.castShadow = true;
 
   // Add rock tunnel
   const tunnelT = 0.5;
-  const tunnelRange = 0.09; // Range in T (tripled from 0.03)
-  const rockSegments = 75; // Number of rings (tripled from 25)
-  const rocksPerSegment = 10; // Rocks per ring
+  const tunnelRange = 0.2; // Range in T (doubled from 0.1)
+  const rockSegments = 180; // Number of rings (doubled from 90)
+  const rocksPerSegment = 16; // Rocks per ring
   
+  const rockMat = new THREE.MeshStandardMaterial({ 
+    color: 0x111111, // Nearly black
+    roughness: 1.0,
+    flatShading: true 
+  });
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+
   for (let i = 0; i <= rockSegments; i++) {
     const t = tunnelT - tunnelRange + (i / rockSegments) * (tunnelRange * 2);
     // Use modulo for safety, though t should be within [0, 1]
@@ -297,22 +304,23 @@ postMesh.castShadow = true;
     const up = new THREE.Vector3(0, 1, 0);
 
     for (let j = 0; j < rocksPerSegment; j++) {
-      const angle = (j / (rocksPerSegment - 1)) * Math.PI;
-      const radius = TRACK_WIDTH * 0.85 + Math.random() * 1.0;
+      // Angle from slightly below 0 to slightly above PI for better floor coverage
+      const angle = -0.2 + (j / (rocksPerSegment - 1)) * (Math.PI + 0.4);
+      
+      // Radius and size to ensure no holes and no overlap with track
+      const rockSize = 3.5 + Math.random() * 2.5;
+      // We want the rock to stay outside the track (hw = 6.0)
+      // The edge of the rock is roughly at radius - rockSize
+      const baseRadius = (TRACK_WIDTH / 2) + rockSize * 0.9 + 0.5;
+      const radius = baseRadius + Math.random() * 5.0;
       
       const rockPos = pos.clone()
         .add(normal.clone().multiplyScalar(Math.cos(angle) * radius))
-        .add(up.clone().multiplyScalar(Math.sin(angle) * radius * 0.9)); // Slightly lower arch but wider
+        .add(up.clone().multiplyScalar(Math.max(-0.2, Math.sin(angle)) * radius * 0.8));
         
-      const rockSize = 1.5 + Math.random() * 1.0;
-      const rockGeo = new THREE.DodecahedronGeometry(rockSize, 0);
-      const rockMat = new THREE.MeshStandardMaterial({ 
-        color: 0x555555, 
-        roughness: 0.9,
-        flatShading: true 
-      });
       const rock = new THREE.Mesh(rockGeo, rockMat);
       rock.position.copy(rockPos);
+      rock.scale.setScalar(rockSize);
       rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
       rock.castShadow = true;
       rock.receiveShadow = true;
@@ -343,7 +351,7 @@ export function isPointOnTrack(x: number, z: number, margin: number = 0): boolea
   const curve = trackCurveInstance;
   if (!curve) return false;
   
-  const segments = 100;
+  const segments = 800;
   let minDist = Infinity;
   
   for (let i = 0; i <= segments; i++) {
@@ -364,7 +372,7 @@ export function getDistanceToTrackCenter(x: number, z: number): number {
   const curve = trackCurveInstance;
   if (!curve) return Infinity;
   
-  const segments = 100;
+  const segments = 800;
   let minDist = Infinity;
   
   for (let i = 0; i <= segments; i++) {

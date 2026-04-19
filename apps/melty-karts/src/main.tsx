@@ -53,8 +53,8 @@ function createBuilding(width: number, height: number, depth: number): THREE.Gro
 }
 
 function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
-  const treeCount = 80;
-  const buildingCount = 25;
+  const treeCount = 160;
+  const buildingCount = 50;
   const totalProps = treeCount + buildingCount;
 
   const rng = (i: number) => {
@@ -67,7 +67,7 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
     const t = rng(i * 13);
     
     // Skip if near the rock tunnel (t ~ 0.5)
-    if (Math.abs(t - 0.5) < 0.11) continue;
+    if (Math.abs(t - 0.5) < 0.22) continue;
 
     const pos = curve.getPointAt(t);
     const tangent = curve.getTangentAt(t);
@@ -122,7 +122,7 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
   }
 }
 function computeWorldBounds(curve: THREE.CatmullRomCurve3, propSpread: number) {
-  const points = curve.getSpacedPoints(200);
+  const points = curve.getSpacedPoints(800);
   let minX = Infinity, maxX = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
   
@@ -143,12 +143,12 @@ function computeWorldBounds(curve: THREE.CatmullRomCurve3, propSpread: number) {
 function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bounds: { centerX: number; centerZ: number; size: number } } {
   const bounds = computeWorldBounds(curve, 18);
   const size = bounds.size;
-  const resolution = 80;
+  const resolution = 160;
   const vertices: number[] = [];
   const indices: number[] = [];
   const uvs: number[] = [];
   
-  const segments = 200;
+  const segments = 800;
   const trackPoints = curve.getSpacedPoints(segments);
   const halfSize = size / 2;
   

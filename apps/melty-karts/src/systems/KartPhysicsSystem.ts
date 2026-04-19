@@ -33,8 +33,8 @@ export function createKartPhysicsSystem(params: {
 }) {
   let { ecs, entityId, turnAmount, upDown, downDown, actionDown, driftDown, } = params;
   
-  const MAX_SPEED = 20.0;
-  const MAX_BOOST_SPEED = 36.0;
+  const MAX_SPEED = 45.0;
+  const MAX_BOOST_SPEED = 67.5;
   const ACCELERATION = 2.0;
   const DECELERATION = 6.0;
   const TURN_SPEED = 3.0;
@@ -183,7 +183,7 @@ const wheelOffsets = [
         
         if (distToTrack > barrierRadius && distToTrack < 50 && Number.isFinite(newPos.x) && Number.isFinite(newPos.z)) {
           // Find nearest point on track
-          const segments = 100; // Increased segments for better accuracy
+          const segments = 800; // Increased segments for better accuracy
           let nearestX = 0, nearestZ = 0, minDist = Infinity;
           for (let j = 0; j <= segments; j++) {
             const t = j / segments;
