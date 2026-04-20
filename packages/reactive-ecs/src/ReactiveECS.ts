@@ -1,4 +1,4 @@
-import { createStore, getObserver, onCleanup, untrack } from "solid-js";
+import { createSignal, createStore, getObserver, onCleanup, untrack, type Signal } from "solid-js";
 import type { ECS } from "@oasys/oecs";
 import type { Query } from "@oasys/oecs";
 import type { ResourceDef, ResourceReader } from "@oasys/oecs";
@@ -6,40 +6,38 @@ import type { EntityID } from "@oasys/oecs";
 import type { ComponentDef, ComponentSchema, FieldValues } from "@oasys/oecs";
 
 class TriggerStore {
-  #triggers: { [key: string]: number };
-  #setTriggers: (fn: (s: { [key: string]: number }) => { [key: string]: number }) => void;
-
-  constructor() {
-    const [triggers, setTriggers] = createStore<{ [key: string]: number }>({});
-    this.#triggers = triggers;
-    this.#setTriggers = setTriggers;
-  }
+  #triggers = new Map<string, { signal: Signal<number>, refCount: number, }>();
 
   track(key: string): void {
-    if (!(key in this.#triggers)) {
-      queueMicrotask(() => {
-        this.#setTriggers((s) => {
-          s[key] = 0;
-          return s;
-        });
-      });
+    if (getObserver() == null) {
+      return;
     }
-    const _ = this.#triggers[key];
-  }
-
-  untrack(key: string): void {
-    this.#setTriggers((s) => {
-      delete s[key];
-      return s;
+    let trigger = this.#triggers.get(key);
+    if (trigger === undefined) {
+      trigger = { signal: createSignal(0, { pureWrite: true, }), refCount: 1, };
+      this.#triggers.set(key, trigger);
+    } else {
+      trigger.refCount++;
+    }
+    onCleanup(() => {
+      trigger.refCount--;
+      if (trigger.refCount === 0) {
+        queueMicrotask(() => {
+          if (trigger.refCount === 0) {
+            this.#triggers.delete(key);
+          }
+        });
+      }
     });
+    trigger.signal[0]();
   }
 
   dirty(key: string): void {
-    if (!(key in this.#triggers)) return;
-    this.#setTriggers((s) => {
-      s[key] = 1 - s[key];
-      return s;
-    });
+    let trigger = this.#triggers.get(key);
+    if (trigger === undefined) {
+      return;
+    }
+    trigger.signal[1]((s) => s ^ 1);
   }
 }
 
@@ -49,7 +47,6 @@ class ReactiveRef<T> {
   #triggerStore: TriggerStore;
   #key: string;
   #refCount = 0;
-  #tracked = false;
   #onUnref: (() => void) | undefined;
 
   constructor(triggerStore: TriggerStore, key: string, getValue: () => T, dirty: () => void, onUnref?: () => void) {
@@ -65,21 +62,23 @@ class ReactiveRef<T> {
     const observer = getObserver();
     if (observer !== null) {
       this.#refCount++;
-      if (!this.#tracked) {
-        this.#tracked = true;
-        onCleanup(() => {
-          this.#refCount--;
-          // microtask is to avoid removing the trigger used by a single listener
-          if (this.#refCount === 0) {
-            queueMicrotask(() => {
-              if (this.#refCount === 0) {
-                this.#tracked = false;
-                this.#onUnref?.();
-              }
-            });
-          }
-        });
-      }
+      let cleanupCalled = false;
+      onCleanup(() => {
+        if (cleanupCalled) {
+          console.warn("onCleanup overexecuted");
+          return;
+        }
+        cleanupCalled = true;
+        this.#refCount--;
+        // microtask is to avoid removing the trigger used by a single listener updating 
+        if (this.#refCount === 0) {
+          queueMicrotask(() => {
+            if (this.#refCount === 0) {
+              this.#onUnref?.();
+            }
+          });
+        }
+      });
     }
     return this.#getValue();
   }
@@ -122,7 +121,6 @@ class ReactiveResource<F extends readonly string[]> {
         () => this.#resource[field],
         () => this.#triggerStore.dirty(key),
         () => {
-          this.#triggerStore.untrack(key);
           this.#fieldRefs.delete(field);
         },
       );
@@ -177,7 +175,6 @@ class ReactiveEntity {
         () => this.#ecs.has_component(this.#id, def),
         () => this.#triggerStore.dirty(key),
         () => {
-          this.#triggerStore.untrack(key);
           this.#componentRefs.delete(key);
         },
       );
@@ -200,7 +197,6 @@ class ReactiveEntity {
         () => this.#ecs.get_field(this.#id, def, field),
         () => this.#triggerStore.dirty(key),
         () => {
-          this.#triggerStore.untrack(key);
           this.#fieldRefs.delete(key);
         },
       );
