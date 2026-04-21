@@ -22,7 +22,7 @@ export const enum MasterState {
 export const RegisteredMasterState = baseEcs.register_resource(
   ["masterState"] as const,
   {
-    "masterState": MasterState.IN_GAME,
+    "masterState": MasterState.INTRO_SCREEN,
   }
 );
 
@@ -34,7 +34,7 @@ export const RegisteredInputControlled = baseEcs.register_component(InputControl
 export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
-export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });
+export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });
 export const RegisteredKeyboardInput = baseEcs.register_resource(
   [
@@ -70,7 +70,7 @@ export function World(): {
 } {
   baseEcs.startup();
   
-  baseEcs.set_resource(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
+  //baseEcs.set_resource(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
   baseEcs.set_resource(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
   baseEcs.set_resource(RegisteredJoystickInput, { joystickX: 0.0, joystickY: 0.0, });
   
