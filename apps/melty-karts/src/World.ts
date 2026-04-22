@@ -7,8 +7,10 @@ import {
   InputControlled,
   Renderable,
   KartConfig,
+  KartRuntime,
   GlobalGravity,
   Orientation,
+  NetworkSlot,
 } from "./components";
 
 const baseEcs = new ECS();
@@ -17,7 +19,8 @@ const reactiveEcs = new ReactiveECS(baseEcs);
 export const enum MasterState {
   INTRO_SCREEN = 0,
   CHARACTER_SELECTION_SCREEN = 1,
-  IN_GAME = 2,
+  MULTIPLAYER_LOBBY = 2,
+  IN_GAME = 3,
 };
 export const RegisteredMasterState = baseEcs.register_resource(
   ["masterState"] as const,
@@ -33,9 +36,12 @@ export const RegisteredPlayerConfig = baseEcs.register_component(PlayerConfig.de
 export const RegisteredInputControlled = baseEcs.register_component(InputControlled.def);
 export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
+export const RegisteredKartRuntime = baseEcs.register_component(KartRuntime.def);
+export const RegisteredNetworkSlot = baseEcs.register_component(NetworkSlot.def);
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });
+export const RegisteredGameMode = baseEcs.register_resource([ "mode", ] as const, { mode: 0, });
 export const RegisteredKeyboardInput = baseEcs.register_resource(
   [
     "upDown",

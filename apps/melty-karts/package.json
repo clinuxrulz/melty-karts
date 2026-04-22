@@ -22,6 +22,9 @@
     "@oasys/oecs": "^0.2.1",
     "@solidjs/web": "2.0.0-beta.3",
     "howler": "^2.2.4",
+    "peerjs": "^1.5.5",
+    "qrcode": "^1.5.4",
+    "rollback-netcode": "^0.0.6",
     "solid-js": "2.0.0-beta.3",
     "three": "^0.183.2",
     "three-stdlib": "^2.36.1"

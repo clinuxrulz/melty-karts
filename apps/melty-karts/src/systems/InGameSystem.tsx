@@ -4,13 +4,15 @@ import { System } from "./System";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
 import { createKartPhysicsSystem } from "./KartPhysicsSystem";
 import { createSoundSystem } from "./SoundSystem";
 import { untrack } from "@solidjs/web";
+import { createRollbackNetcodeSystem } from "./RollbackNetcodeSystem";
+import { multiplayerSession } from "../netcode/MultiplayerSession";
 
 export function createInGameSystem(ecs: ReactiveECS): System {
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
@@ -282,6 +284,7 @@ function initScene(
   canvas: HTMLCanvasElement,
   setCanvasSize: (x: THREE.Vector2) => void,
 ) {
+  const isMultiplayer = ecs.resource(RegisteredGameMode).get("mode") === 1 && multiplayerSession.isActive;
   let joystickValue = createMemo(() =>
     new THREE.Vector2(
       ecs.resource(RegisteredJoystickInput).get("joystickX"),
@@ -346,20 +349,21 @@ function initScene(
   
   const t = 0.01;
   const startPos = curve.getPointAt(t);
-  const lookAheadT = t + 0.01;
-  const lookAheadPos = curve.getPointAt(lookAheadT);
-  const direction = new THREE.Vector3().subVectors(lookAheadPos, startPos).normalize();
-  
-  const startVel = new THREE.Vector3(0, 0, 0);
-  const initialHeight = startPos.y + 0.1;
-  startPos.y = initialHeight;
-  const kartEntityId = createKart({
-    position: startPos,
-    velocity: startVel,
-    playerType: "Melty",
-    facingForward: true,
-    reactiveEcs: ecs,
-  });
+  let kartEntityId: number;
+  if (isMultiplayer) {
+    kartEntityId = findKartEntityForSlot(ecs, multiplayerSession.getLocalSlot());
+  } else {
+    const startVel = new THREE.Vector3(0, 0, 0);
+    const initialHeight = startPos.y + 0.1;
+    startPos.y = initialHeight;
+    kartEntityId = createKart({
+      position: startPos,
+      velocity: startVel,
+      playerType: "Melty",
+      facingForward: true,
+      reactiveEcs: ecs,
+    });
+  }
   
   const { dispose: disposeRender } = createRenderSystem(ecs, scene);
   const turnAmount = createMemo(() => {
@@ -372,17 +376,20 @@ function initScene(
     return 0;
   });
 
-  const { update: updatePhysics } = createKartPhysicsSystem({
-    ecs,
-    entityId: kartEntityId,
-    turnAmount,
-    upDown,
-    downDown,
-    actionDown,
-    driftDown,
-  });
+  const physicsSystem = isMultiplayer
+    ? undefined
+    : createKartPhysicsSystem({
+        ecs,
+        entityId: kartEntityId,
+        turnAmount,
+        upDown,
+        downDown,
+        actionDown,
+        driftDown,
+      });
 
   const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs, soundEnabled);
+  const rollbackSystem = isMultiplayer ? createRollbackNetcodeSystem(ecs) : undefined;
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
@@ -530,7 +537,7 @@ function initScene(
       yaw = Math.atan2(forward.x, forward.z);
     }
     
-    updatePhysics(dt);
+    physicsSystem?.update(dt);
     updateSound(dt, kartEntityId);
     
     // Initialize camera on first frame
@@ -593,10 +600,23 @@ function initScene(
   
   return () => {
     running = false;
+    rollbackSystem?.dispose();
     disposeRender();
     disposeSound();
     renderer.dispose();
   };
+}
+
+function findKartEntityForSlot(ecs: ReactiveECS, slot: number): number {
+  for (const arch of ecs.query(RegisteredNetworkSlot)) {
+    const slots = arch.get_column(RegisteredNetworkSlot, "slot") as Uint8Array;
+    for (let i = 0; i < arch.entity_count; i++) {
+      if (slots[i] === slot) {
+        return Number(arch.entity_ids[i]);
+      }
+    }
+  }
+  throw new Error(`Could not find kart entity for multiplayer slot ${slot}`);
 }
 
 function computeWorldBounds(curve: THREE.CatmullRomCurve3, propSpread: number) {

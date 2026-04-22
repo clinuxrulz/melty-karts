@@ -1,90 +1,71 @@
-import { createSignal, type Accessor, type Component, onCleanup } from "solid-js";
-import * as THREE from "three";
+import { type Component } from "solid-js";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
-import { MasterState, RegisteredMasterState } from "../World";
+import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";
+import { multiplayerSession } from "../netcode/MultiplayerSession";
 
 export function createTitleScreenSystem(ecs: ReactiveECS): System {
-  const [showClickPrompt, setShowClickPrompt] = createSignal(true);
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.code === "Space" || e.code === "Enter" || e.code === "KeyK") {
-      setShowClickPrompt(false);
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
-    }
+  const startSinglePlayer = () => {
+    multiplayerSession.leave();
+    ecs.set_resource(RegisteredGameMode, { mode: 0 });
+    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
   };
 
-  const handleClick = () => {
-    if (showClickPrompt()) {
-      setShowClickPrompt(false);
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
-    }
+  const startMultiplayer = () => {
+    ecs.set_resource(RegisteredGameMode, { mode: 1 });
+    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
   };
-
-  window.addEventListener("keydown", handleKeyDown);
-  window.addEventListener("click", handleClick);
-  window.addEventListener("touchstart", handleClick);
-
-  onCleanup(() => {
-    window.removeEventListener("keydown", handleKeyDown);
-    window.removeEventListener("click", handleClick);
-    window.removeEventListener("touchstart", handleClick);
-  });
 
   const UI: Component = () => {
-    const [clicked, setClicked] = createSignal(false);
-
-    const handlePointerDown = () => {
-      setClicked(true);
-      setTimeout(() => setClicked(false), 100);
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.code === "Enter") {
-        handlePointerDown();
-      }
-    };
-
     return (
       <div
         style={{
           position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          "text-align": "center",
-          color: clicked() ? "#ffff00" : "#ffffff",
+          inset: "0",
+          display: "flex",
+          "flex-direction": "column",
+          "align-items": "center",
+          "justify-content": "center",
+          background: "#1a1a1a",
+          color: "#ffffff",
           "font-family": "Arial, sans-serif",
-          "font-size": "24px",
-          "text-shadow": "0 0 10px rgba(255, 255, 255, 0.5)",
-          "pointer-events": clicked() ? "none" : "auto",
         }}
-        onPointerDown={handlePointerDown}
-        onKeyDown={handleKeyDown}
-        tabindex={0}
       >
         <div
           style={{
             "font-size": "72px",
             "font-weight": "bold",
-            "margin-bottom": "20px",
+            "margin-bottom": "40px",
             "text-shadow": "4px 4px 8px rgba(0, 0, 0, 0.7)",
             "background": "linear-gradient(45deg, #ff00ff, #00ffff)",
             "-webkit-background-clip": "text",
             "-webkit-text-fill-color": "transparent",
+            "text-align": "center",
           }}
         >
           Melty Karts
         </div>
-        {showClickPrompt() && (
-          <div
-            style={{
-              "font-size": "24px",
-              "color": "#ffffff",
-              "text-shadow": "2px 2px 4px rgba(0, 0, 0, 0.5)",
-            }}
+
+        <div style={{ display: "flex", "flex-direction": "column", gap: "16px", "width": "240px" }}>
+          <button 
+            type="button" 
+            onClick={startSinglePlayer} 
+            style={basicButton("#ffffff", "#1a1a1a")}
           >
-            Press any key or tap to continue
+            Single Player
+          </button>
+          <button 
+            type="button" 
+            onClick={startMultiplayer} 
+            style={basicButton("#5fcf8f", "#08120c")}
+          >
+            Multiplayer
+          </button>
+        </div>
+
+        {multiplayerSession.hasInviteInUrl() && (
+          <div style={{ "margin-top": "24px", color: "#9fe5b0", "font-size": "14px" }}>
+            Invite detected! Open Multiplayer to join.
           </div>
         )}
       </div>
@@ -93,5 +74,20 @@ export function createTitleScreenSystem(ecs: ReactiveECS): System {
 
   return {
     ui: () => UI,
+  };
+}
+
+function basicButton(background: string, color: string) {
+  return {
+    padding: "12px 24px",
+    "border-radius": "8px",
+    border: "none",
+    background,
+    color,
+    cursor: "pointer",
+    "font-size": "18px",
+    "font-weight": "bold",
+    "transition": "transform 0.1s active",
+    "box-shadow": "0 4px 0 rgba(0,0,0,0.3)",
   };
 }

@@ -43,6 +43,28 @@ export const KartConfig = {
     name: "KartConfig"
 };
 
+export const KartRuntime = {
+    def: {
+        driftCharge: "f64",
+        isDrifting: "u8",
+        driftDirection: "i8",
+        verticalVelocity: "f64",
+    } as const,
+    schema: {
+        driftCharge: 0.0,
+        isDrifting: 0,
+        driftDirection: 0,
+        verticalVelocity: 0.0,
+    },
+    name: "KartRuntime",
+};
+
+export const NetworkSlot = {
+    def: { slot: "u8" } as const,
+    schema: { slot: 0 },
+    name: "NetworkSlot",
+};
+
 export const GlobalGravity = {
     def: { x: "f64", y: "f64", z: "f64" } as const,
     schema: { x: 0.0, y: -10.0, z: 0.0 },

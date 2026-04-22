@@ -428,4 +428,37 @@ describe("ReactiveECS", () => {
       });
     });
   });
+
+  describe("serialization", () => {
+    it("serializes, deserializes, and hashes deterministically", () => {
+      const Pos = ecs.register_component(["x", "y"] as const);
+      const Tag = ecs.register_tag();
+      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+        delta: 0,
+        elapsed: 0,
+      });
+
+      const entity = reactive.create_entity();
+      reactive.add_component(entity, Pos, { x: 3.5, y: 7.25 });
+      reactive.add_component(entity, Tag);
+      reactive.set_resource(Time, { delta: 0.016, elapsed: 12 });
+      ecs.startup();
+
+      const snapshot = reactive.serialize();
+      const hashBefore = reactive.hash();
+
+      reactive.set_field(entity, Pos, "x", 99);
+      reactive.remove_component(entity, Tag);
+      reactive.set_resource(Time, { delta: 1, elapsed: 2 });
+
+      reactive.deserialize(snapshot);
+
+      expect(reactive.entity(entity).getField(Pos, "x")).toBe(3.5);
+      expect(reactive.entity(entity).getField(Pos, "y")).toBe(7.25);
+      expect(reactive.entity(entity).hasComponent(Tag)).toBe(true);
+      expect(reactive.resource(Time).delta).toBe(0.016);
+      expect(reactive.resource(Time).elapsed).toBe(12);
+      expect(reactive.hash()).toBe(hashBefore);
+    });
+  });
 });

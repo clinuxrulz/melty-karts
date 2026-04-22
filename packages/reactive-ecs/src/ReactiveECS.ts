@@ -5,6 +5,28 @@ import type { ResourceDef, ResourceReader } from "@oasys/oecs";
 import type { EntityID } from "@oasys/oecs";
 import type { ComponentDef, ComponentSchema, FieldValues } from "@oasys/oecs";
 
+type ComponentMetadata = {
+  fields: readonly string[];
+};
+
+type ResourceMetadata = {
+  fields: readonly string[];
+};
+
+export type ReactiveECSSnapshot = {
+  resources: Array<{
+    resourceKey: string;
+    values: Record<string, number>;
+  }>;
+  entities: Array<{
+    id: number;
+    components: Array<{
+      componentKey: string;
+      values: Record<string, number>;
+    }>;
+  }>;
+};
+
 class TriggerStore {
   #triggers = new Map<string, { signal: Signal<number>, refCount: number, }>();
 
@@ -347,10 +369,60 @@ class ReactiveArchetype {
 export class ReactiveECS {
   #ecs: ECS;
   #triggers: TriggerStore;
+  #componentMetadata = new Map<ComponentDef, ComponentMetadata>();
+  #resourceMetadata = new Map<ResourceDef<any>, ResourceMetadata>();
+  #componentsByKey = new Map<string, ComponentDef>();
+  #resourcesByKey = new Map<string, ResourceDef<any>>();
+  #aliveEntities = new Set<EntityID>();
 
   constructor(ecs: ECS) {
     this.#ecs = ecs;
     this.#triggers = new TriggerStore();
+    this.#instrumentEcs();
+  }
+
+  #instrumentEcs(): void {
+    const ecs = this.#ecs as ECS & Record<string, any>;
+
+    const registerComponent = ecs.register_component.bind(ecs);
+    ecs.register_component = ((schemaOrFields: Record<string, any> | readonly string[], type?: string) => {
+      const def = registerComponent(schemaOrFields as any, type);
+      const fields = Array.isArray(schemaOrFields)
+        ? [...schemaOrFields]
+        : Object.keys(schemaOrFields);
+      this.#componentMetadata.set(def, { fields });
+      this.#componentsByKey.set(def.toString(), def);
+      return def;
+    }) as typeof ecs.register_component;
+
+    const registerTag = ecs.register_tag.bind(ecs);
+    ecs.register_tag = (() => {
+      const def = registerTag();
+      this.#componentMetadata.set(def, { fields: [] });
+      this.#componentsByKey.set(def.toString(), def);
+      return def;
+    }) as typeof ecs.register_tag;
+
+    const registerResource = ecs.register_resource.bind(ecs);
+    ecs.register_resource = ((fields: readonly string[], initial: Record<string, number>) => {
+      const def = registerResource(fields as any, initial);
+      this.#resourceMetadata.set(def, { fields: [...fields] });
+      this.#resourcesByKey.set(def.toString(), def);
+      return def;
+    }) as typeof ecs.register_resource;
+
+    const createEntity = ecs.create_entity.bind(ecs);
+    ecs.create_entity = (() => {
+      const id = createEntity();
+      this.#aliveEntities.add(id);
+      return id;
+    }) as typeof ecs.create_entity;
+
+    const destroyEntityDeferred = ecs.destroy_entity_deferred.bind(ecs);
+    ecs.destroy_entity_deferred = ((id: EntityID) => {
+      this.#aliveEntities.delete(id);
+      destroyEntityDeferred(id);
+    }) as typeof ecs.destroy_entity_deferred;
   }
 
   get ecs(): ECS {
@@ -419,5 +491,115 @@ export class ReactiveECS {
     for (const field of Object.keys(reader) as F[number][]) {
       this.#triggers.dirty(`resource:${def.toString()}:${field}`);
     }
+  }
+
+  serialize(ignoredResourceKeys: Set<string> = new Set()): ReactiveECSSnapshot {
+    const resources = [...this.#resourceMetadata.entries()]
+      .filter(([def]) => !ignoredResourceKeys.has(def.toString()))
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([def, metadata]) => {
+        const reader = this.#ecs.resource(def);
+        const values: Record<string, number> = {};
+        for (const field of metadata.fields) {
+          values[field] = reader[field];
+        }
+        return {
+          resourceKey: def.toString(),
+          values,
+        };
+      });
+
+    const entities = [...this.#aliveEntities]
+      .filter((id) => this.#ecs.is_alive(id))
+      .sort((a, b) => Number(a) - Number(b))
+      .map((id) => {
+        const components = [...this.#componentMetadata.entries()]
+          .filter(([def]) => this.#ecs.has_component(id, def))
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([def, metadata]) => {
+            const values: Record<string, number> = {};
+            for (const field of metadata.fields) {
+              values[field] = this.#ecs.get_field(id, def as ComponentDef<any>, field as never);
+            }
+            return {
+              componentKey: def.toString(),
+              values,
+            };
+          });
+        return {
+          id: Number(id),
+          components,
+        };
+      });
+
+    return {
+      resources,
+      entities,
+    };
+  }
+
+  deserialize(snapshot: ReactiveECSSnapshot): void {
+    const targetIds = new Set(snapshot.entities.map((entity) => entity.id as EntityID));
+
+    for (const id of [...this.#aliveEntities]) {
+      if (!targetIds.has(id) && this.#ecs.is_alive(id)) {
+        this.destroy_entity_deferred(id);
+      }
+    }
+    this.#ecs.flush();
+
+    for (const resource of snapshot.resources) {
+      const def = this.#resourcesByKey.get(resource.resourceKey);
+      if (def !== undefined) {
+        this.set_resource(def, resource.values);
+      }
+    }
+
+    for (const entity of snapshot.entities.sort((a, b) => a.id - b.id)) {
+      while (!this.#ecs.is_alive(entity.id as EntityID)) {
+        const created = this.create_entity();
+        if (Number(created) > entity.id) {
+          throw new Error(`Cannot recreate entity ${entity.id}; ECS entity sequence has advanced past snapshot`);
+        }
+      }
+
+      const entityId = entity.id as EntityID;
+      const targetComponentKeys = new Set(entity.components.map((component) => component.componentKey));
+
+      for (const [def] of this.#componentMetadata) {
+        if (this.#ecs.has_component(entityId, def) && !targetComponentKeys.has(def.toString())) {
+          this.remove_component(entityId, def);
+        }
+      }
+
+      for (const component of entity.components) {
+        const def = this.#componentsByKey.get(component.componentKey);
+        if (def === undefined) {
+          continue;
+        }
+        const metadata = this.#componentMetadata.get(def);
+        if (!this.#ecs.has_component(entityId, def)) {
+          if ((metadata?.fields.length ?? 0) === 0) {
+            this.add_component(entityId, def as ComponentDef<Record<string, never>>);
+          } else {
+            this.add_component(entityId, def as ComponentDef<any>, component.values);
+          }
+          continue;
+        }
+        for (const field of metadata?.fields ?? []) {
+          this.set_field(entityId, def as ComponentDef<any>, field as never, component.values[field] ?? 0);
+        }
+      }
+    }
+  }
+
+  hash(ignoredResourceKeys: Set<string> = new Set()): number {
+    const json = JSON.stringify(this.serialize(ignoredResourceKeys));
+    let hash = 2166136261;
+    for (let i = 0; i < json.length; i++) {
+      hash ^= json.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
   }
 }

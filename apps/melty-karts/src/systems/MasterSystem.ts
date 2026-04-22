@@ -5,6 +5,7 @@ import { MasterState, RegisteredMasterState } from "../World";
 import { createTitleScreenSystem } from "./TitleScreenSystem";
 import { createCharacterSelectionSystem } from "./CharacterSelectionSystem";
 import { createInGameSystem } from "./InGameSystem";
+import { createMultiplayerLobbySystem } from "./MultiplayerLobbySystem";
 import { untrack } from "@solidjs/web";
 
 export function createMasterSystem(ecs: ReactiveECS): System {
@@ -19,6 +20,10 @@ export function createMasterSystem(ecs: ReactiveECS): System {
       case MasterState.CHARACTER_SELECTION_SCREEN:
         return [
           createCharacterSelectionSystem(ecs),
+        ];
+      case MasterState.MULTIPLAYER_LOBBY:
+        return [
+          createMultiplayerLobbySystem(ecs),
         ];
       case MasterState.IN_GAME:
         return [
