@@ -13,7 +13,7 @@ export function createTitleScreenSystem(ecs: ReactiveECS): System {
 
   const startMultiplayer = () => {
     ecs.set_resource(RegisteredGameMode, { mode: 1 });
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
+    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
   };
 
   const UI: Component = () => {

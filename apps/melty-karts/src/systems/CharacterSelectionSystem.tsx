@@ -2,7 +2,7 @@ import { createSignal, createMemo, type Accessor, type Component, onCleanup, cre
 import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
-import { MasterState, RegisteredMasterState } from "../World";
+import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";
 
 let meltyLibRef: Accessor<typeof import("../models/melty")> | undefined;
 let cubeyLibRef: Accessor<typeof import("../models/cubey")> | undefined;
@@ -72,6 +72,16 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
   const [showSelection, setShowSelection] = createSignal(true);
   const [confirmed, setConfirmed] = createSignal(false);
   const [rotationAngle, setRotationAngle] = createSignal(0.0);
+
+  const onConfirm = () => {
+    setConfirmed(true);
+    const mode = ecs.resource(RegisteredGameMode).get("mode");
+    if (mode === 1) {
+      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
+    } else {
+      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+    }
+  };
 
   let renderer: THREE.WebGLRenderer | undefined;
   let scene: THREE.Scene | undefined;
@@ -187,8 +197,7 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
       case "Space":
       case "Enter":
       case "KeyK":
-        setConfirmed(true);
-        ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+        onConfirm();
         break;
       case "ArrowLeft":
         setSelectedCharacter(prev => ((prev - 1 + 3) % 3) as (0 | 1 | 2));
@@ -295,8 +304,7 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
                 class="confirm-button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setConfirmed(true);
-                  ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+                  onConfirm();
                 }}
                 style={{
                   padding: "10px 30px",
