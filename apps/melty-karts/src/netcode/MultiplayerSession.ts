@@ -231,10 +231,19 @@ class MultiplayerSessionController {
       const t = 0.01 + slot * 0.0125;
       const startPos = curve.getPointAt(t);
       startPos.y += 0.1;
+      let playerTypeIdx = slot % 3;
+      let playerType: "Melty" | "Cubey" | "Solid";
+      if (playerTypeIdx == 0) {
+        playerType = "Melty";
+      } else if (playerTypeIdx == 1) {
+        playerType = "Cubey";
+      } else {
+        playerType = "Solid";
+      }
       createKart({
         position: startPos,
         velocity: startPos.clone().set(0, 0, 0),
-        playerType: slot % 2 === 0 ? "Melty" : "Cubey",
+        playerType,
         facingForward: true,
         reactiveEcs: ecs,
         networkSlot: slot,

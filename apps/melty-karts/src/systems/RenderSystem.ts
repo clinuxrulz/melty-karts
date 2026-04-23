@@ -44,15 +44,15 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
 
         const playerType = playerConfig.playerType;
         if (playerType === 0) {
-          const cubey = createCubey();
-          cubey.position.set(0, 0.32, 0);
-          cubey.scale.setScalar(0.5);
-          kartGroup.add(cubey);
-        } else if (playerType === 1) {
           const melty = createMelty();
           melty.position.set(0, 0.32, 0);
           melty.scale.setScalar(0.5);
           kartGroup.add(melty);
+        } else if (playerType === 1) {
+          const cubey = createCubey();
+          cubey.position.set(0, 0.32, 0);
+          cubey.scale.setScalar(0.5);
+          kartGroup.add(cubey);
         } else {
           const solidLogo = createSolidLogo();
           solidLogo.position.set(0, 0.32, 0);
