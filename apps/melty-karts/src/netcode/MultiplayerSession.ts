@@ -181,8 +181,8 @@ class MultiplayerSessionController {
       return;
     }
     this.prepareRace(ecs);
-    this.#session.start();
     ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+    this.#session.start();
     this.#setSnapshot({ status: "playing" });
   }
 
@@ -252,6 +252,7 @@ class MultiplayerSessionController {
     this.#transport = transport;
 
     const ignoredResources = new Set([
+      RegisteredMasterState.toString(),
       RegisteredKeyboardInput.toString(),
       RegisteredJoystickInput.toString(),
       RegisteredSoundEnabled.toString(),
