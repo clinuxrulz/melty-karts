@@ -2,34 +2,34 @@ import { createSignal, createMemo, type Accessor, type Component, onCleanup, cre
 import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
-import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";
+import { MasterState, RegisteredGameMode, RegisteredMasterState, RegisteredLocalPlayerConfig } from "../World";
 
-let meltyLibRef: Accessor<typeof import("../models/melty")> | undefined;
-let cubeyLibRef: Accessor<typeof import("../models/cubey")> | undefined;
-let solidLogoLibRef: Accessor<typeof import("../models/SolidLogo")> | undefined;
+let meltyLibRef: Accessor<typeof import("../models/melty") | undefined> | undefined;
+let cubeyLibRef: Accessor<typeof import("../models/cubey") | undefined> | undefined;
+let solidLogoLibRef: Accessor<typeof import("../models/SolidLogo") | undefined> | undefined;
 
 if (typeof window !== "undefined") {
   createMemo(() => {
     let setMelty: (mod: typeof import("../models/melty")) => void;
-    [meltyLibRef, setMelty] = createSignal<typeof import("../models/melty")>();
+    [meltyLibRef, setMelty] = createSignal<typeof import("../models/melty") | undefined>(undefined);
     import("../models/melty").then(setMelty);
   });
-  
+
   createMemo(() => {
     let setCubey: (mod: typeof import("../models/cubey")) => void;
-    [cubeyLibRef, setCubey] = createSignal<typeof import("../models/cubey")>();
+    [cubeyLibRef, setCubey] = createSignal<typeof import("../models/cubey") | undefined>(undefined);
     import("../models/cubey").then(setCubey);
   });
-  
+
   createMemo(() => {
     let setSolidLogo: (mod: typeof import("../models/SolidLogo")) => void;
-    [solidLogoLibRef, setSolidLogo] = createSignal<typeof import("../models/SolidLogo")>();
+    [solidLogoLibRef, setSolidLogo] = createSignal<typeof import("../models/SolidLogo") | undefined>(undefined);
     import("../models/SolidLogo").then(setSolidLogo);
   });
 }
 
 export function getMeltyModel(): Accessor<THREE.Object3D | undefined> {
-  return createMemo(() => {
+  return () => {
     try {
       let lib = meltyLibRef?.();
       if (lib == undefined) return undefined;
@@ -38,11 +38,11 @@ export function getMeltyModel(): Accessor<THREE.Object3D | undefined> {
       if (e?.message?.includes("NotReadyYet")) return undefined;
       throw e;
     }
-  });
+  };
 }
 
 export function getCubeyModel(): Accessor<THREE.Object3D | undefined> {
-  return createMemo(() => {
+  return () => {
     try {
       let lib = cubeyLibRef?.();
       if (lib == undefined) return undefined;
@@ -51,11 +51,11 @@ export function getCubeyModel(): Accessor<THREE.Object3D | undefined> {
       if (e?.message?.includes("NotReadyYet")) return undefined;
       throw e;
     }
-  });
+  };
 }
 
 export function getSolidLogoModel(): Accessor<THREE.Object3D | undefined> {
-  return createMemo(() => {
+  return () => {
     try {
       let lib = solidLogoLibRef?.();
       if (lib == undefined) return undefined;
@@ -64,7 +64,7 @@ export function getSolidLogoModel(): Accessor<THREE.Object3D | undefined> {
       if (e?.message?.includes("NotReadyYet")) return undefined;
       throw e;
     }
-  });
+  };
 }
 
 export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
@@ -75,6 +75,7 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
 
   const onConfirm = () => {
     setConfirmed(true);
+    ecs.set_resource(RegisteredLocalPlayerConfig, { playerType: selectedCharacter() });
     const mode = ecs.resource(RegisteredGameMode).get("mode");
     if (mode === 1) {
       ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
@@ -122,9 +123,11 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
     const resizeObserver = new ResizeObserver(() => {
       const rect = div.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
-      renderer.setSize(rect.width, rect.height);
-      camera.aspect = rect.width / rect.height;
-      camera.updateProjectionMatrix();
+      if (renderer) {
+        renderer.setSize(rect.width, rect.height);
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+      }
     });
     resizeObserver.observe(div);
 

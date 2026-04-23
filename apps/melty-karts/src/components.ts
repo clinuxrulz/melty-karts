@@ -18,7 +18,7 @@ export const Orientation = {
     name: "Orientation",
 };
 
-export type PlayerTypeEnum = 0 | 1;
+export type PlayerTypeEnum = 0 | 1 | 2;
 export const PlayerConfig = {
     def: { playerType: "u8", facingForward: "u8" } as const,
     schema: { playerType: 0 as PlayerTypeEnum, facingForward: 0 },

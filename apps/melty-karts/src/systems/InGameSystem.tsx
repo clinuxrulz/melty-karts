@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
+import type { EntityID } from "@oasys/oecs";
 import { System } from "./System";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -400,15 +401,21 @@ function initScene(
     const startVel = new THREE.Vector3(0, 0, 0);
     const initialHeight = startPos.y + 0.1;
     startPos.y = initialHeight;
+    const localPlayerType = ecs.resource(RegisteredLocalPlayerConfig).get("playerType");
+    const playerTypeMap: Record<number, "Melty" | "Cubey" | "Solid"> = {
+      0: "Melty",
+      1: "Cubey",
+      2: "Solid",
+    };
     kartEntityId = createKart({
       position: startPos,
       velocity: startVel,
-      playerType: "Melty",
+      playerType: playerTypeMap[localPlayerType as keyof typeof playerTypeMap],
       facingForward: true,
       reactiveEcs: ecs,
     });
   }
-  
+
   const { dispose: disposeRender } = createRenderSystem(ecs, scene);
   const turnAmount = createMemo(() => {
     const joyX = joystickValue().x;
@@ -424,7 +431,7 @@ function initScene(
     ? undefined
     : createKartPhysicsSystem({
         ecs,
-        entityId: kartEntityId,
+        entityId: kartEntityId as EntityID,
         turnAmount,
         upDown,
         downDown,
@@ -561,16 +568,16 @@ function initScene(
     lastTime = now;
     
     // Get kart position
-    const posX = ecs.entity(kartEntityId).getField(RegisteredPosition, "x");
-    const posY = ecs.entity(kartEntityId).getField(RegisteredPosition, "y");
-    const posZ = ecs.entity(kartEntityId).getField(RegisteredPosition, "z");
+    const posX = ecs.entity(kartEntityId as EntityID).getField(RegisteredPosition, "x");
+    const posY = ecs.entity(kartEntityId as EntityID).getField(RegisteredPosition, "y");
+    const posZ = ecs.entity(kartEntityId as EntityID).getField(RegisteredPosition, "z");
     const kartPos = new THREE.Vector3(posX, posY, posZ);
-    
+
     // Calculate yaw from forward vector (more reliable than Euler angles for Y-only rotation)
-    const qX = ecs.entity(kartEntityId).getField(RegisteredOrientation, "x");
-    const qY = ecs.entity(kartEntityId).getField(RegisteredOrientation, "y");
-    const qZ = ecs.entity(kartEntityId).getField(RegisteredOrientation, "z");
-    const qW = ecs.entity(kartEntityId).getField(RegisteredOrientation, "w");
+    const qX = ecs.entity(kartEntityId as EntityID).getField(RegisteredOrientation, "x");
+    const qY = ecs.entity(kartEntityId as EntityID).getField(RegisteredOrientation, "y");
+    const qZ = ecs.entity(kartEntityId as EntityID).getField(RegisteredOrientation, "z");
+    const qW = ecs.entity(kartEntityId as EntityID).getField(RegisteredOrientation, "w");
     const q = new THREE.Quaternion(qX, qY, qZ, qW);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
     forward.y = 0; // Project to horizontal plane
@@ -582,7 +589,7 @@ function initScene(
     }
     
     physicsSystem?.update(dt);
-    updateSound(dt, kartEntityId);
+    updateSound(dt, kartEntityId as EntityID);
     
     // Initialize camera on first frame
     if (isFirstFrame) {
@@ -656,7 +663,7 @@ function findKartEntityForSlot(ecs: ReactiveECS, slot: number): number {
     const slots = arch.get_column(RegisteredNetworkSlot, "slot") as Uint8Array;
     for (let i = 0; i < arch.entity_count; i++) {
       if (slots[i] === slot) {
-        return Number(arch.entity_ids[i]);
+        return arch.entity_ids[i] as number;
       }
     }
   }

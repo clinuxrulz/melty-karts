@@ -11,6 +11,7 @@ import {
   GlobalGravity,
   Orientation,
   NetworkSlot,
+  PlayerTypeEnum,
 } from "./components";
 
 const baseEcs = new ECS();
@@ -42,6 +43,7 @@ export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"]
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });
 export const RegisteredGameMode = baseEcs.register_resource([ "mode", ] as const, { mode: 0, });
+export const RegisteredLocalPlayerConfig = baseEcs.register_resource([ "playerType", ] as const, { playerType: 0 as PlayerTypeEnum, });
 export const RegisteredKeyboardInput = baseEcs.register_resource(
   [
     "upDown",
