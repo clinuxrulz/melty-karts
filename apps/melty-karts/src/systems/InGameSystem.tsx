@@ -233,6 +233,33 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     return [];
   });
   //
+  let [isFullscreen, setIsFullscreen] = createSignal(false);
+  document.addEventListener("fullscreenchange", () => {
+    setIsFullscreen(!!document.fullscreenElement);
+  });
+
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      try {
+        await document.documentElement.requestFullscreen();
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock("landscape").catch(() => {
+            // Some browsers/devices might reject locking
+          });
+        }
+      } catch (err) {
+        console.error("Error attempting to enable full-screen mode:", err);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      }
+    }
+  };
+
   let ui = createMemo(() => () => (
     <div
       ref={setCanvasDiv}
@@ -249,6 +276,23 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
       />
       <div style={{ position: "absolute", top: "10px", left: "10px", "z-index": 100 }}>
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            color: "white",
+            border: "1px solid white",
+            padding: "4px 8px",
+            "border-radius": "4px",
+            "margin-bottom": "8px",
+            cursor: "pointer",
+            "font-family": "sans-serif",
+            "font-size": "12px"
+          }}
+        >
+          {isFullscreen() ? "Exit Fullscreen" : "Fullscreen"}
+        </button>
+        <br/>
         <label style={{ color: "white", "font-family": "sans-serif", "font-size": "14px" }}>
           <input
             type="checkbox"
