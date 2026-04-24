@@ -13,6 +13,7 @@ import {
   NetworkSlot,
   PlayerTypeEnum,
 } from "./components";
+import { defaultReadySteadyGoConfig } from "./sounds/ReadySteadyGo";
 
 const baseEcs = new ECS();
 const reactiveEcs = new ReactiveECS(baseEcs);
@@ -29,6 +30,26 @@ export const RegisteredMasterState = baseEcs.register_resource(
     "masterState": MasterState.INTRO_SCREEN,
   }
 );
+
+// For Handling the Ready-Steady-Go state at the start of the race
+export const enum ReadySteadyGoStage {
+  READY = 0,
+  STEADY = 1,
+  GO = 2,
+};
+export const RegisteredInGameState = baseEcs.register_resource(
+  [
+    "isReadySteadyGo",
+    "readySteadyGoStage",
+    "readySteadyGoCurrentTimeout",
+  ] as const,
+  {
+    isReadySteadyGo: 0,
+    readySteadyGoStage: ReadySteadyGoStage.READY,
+    readySteadyGoCurrentTimeout: defaultReadySteadyGoConfig.readyBeep.duration,
+  }
+);
+//
 
 export const RegisteredPosition = baseEcs.register_component(Position.def);
 export const RegisteredVelocity = baseEcs.register_component(Velocity.def);

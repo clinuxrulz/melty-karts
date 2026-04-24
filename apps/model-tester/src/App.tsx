@@ -1,17 +1,19 @@
 import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component } from "solid-js";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createSolidLogoModelHMR } from "./model-tester";
+import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
+import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo",
   }>({
     model: "SolidLogo",
   });
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
   let [ renderer, setRenderer, ] = createSignal<THREE.WebGLRenderer>();
+  let [ composer, setComposer, ] = createSignal<EffectComposer>();
   let [ camera, setCamera, ] = createSignal<THREE.PerspectiveCamera>();
   let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
   let scene = new THREE.Scene();
@@ -37,15 +39,11 @@ const App: Component = () => {
     let aboutToRender = false;
     let render = () => {
       aboutToRender = false;
-      let renderer2 = renderer();
-      if (renderer2 == undefined) {
+      let composer2 = composer();
+      if (composer2 == undefined) {
         return;
       }
-      let camera2 = camera();
-      if (camera2 == undefined) {
-        return;
-      }
-      renderer2.render(scene, camera2);
+      composer2.render();
     };
     return () => {
       if (aboutToRender) {
@@ -76,6 +74,10 @@ const App: Component = () => {
         camera2.updateProjectionMatrix();
         renderer2.render(scene, camera2);
       }
+      let composer2 = composer();
+      if (composer2 != undefined) {
+        composer2.setSize(rect.width, rect.height);
+      }
     });
     resizeObserver.observe(canvasDiv2);
     let cleanups: (() => void)[] = [];
@@ -89,6 +91,19 @@ const App: Component = () => {
     camera2.updateProjectionMatrix();
     camera2.position.set(5.0, 5.0, 5.0);
     camera2.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
+    // Resolution, strength, radius, threshold
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(rect.width, rect.height), 
+      1.5,  // strength
+      0.4,  // radius
+      0.85  // threshold
+    );
+    const composer2 = new EffectComposer(renderer2);
+    const renderScene = new RenderPass(scene, camera2);
+    composer2.addPass(renderScene);
+    composer2.addPass(bloomPass);
+    setComposer(composer2);
+    //
     let orbitControls2 = new OrbitControls(camera2, canvasDiv2);
     orbitControls2.addEventListener("change", () => rerender());
     setRenderer(renderer2);
@@ -105,6 +120,60 @@ const App: Component = () => {
     let cubeyModel = createCubeyModelHMR();
     let solidLogoModel = createSolidLogoModelHMR();
     let kartModel = createKartModelHMR();
+    let [ light, setLight, ] = createSignal<"Red" | "Yellow" | "Green">();
+    let readySteadyGoModel = createReadySteadyGoTrafficLightModelHMR(light);
+    let readySteadyGoSound = createReadySteadyGoSound();
+    createEffect(
+      () => state.model,
+      (model) => {
+        if (model !== "ReadySteadyGo") {
+          setLight(undefined);
+          return;
+        }
+        let stop = false;
+        queueMicrotask(async () => {
+          while (!stop) {
+            setLight("Red");
+            rerender();
+            readySteadyGoSound.play();
+            await new Promise<void>((resolve) => {
+              setTimeout(
+                () => {
+                  resolve();
+                },
+                (
+                  defaultReadySteadyGoConfig.steadyBeep.startTime
+                ) * 1000.0,
+              );
+            });
+            setLight("Yellow");
+            rerender();
+            await new Promise<void>((resolve) => {
+              setTimeout(
+                () => {
+                  resolve();
+                },
+                (
+                  defaultReadySteadyGoConfig.goBeep.startTime
+                    - defaultReadySteadyGoConfig.steadyBeep.startTime
+                ) * 1000.0,
+              );
+            });
+            setLight("Green");
+            rerender();
+            await new Promise<void>((resolve) => {
+              setTimeout(
+                () => {
+                  resolve();
+                },
+                4000.0,
+              );
+            });
+          }
+        });
+        return () => { stop = true; };
+      },
+    );
     createMemo(() => {
       let model: Accessor<THREE.Object3D | undefined>;
       switch (state.model) {
@@ -119,6 +188,9 @@ const App: Component = () => {
           break;
         case "Kart":
           model = kartModel;
+          break;
+        case "ReadySteadyGo":
+          model = readySteadyGoModel;
           break;
       }
       createEffect(
@@ -166,6 +238,7 @@ const App: Component = () => {
         <option value="Cubey" selected={state.model == "Cubey"}>Cubey</option>
         <option value="SolidLogo" selected={state.model == "SolidLogo"}>SolidLogo</option>
         <option value="Kart" selected={state.model == "Kart"}>Kart</option>
+        <option value="ReadySteadyGo" selected={state.model == "ReadySteadyGo"}>ReadySteadyGo</option>
       </select>
     </div>
   );
