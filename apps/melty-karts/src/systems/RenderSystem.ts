@@ -7,13 +7,16 @@ import {
   RegisteredPlayerConfig,
   RegisteredKartConfig,
   RegisteredOrientation,
+  RegisteredInGameState,
+  ReadySteadyGoStage,
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
 import { createMelty } from "../models/melty";
 import { createCubey } from "../models/cubey";
+import { createReadySteadyGoTrafficLight } from "../models/ReadySteadyGoTrafficLight";
 
-export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { update: () => void; dispose: () => void } {
+export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera: THREE.Camera): { update: () => void; dispose: () => void } {
   return createRoot((dispose) => {
 
     createMemo(mapArray(
@@ -80,6 +83,38 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene): { upda
       },
     ));
 
-    return { update: () => {}, dispose };
+    let isReadySteadyGo = createMemo(() => ecs.resource(RegisteredInGameState).get("isReadySteadyGo"));
+    let trafficLight = createMemo(() => {
+      if (!isReadySteadyGo()) {
+        return undefined;
+      }
+      let light = createMemo(() => {
+        let stage = ecs.resource(RegisteredInGameState).get("readySteadyGoStage");
+        switch (stage) {
+          case ReadySteadyGoStage.READY:
+            return "Red" as const;
+          case ReadySteadyGoStage.STEADY:
+            return "Yellow" as const;
+          default:
+            return "Green" as const;
+        }
+      });
+      let trafficLight = createReadySteadyGoTrafficLight(light);
+      scene.add(trafficLight);
+      onCleanup(() => scene.remove(trafficLight));
+      return trafficLight;
+    });
+
+    return {
+      update: () => {
+        let trafficLight2 = trafficLight();
+        if (trafficLight2 != undefined) {
+          trafficLight2.position.set(0.0, 0.0, -3.0);
+          trafficLight2.position.applyMatrix4(camera.matrixWorld);
+          trafficLight2.lookAt(camera.position);
+        }
+      },
+      dispose,
+    };
   });
 }

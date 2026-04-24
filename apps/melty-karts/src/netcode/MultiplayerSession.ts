@@ -1,4 +1,5 @@
 import { createSession, Session, type Game, type PlayerId, SessionState } from "rollback-netcode";
+import * as THREE from "three";
 import type { ReactiveECS, ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
 import { createKart } from "../Kart";
 import {
@@ -44,6 +45,11 @@ class MultiplayerSessionController {
     localPlayerId: null,
     error: null,
   };
+  #update: ((dt: number) => void) | undefined = undefined;
+
+  set update(fn: ((dt: number) => void) | undefined) {
+    this.#update = fn;
+  }
 
   subscribe(listener: () => void): () => void {
     this.#listeners.add(listener);
@@ -228,8 +234,15 @@ class MultiplayerSessionController {
     const playerIds = this.getOrderedPlayerIds();
     const { curve } = generateTrack(42);
     for (let slot = 0; slot < playerIds.length; slot++) {
-      const t = 0.01 + slot * 0.0125;
-      const startPos = curve.getPointAt(t);
+      const t = 0.995;
+      let offsetStart: THREE.Vector3;
+      {
+        let v = curve.getTangentAt(t);
+        let u = v.cross(new THREE.Vector3(0, 1, 0));
+        u.normalize().multiplyScalar(slot * 1.5);
+        offsetStart = u;
+      }
+      const startPos = curve.getPointAt(t).add(offsetStart);
       startPos.y += 0.1;
       let playerTypeIdx = slot % 3;
       let playerType: "Melty" | "Cubey" | "Solid";
@@ -302,6 +315,7 @@ class MultiplayerSessionController {
             driftDown: (mask & 0b0010) !== 0,
           });
         }
+        this.#update?.(1 / 60);
       },
       hash: () => ecs.hash(ignoredResources),
     };

@@ -2,9 +2,13 @@ import { Howl } from "howler";
 import type { Accessor } from "solid-js";
 import type { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
-import { RegisteredKartConfig } from "../World";
+import { RegisteredKartConfig, RegisteredPreReadySteadyGoDelayFinished } from "../World";
+import { createReadySteadyGoSound } from "../sounds/ReadySteadyGo";
 
 export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<boolean>) {
+
+  const readySteadyGoSound = createReadySteadyGoSound();
+
   const engineSound = new Howl({
     src: ["./engine.mp3"],
     loop: true,
@@ -23,6 +27,7 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
   let engineStarted = false;
   let lastEngineSpeed = 0;
   let wasEnabled = true;
+  let wasPreReadySteadyGoDelayFinshed = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
 
   const update = (dt: number, playerEntityId: EntityID) => {
     const isEnabled = getSoundEnabled ? getSoundEnabled() : true;
@@ -44,6 +49,14 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
     }
     
     wasEnabled = isEnabled;
+
+    if (!wasPreReadySteadyGoDelayFinshed) {
+      let readySteadyGoDelayFinshed = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
+      if (readySteadyGoDelayFinshed) {
+        readySteadyGoSound.play();
+      }
+      wasPreReadySteadyGoDelayFinshed = readySteadyGoDelayFinshed;
+    }
 
     const speed = ecs.entity(playerEntityId).getField(RegisteredKartConfig, "speed");
     

@@ -49,6 +49,22 @@ export const RegisteredInGameState = baseEcs.register_resource(
     readySteadyGoCurrentTimeout: defaultReadySteadyGoConfig.readyBeep.duration,
   }
 );
+export const RegisteredPreReadySteadyGoDelay = baseEcs.register_resource(
+  [
+    "delay"
+  ] as const,
+  {
+    delay: 1.0,
+  }
+);
+export const RegisteredPreReadySteadyGoDelayFinished = baseEcs.register_resource(
+  [
+    "value",
+  ] as const,
+  {
+    value: 0,
+  }
+);
 //
 
 export const RegisteredPosition = baseEcs.register_component(Position.def);

@@ -5,7 +5,7 @@ import { System } from "./System";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -14,6 +14,9 @@ import { createSoundSystem } from "./SoundSystem";
 import { untrack } from "@solidjs/web";
 import { createRollbackNetcodeSystem } from "./RollbackNetcodeSystem";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
+import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
+import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
+import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 
 export function createInGameSystem(ecs: ReactiveECS): System {
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
@@ -38,6 +41,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       setCanvasMounted(true);
     },
   )
+  let [ renderSystem, setRenderSystem ] = createSignal<System>();
   createMemo(() => {
     let canvasDiv2 = canvasDiv();
     if (canvasDiv2 == undefined) {
@@ -50,14 +54,16 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     if (!canvasMounted()) {
       return;
     }
-    onCleanup(untrack(() =>
+    let { dispose, renderSystem: renderSystem2 } = untrack(() =>
       initScene(
         ecs,
         canvasDiv2,
         canvas2,
         setCanvasSize,
       )
-    ));
+    );
+    queueMicrotask(() => setRenderSystem(renderSystem2));
+    onCleanup(dispose);
   });
   let soundEnabled = createMemo(() =>
     ecs.resource(RegisteredSoundEnabled).get("enabled") != 0
@@ -231,7 +237,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   );
   //
   let subsystems = createMemo(() => {
-    return [];
+    return [
+      untrack(() => createReadySteadyGoSystem(ecs)),
+    ];
   });
   //
   let [isFullscreen, setIsFullscreen] = createSignal(false);
@@ -317,9 +325,42 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     </div>
   ));
   //
+  queueMicrotask(() => {
+    ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
+    ecs.set_resource(
+      RegisteredPreReadySteadyGoDelay,
+      {
+        delay: 3.0,
+      },
+    );
+  });
   return {
     subsystems,
     ui,
+    update(dt) {
+      let delayFinished = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
+      if (!delayFinished) {
+        let delay = ecs.resource(RegisteredPreReadySteadyGoDelay).get("delay");
+        delay -= dt;
+        if (delay >= 0.0) {
+          ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay, });
+        } else {
+          ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay: 0.0, });
+          ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 1, });
+          ecs.set_resource(
+            RegisteredInGameState,
+            {
+              isReadySteadyGo: 1,
+              readySteadyGoStage: ReadySteadyGoStage.READY,
+              readySteadyGoCurrentTimeout:
+                defaultReadySteadyGoConfig.steadyBeep.startTime -
+                  defaultReadySteadyGoConfig.readyBeep.startTime,
+            }
+          );
+        }
+      }
+      renderSystem()?.update?.(dt);
+    },
   };
 }
 
@@ -392,7 +433,7 @@ function initScene(
   
   placeProps(curve, scene);
   
-  const t = 0.01;
+  const t = 0.995;
   const startPos = curve.getPointAt(t);
   let kartEntityId: number;
   if (isMultiplayer) {
@@ -416,7 +457,10 @@ function initScene(
     });
   }
 
-  const { dispose: disposeRender } = createRenderSystem(ecs, scene);
+  const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
+
+  const renderSystem = createRenderSystem(ecs, scene, camera);
+  const { dispose: disposeRender } = renderSystem;
   const turnAmount = createMemo(() => {
     const joyX = joystickValue().x;
     if (Math.abs(joyX) > 0.01) {
@@ -446,7 +490,16 @@ function initScene(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 
+    1.5,  // strength
+    0.4,  // radius
+    0.85  // threshold
+  );
+  const composer = new EffectComposer(renderer);
+  const renderScene = new RenderPass(scene, camera);
+  composer.addPass(renderScene);
+  composer.addPass(bloomPass);
 
   let orbitYaw = 0;
   let orbitPitch = 0.5;
@@ -539,9 +592,10 @@ function initScene(
     let rect = canvasDiv.getBoundingClientRect();
     setCanvasSize(new THREE.Vector2(rect.width, rect.height));
     renderer.setSize(rect.width, rect.height);
+    composer.setSize(rect.width, rect.height);
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
-    renderer.render(scene, camera);
+    composer.render();
   });
   resizeObserver.observe(canvasDiv);
   onCleanup(() => {
@@ -644,17 +698,20 @@ function initScene(
       camera.lookAt(smoothCameraLookAt);
     }
     
-    renderer.render(scene, camera);
+    composer.render();
     requestAnimationFrame(animate);
   };
   animate();
   
-  return () => {
-    running = false;
-    rollbackSystem?.dispose();
-    disposeRender();
-    disposeSound();
-    renderer.dispose();
+  return {
+    dispose: () => {
+      running = false;
+      rollbackSystem?.dispose();
+      disposeRender();
+      disposeSound();
+      renderer.dispose();
+    },
+    renderSystem,
   };
 }
 

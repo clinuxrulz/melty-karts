@@ -7,6 +7,9 @@ import {
   RegisteredKartConfig,
   RegisteredKartRuntime,
   RegisteredGlobalGravity,
+  RegisteredPreReadySteadyGoDelayFinished,
+  RegisteredInGameState,
+  ReadySteadyGoStage,
 } from "../World";
 import { EntityID } from "@oasys/oecs";
 import { Accessor } from "solid-js";
@@ -80,6 +83,21 @@ export function simulateKartStep(params: {
   dt: number,
 } & KartInputState): void {
   const { ecs, entityId, dt, turnAmount, actionDown, driftDown } = params;
+
+  {
+    let preReadySteadyGoFinished = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
+    if (!preReadySteadyGoFinished) {
+      return;
+    }
+    let isReadySteadyGo = ecs.resource(RegisteredInGameState).get("isReadySteadyGo");
+    if (isReadySteadyGo) {
+      let isGo = ecs.resource(RegisteredInGameState).get("readySteadyGoStage") == ReadySteadyGoStage.GO;
+      if (!isGo) {
+        return;
+      }
+    }
+  }
+
   const gravityY = ecs.resource(RegisteredGlobalGravity).get("y");
 
   const posX = ecs.entity(entityId).getField(RegisteredPosition, "x");
