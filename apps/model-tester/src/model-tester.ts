@@ -9,6 +9,10 @@ let [ readySteadyGoLib, setReadySteadyGoLib ] =
   createSignal<typeof import("../../melty-karts/src/models/ReadySteadyGoTrafficLight")>(
     async () => import("../../melty-karts/src/models/ReadySteadyGoTrafficLight")
   );
+let [ bananaLib, setBananaLib ] =
+  createSignal<typeof import("../../melty-karts/src/models/banana")>(
+    async () => import("../../melty-karts/src/models/banana")
+  );
 
 import("../../melty-karts/src/models/melty").then(setMeltyLib);
 import("../../melty-karts/src/models/cubey").then(setCubeyLib);
@@ -60,6 +64,10 @@ export function createReadySteadyGoTrafficLightModelHMR(lightOn: Accessor<"Red" 
   return createMemo(() => readySteadyGoLib().createReadySteadyGoTrafficLight(lightOn));
 }
 
+export function createBananaModelHMR(): Accessor<THREE.Object3D> {
+  return createMemo(() => bananaLib().createBanana());
+}
+
 if (import.meta.hot) {
   import.meta.hot.accept("../../melty-karts/src/models/melty", (lib) => {
     setMeltyLib(lib as any);
@@ -75,5 +83,8 @@ if (import.meta.hot) {
   });
   import.meta.hot.accept("../../melty-karts/src/models/ReadySteadyGoTrafficLight", (lib) => {
     setReadySteadyGoLib(lib as any);
+  });
+  import.meta.hot.accept("../../melty-karts/src/models/banana", (lib) => {
+    setBananaLib(lib as any);
   });
 }

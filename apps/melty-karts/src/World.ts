@@ -76,6 +76,15 @@ export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
 export const RegisteredKartRuntime = baseEcs.register_component(KartRuntime.def);
 export const RegisteredNetworkSlot = baseEcs.register_component(NetworkSlot.def);
+
+export enum ObsticleType {
+  Banana = 0,
+  Rock = 1,
+}
+export const RegisteredObsticle = baseEcs.register_component({
+  type: "u32"
+});
+
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });

@@ -1,12 +1,12 @@
 import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component } from "solid-js";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
-import { createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
+import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana",
   }>({
     model: "SolidLogo",
   });
@@ -123,6 +123,7 @@ const App: Component = () => {
     let [ light, setLight, ] = createSignal<"Red" | "Yellow" | "Green">();
     let readySteadyGoModel = createReadySteadyGoTrafficLightModelHMR(light);
     let readySteadyGoSound = createReadySteadyGoSound();
+    let bananaModel = createBananaModelHMR();
     createEffect(
       () => state.model,
       (model) => {
@@ -192,6 +193,9 @@ const App: Component = () => {
         case "ReadySteadyGo":
           model = readySteadyGoModel;
           break;
+        case "Banana":
+          model = bananaModel;
+          break;
       }
       createEffect(
         model,
@@ -239,6 +243,7 @@ const App: Component = () => {
         <option value="SolidLogo" selected={state.model == "SolidLogo"}>SolidLogo</option>
         <option value="Kart" selected={state.model == "Kart"}>Kart</option>
         <option value="ReadySteadyGo" selected={state.model == "ReadySteadyGo"}>ReadySteadyGo</option>
+        <option value="Banana" selected={state.model == "Banana"}>Banana</option>
       </select>
     </div>
   );
