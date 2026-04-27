@@ -19,6 +19,7 @@ const App: Component = () => {
   let [ composer, setComposer, ] = createSignal<EffectComposer>();
   let [ camera, setCamera, ] = createSignal<THREE.PerspectiveCamera>();
   let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
+  /*
   let scene = new THREE.Scene();
   // lights
   {
@@ -56,6 +57,8 @@ const App: Component = () => {
       requestAnimationFrame(render);
     };
   })();
+  */
+  /*
   onSettled(() => {
     let canvasDiv2 = canvasDiv();
     if (canvasDiv2 == undefined) {
@@ -118,6 +121,8 @@ const App: Component = () => {
       cleanups.splice(0, cleanups.length);
     };
   });
+  */
+  /*
   let model: Accessor<THREE.Object3D | undefined>;
   {
     let meltyModel = createMeltyModelHMR();
@@ -200,6 +205,7 @@ const App: Component = () => {
     let model3 = model();
     return untrack(() => (<Entity from={model3}/>));
   });
+  */
   return (
     <div
       ref={setCanvasDiv}
@@ -228,11 +234,12 @@ const App: Component = () => {
               0.85  // threshold
             );
             const composer2 = new EffectComposer(ctx.gl as unknown as THREE.WebGLRenderer);
-            const renderScene = new RenderPass(scene, ctx.camera as unknown as THREE.PerspectiveCamera);
+            const renderScene = new RenderPass(ctx.scene as unknown as THREE.Scene, ctx.camera as unknown as THREE.PerspectiveCamera);
             composer2.addPass(renderScene);
             composer2.addPass(bloomPass);
             setComposer(composer2);
             composer2.render();
+            setTimeout(() => composer2.render(), 1000);
           });
         }}
         defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
