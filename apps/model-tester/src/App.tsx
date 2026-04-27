@@ -5,7 +5,6 @@ import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMe
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
-import { Dynamic, untrack } from "@solidjs/web";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -218,6 +217,7 @@ const App: Component = () => {
     >
       <Canvas
         ref={(ctx) => {
+          /*
           ctx.camera.lookAt(0.0, 0.0, 0.0);
           onSettled(() => {
             let canvasDiv2 = canvasDiv();
@@ -240,7 +240,7 @@ const App: Component = () => {
             setComposer(composer2);
             composer2.render();
             setTimeout(() => composer2.render(), 1000);
-          });
+          });*/
         }}
         defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
         scene={{ background: [0.1, 0.1, 0.15] }}

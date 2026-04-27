@@ -20,7 +20,7 @@
   "dependencies": {
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "^0.2.1",
-    "@solidjs/web": "2.0.0-beta.7",
+    "@solidjs/web": "2.0.0-beta.3",
     "howler": "^2.2.4",
     "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
