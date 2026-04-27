@@ -1,4 +1,4 @@
-import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component } from "solid-js";
+import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show } from "solid-js";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
@@ -230,7 +230,11 @@ const App: Component = () => {
         <T.AxesHelper
           args={[ 1.5, ]}
         />
-        {/*<Entity from={model()}/>*/}
+        <Show when={model()}>
+          {(model) => (
+            <Entity from={model()}/>
+          )}
+        </Show>
       </Canvas>
       <select
         style={{
