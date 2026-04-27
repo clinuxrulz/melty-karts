@@ -1,10 +1,11 @@
-import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show } from "solid-js";
+import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, JSX } from "solid-js";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
+import { Dynamic, untrack } from "@solidjs/web";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -195,6 +196,10 @@ const App: Component = () => {
       }
     });
   }
+  let model2 = createMemo<JSX.Element>(() => {
+    let model3 = model();
+    return untrack(() => (<Entity from={model3}/>));
+  });
   return (
     <div
       ref={setCanvasDiv}
@@ -227,6 +232,7 @@ const App: Component = () => {
             composer2.addPass(renderScene);
             composer2.addPass(bloomPass);
             setComposer(composer2);
+            composer2.render();
           });
         }}
         defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
@@ -248,11 +254,19 @@ const App: Component = () => {
         <T.AxesHelper
           args={[ 1.5, ]}
         />
-        <Show when={model()}>
+        <T.Mesh>
+          <T.BoxGeometry
+            args={[ 1, 1, 1, ]}
+          />
+          <T.MeshNormalMaterial/>
+        </T.Mesh>
+        {/*
+        <Show when={model2()}>
           {(model) => (
-            <Entity from={model()}/>
+            <Dynamic component={() => model()}/>
           )}
         </Show>
+        */}
       </Canvas>
       <select
         style={{
