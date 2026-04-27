@@ -22,7 +22,7 @@
     "@solidjs/web": "2.0.0-beta.3",
     "howler": "^2.2.4",
     "solid-js": "2.0.0-beta.3",
-    "solid-three": "workspace:*",
+    "solid-three": "https://pkg.pr.new/bigmistqke/solid-three@37765e7",
     "three": "^0.183.2"
   },
   "pnpm": {

@@ -89,8 +89,8 @@ importers:
         specifier: 2.0.0-beta.3
         version: 2.0.0-beta.3
       solid-three:
-        specifier: workspace:*
-        version: link:../../packages/solid-three
+        specifier: https://pkg.pr.new/bigmistqke/solid-three@37765e7
+        version: https://pkg.pr.new/bigmistqke/solid-three@37765e7(@solidjs/web@2.0.0-beta.3(@solidjs/signals@0.13.13)(solid-js@2.0.0-beta.3))(@types/three@0.183.1)(solid-js@2.0.0-beta.3)(three@0.183.2)
       three:
         specifier: ^0.183.2
         version: 0.183.2
@@ -4020,6 +4020,15 @@ packages:
     resolution: {integrity: sha512-fqkPRAeiE0tqfo2ZljeQBIXwfYssU2w1FmaWFrXmnV33B/CfGfez7BjtOF0Y1/orUNRXI/DZcJlJThHllcCMsA==}
     peerDependencies:
       solid-js: '>=2.0.0-beta.7 <2.0.0-experimental.0'
+
+  solid-three@https://pkg.pr.new/bigmistqke/solid-three@37765e7:
+    resolution: {tarball: https://pkg.pr.new/bigmistqke/solid-three@37765e7}
+    version: 0.3.0-next.12
+    peerDependencies:
+      '@solidjs/web': '*'
+      '@types/three': '*'
+      solid-js: '*'
+      three: '*'
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -8921,6 +8930,14 @@ snapshots:
       '@babel/generator': 7.29.1
       '@babel/types': 7.29.0
       solid-js: 2.0.0-experimental.16
+
+  solid-three@https://pkg.pr.new/bigmistqke/solid-three@37765e7(@solidjs/web@2.0.0-beta.3(@solidjs/signals@0.13.13)(solid-js@2.0.0-beta.3))(@types/three@0.183.1)(solid-js@2.0.0-beta.3)(three@0.183.2):
+    dependencies:
+      '@solidjs/web': 2.0.0-beta.3(@solidjs/signals@0.13.13)(solid-js@2.0.0-beta.3)
+      '@types/three': 0.183.1
+      debounce: 2.2.0
+      solid-js: 2.0.0-beta.3
+      three: 0.183.2
 
   source-map-js@1.2.1: {}
 
