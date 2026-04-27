@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
-import { Canvas } from "solid-three";
+import { Canvas, Entity } from "solid-three";
+import { T } from "../../melty-karts/src/t";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -116,6 +117,7 @@ const App: Component = () => {
       cleanups.splice(0, cleanups.length);
     };
   });
+  let model: Accessor<THREE.Object3D | undefined>;
   {
     let meltyModel = createMeltyModelHMR();
     let cubeyModel = createCubeyModelHMR();
@@ -176,41 +178,21 @@ const App: Component = () => {
         return () => { stop = true; };
       },
     );
-    createMemo(() => {
-      let model: Accessor<THREE.Object3D | undefined>;
+    model = createMemo(() => {
       switch (state.model) {
         case "Melty":
-          model = meltyModel;
-          break;
+          return meltyModel();
         case "Cubey":
-          model = cubeyModel;
-          break;
+          return cubeyModel();
         case "SolidLogo":
-          model = solidLogoModel;
-          break;
+          return solidLogoModel();
         case "Kart":
-          model = kartModel;
-          break;
+          return kartModel();
         case "ReadySteadyGo":
-          model = readySteadyGoModel;
-          break;
+          return readySteadyGoModel();
         case "Banana":
-          model = bananaModel;
-          break;
+          return bananaModel();
       }
-      createEffect(
-        model,
-        (model) => {
-          if (model == undefined) {
-            return undefined;
-          }
-          scene.add(model);
-          rerender();
-          return () => {
-            scene.remove(model);
-          };
-        },
-      );
     });
   }
   return (
@@ -223,9 +205,23 @@ const App: Component = () => {
         "background-color": "darkgray",
       }}
     >
-      <Canvas
-        ref={setCanvas}
-      >
+      <Canvas>
+        {/* Lights */}
+        <T.AmbientLight
+          args={[ 0xFFFFFF, 0.5 ]}
+        />
+        <T.DirectionalLight
+          args={[ 0xFFFFFF, 1.0, ]}
+          position={[ 5.0, 10.0, 7.0 ]}
+        />
+        {/* Grid helper and axes */}
+        <T.GridHelper
+          args={[ 6.0, 6, ]}
+          position={[ 0.0, -0.001, 0.0, ]}
+        />
+        <T.AxesHelper
+        />
+        <Entity from={model()}/>
       </Canvas>
       <select
         style={{
