@@ -207,9 +207,27 @@ const App: Component = () => {
     >
       <Canvas
         ref={(ctx) => {
-          queueMicrotask(() => setCanvas(ctx.canvas));
           ctx.camera.lookAt(0.0, 0.0, 0.0);
-          ctx.render(0.0);
+          onSettled(() => {
+            let canvasDiv2 = canvasDiv();
+            if (canvasDiv2 == undefined) {
+              return;
+            }
+            let rect = canvasDiv2.getBoundingClientRect();
+            setCanvas(ctx.canvas);
+            // Resolution, strength, radius, threshold
+            const bloomPass = new UnrealBloomPass(
+              new THREE.Vector2(rect.width, rect.height), 
+              1.5,  // strength
+              0.4,  // radius
+              0.85  // threshold
+            );
+            const composer2 = new EffectComposer(ctx.gl as unknown as THREE.WebGLRenderer);
+            const renderScene = new RenderPass(scene, ctx.camera as unknown as THREE.PerspectiveCamera);
+            composer2.addPass(renderScene);
+            composer2.addPass(bloomPass);
+            setComposer(composer2);
+          });
         }}
         defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
         scene={{ background: [0.1, 0.1, 0.15] }}
