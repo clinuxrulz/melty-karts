@@ -7,8 +7,8 @@ export function createMelty(): THREE.Object3D {
 }
 
 const Melty: Component = (props) => {
-  const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const yellowMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+  let redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  let yellowMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
   onCleanup(() => {
     redMaterial.dispose();
     yellowMaterial.dispose();
@@ -17,12 +17,15 @@ const Melty: Component = (props) => {
   onCleanup(() => {
     toothGeometry.dispose();
   });
-  let sideTooth = (position: [ number, number, number, ]) => (
+  let SideTooth = (props: { position: [ number, number, number, ], }) => (
     <T.Mesh
       geometry={toothGeometry}
       material={yellowMaterial}
+      position={props.position}
     />
   );
+  const eyeGeometry = new THREE.SphereGeometry(0.08);
+  onCleanup(() => eyeGeometry.dispose());
   return (
     <T.Group>
       {/* Chin */}
@@ -43,6 +46,34 @@ const Melty: Component = (props) => {
           args={[ 0.5, 0.25, 0.5, ]}
         />
       </T.Mesh>
+      {/* Left Tooth */}
+      <SideTooth
+        position={[ -0.14, 0.3, 0.3, ]}
+      />
+      {/* Right Tooth */}
+      <SideTooth
+        position={[ 0.14, 0.3, 0.3, ]}
+      />
+      {/* Middle Tooth */}
+      <T.Mesh
+        material={yellowMaterial}
+      >
+        <T.BoxGeometry
+          args={[ 0.1, 0.4, 0.1, ]}
+        />
+      </T.Mesh>
+      {/* Left Eye */}
+      <T.Mesh
+        geometry={eyeGeometry}
+        material={yellowMaterial}
+        position={[ -0.15, 0.48, 0.25, ]}
+      />
+      {/* Right Eye */}
+      <T.Mesh
+        geometry={eyeGeometry}
+        material={yellowMaterial}
+        position={[ 0.15, 0.48, 0.25, ]}
+      />
     </T.Group>
   );
   //return T.Mesh;
