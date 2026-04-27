@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
-import { Canvas, Entity } from "solid-three";
+import { Canvas, Entity, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
 
 const App: Component = () => {
@@ -206,7 +206,13 @@ const App: Component = () => {
       }}
     >
       <Canvas
-        ref={(ctx) => queueMicrotask(() => setCanvas(ctx.canvas))}
+        ref={(ctx) => {
+          queueMicrotask(() => setCanvas(ctx.canvas));
+          ctx.camera.lookAt(0.0, 0.0, 0.0);
+          ctx.render(0.0);
+        }}
+        defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
+        scene={{ background: [0.1, 0.1, 0.15] }}
       >
         {/* Lights */}
         <T.AmbientLight
@@ -224,7 +230,7 @@ const App: Component = () => {
         <T.AxesHelper
           args={[ 1.5, ]}
         />
-        <Entity from={model()}/>
+        {/*<Entity from={model()}/>*/}
       </Canvas>
       <select
         style={{
