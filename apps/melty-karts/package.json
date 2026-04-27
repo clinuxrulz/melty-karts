@@ -20,13 +20,13 @@
   "dependencies": {
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "^0.2.1",
-    "@solidjs/web": "2.0.0-beta.3",
+    "@solidjs/web": "2.0.0-beta.7",
     "howler": "^2.2.4",
     "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
     "rollback-netcode": "^0.0.6",
     "solid-js": "2.0.0-beta.3",
-    "solid-three": "workspace:*",
+    "solid-three": "https://pkg.pr.new/bigmistqke/solid-three@37765e7",
     "three": "^0.183.2",
     "three-stdlib": "^2.36.1"
   }
