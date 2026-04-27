@@ -205,7 +205,9 @@ const App: Component = () => {
         "background-color": "darkgray",
       }}
     >
-      <Canvas>
+      <Canvas
+        ref={(ctx) => queueMicrotask(() => setCanvas(ctx.canvas))}
+      >
         {/* Lights */}
         <T.AmbientLight
           args={[ 0xFFFFFF, 0.5 ]}
