@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
+import { Canvas } from "solid-three";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -222,7 +223,10 @@ const App: Component = () => {
         "background-color": "darkgray",
       }}
     >
-      <canvas ref={setCanvas}/>
+      <Canvas
+        ref={setCanvas}
+      >
+      </Canvas>
       <select
         style={{
           "position": "absolute",

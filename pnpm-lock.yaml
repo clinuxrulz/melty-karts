@@ -88,6 +88,9 @@ importers:
       solid-js:
         specifier: 2.0.0-beta.3
         version: 2.0.0-beta.3
+      solid-three:
+        specifier: workspace:*
+        version: link:../../packages/solid-three
       three:
         specifier: ^0.183.2
         version: 0.183.2
