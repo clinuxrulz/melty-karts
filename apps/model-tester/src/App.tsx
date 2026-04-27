@@ -220,6 +220,7 @@ const App: Component = () => {
           position={[ 0.0, -0.001, 0.0, ]}
         />
         <T.AxesHelper
+          args={[ 1.5, ]}
         />
         <Entity from={model()}/>
       </Canvas>
