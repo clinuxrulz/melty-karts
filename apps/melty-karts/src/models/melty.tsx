@@ -2,6 +2,10 @@ import { onCleanup, Component, JSX } from "solid-js";
 import * as THREE from "three";
 import { T } from "../t";
 
+export function createMelty(): THREE.Object3D {
+  return (<Melty/>) as unknown as THREE.Object3D;
+}
+
 const Melty: Component = (props) => {
   const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
   const yellowMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
@@ -9,6 +13,16 @@ const Melty: Component = (props) => {
     redMaterial.dispose();
     yellowMaterial.dispose();
   });
+  let toothGeometry = new THREE.BoxGeometry(0.1, 0.2, 0.1);
+  onCleanup(() => {
+    toothGeometry.dispose();
+  });
+  let sideTooth = (position: [ number, number, number, ]) => (
+    <T.Mesh
+      geometry={toothGeometry}
+      material={yellowMaterial}
+    />
+  );
   return (
     <T.Group>
       {/* Chin */}
@@ -18,6 +32,15 @@ const Melty: Component = (props) => {
       >
         <T.BoxGeometry
           args={[ 0.5, 0.2, 0.5, ]}
+        />
+      </T.Mesh>
+      {/* Head */}
+      <T.Mesh
+        position={[ 0.0, 0.45, 0.0, ]}
+        material={redMaterial}
+      >
+        <T.BoxGeometry
+          args={[ 0.5, 0.25, 0.5, ]}
         />
       </T.Mesh>
     </T.Group>
