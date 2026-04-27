@@ -1,7 +1,29 @@
-import { onCleanup } from "solid-js";
+import { onCleanup, Component, JSX } from "solid-js";
 import * as THREE from "three";
+import { T } from "../t";
 
-export function createMelty(): THREE.Object3D {
+const Melty: Component = (props) => {
+  const redMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const yellowMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+  onCleanup(() => {
+    redMaterial.dispose();
+    yellowMaterial.dispose();
+  });
+  return (
+    <T.Group>
+      {/* Chin */}
+      <T.Mesh
+        position={[ 0.0, 0.1, 0.0, ]}
+        material={redMaterial}
+      >
+        <T.BoxGeometry
+          args={[ 0.5, 0.2, 0.5, ]}
+        />
+      </T.Mesh>
+    </T.Group>
+  );
+  //return T.Mesh;
+  /*
   let group = new THREE.Group();
   let chinMesh: THREE.Mesh;
   let headMesh: THREE.Mesh;
@@ -60,4 +82,7 @@ export function createMelty(): THREE.Object3D {
   eyesMesh.forEach((m) => group.add(m));
 
   return group;
+  */
 }
+
+export default Melty;
