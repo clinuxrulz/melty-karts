@@ -217,9 +217,8 @@ const App: Component = () => {
     >
       <Canvas
         ref={(ctx) => {
-          /*
-          ctx.camera.lookAt(0.0, 0.0, 0.0);
           onSettled(() => {
+            ctx.camera.lookAt(0.0, 0.0, 0.0);
             let canvasDiv2 = canvasDiv();
             if (canvasDiv2 == undefined) {
               return;
@@ -240,11 +239,12 @@ const App: Component = () => {
             setComposer(composer2);
             composer2.render();
             setTimeout(() => composer2.render(), 1000);
-          });*/
+            ctx.render(0);
+          });
         }}
         defaultCamera={{ position: [ 5.0, 5.0, 5.0, ] }}
-        scene={{ background: [0.1, 0.1, 0.15] }}
       >
+        <T.Color attach={"background"} args={["black"]}/>
         {/* Lights */}
         <T.AmbientLight
           args={[ 0xFFFFFF, 0.5 ]}
