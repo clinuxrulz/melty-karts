@@ -1,10 +1,11 @@
-import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, JSX } from "solid-js";
+import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, JSX, untrack } from "solid-js";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
+import { Dynamic } from "@solidjs/web";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -38,6 +39,7 @@ const App: Component = () => {
     let axesHelper = new THREE.AxesHelper(1.5);
     scene.add(axesHelper);
   }
+  */
   let rerender = (() => {
     let aboutToRender = false;
     let render = () => {
@@ -56,7 +58,6 @@ const App: Component = () => {
       requestAnimationFrame(render);
     };
   })();
-  */
   /*
   onSettled(() => {
     let canvasDiv2 = canvasDiv();
@@ -121,7 +122,6 @@ const App: Component = () => {
     };
   });
   */
-  /*
   let model: Accessor<THREE.Object3D | undefined>;
   {
     let meltyModel = createMeltyModelHMR();
@@ -204,7 +204,6 @@ const App: Component = () => {
     let model3 = model();
     return untrack(() => (<Entity from={model3}/>));
   });
-  */
   return (
     <div
       ref={setCanvasDiv}
@@ -261,19 +260,22 @@ const App: Component = () => {
         <T.AxesHelper
           args={[ 1.5, ]}
         />
+        {/*
         <T.Mesh>
           <T.BoxGeometry
             args={[ 1, 1, 1, ]}
           />
           <T.MeshNormalMaterial/>
         </T.Mesh>
-        {/*
+        */}
         <Show when={model2()}>
           {(model) => (
-            <Dynamic component={() => model()}/>
+            <>{(() => {
+              let model2 = model();
+              return model2;
+            })()}</>
           )}
         </Show>
-        */}
       </Canvas>
       <select
         style={{
