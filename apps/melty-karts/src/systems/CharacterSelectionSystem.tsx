@@ -1,8 +1,12 @@
-import { createSignal, createMemo, type Accessor, type Component, onCleanup, createEffect, untrack, Loading } from "solid-js";
+import { createSignal, createMemo, type Accessor, type Component, onCleanup, createEffect, untrack, Loading, Switch, Match, Show } from "solid-js";
 import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { MasterState, RegisteredGameMode, RegisteredMasterState, RegisteredLocalPlayerConfig } from "../World";
+import { Canvas, Entity, useFrame } from "solid-three";
+
+import { T } from "../t";
+import Melty from "../models/melty";
 
 let meltyLibRef: Accessor<typeof import("../models/melty") | undefined> | undefined;
 let cubeyLibRef: Accessor<typeof import("../models/cubey") | undefined> | undefined;
@@ -84,114 +88,8 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
     }
   };
 
-  let renderer: THREE.WebGLRenderer | undefined;
-  let scene: THREE.Scene | undefined;
-  let characterGroup: THREE.Group | undefined;
-  let canvasRef: HTMLCanvasElement | undefined;
-  let canvasDivRef: HTMLDivElement | undefined;
-  let animationFrameId: number | undefined;
-
-  const meltyModel = getMeltyModel();
   const cubeyModel = getCubeyModel();
   const solidLogoModel = getSolidLogoModel();
-
-  const getMelty = () => meltyModel?.();
-  const getCubey = () => cubeyModel?.();
-  const getSolidLogo = () => solidLogoModel?.();
-
-  const initThreeJS = (canvas: HTMLCanvasElement, div: HTMLDivElement) => {
-    canvasRef = canvas;
-    canvasDivRef = div;
-
-    let camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    camera.position.z = 1.5;
-
-    scene = new THREE.Scene();
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 10, 7);
-    scene.add(directionalLight);
-
-    characterGroup = new THREE.Group();
-    scene.add(characterGroup);
-
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-
-    const resizeObserver = new ResizeObserver(() => {
-      const rect = div.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      if (renderer) {
-        renderer.setSize(rect.width, rect.height);
-        camera.aspect = rect.width / rect.height;
-        camera.updateProjectionMatrix();
-      }
-    });
-    resizeObserver.observe(div);
-
-    onCleanup(() => resizeObserver.disconnect());
-
-    const updateCharacter = (charIndex: number) => {
-      if (!characterGroup) return;
-      while (characterGroup.children.length > 0) {
-        characterGroup.remove(characterGroup.children[0]);
-      }
-
-      let mesh: THREE.Object3D | undefined;
-      switch (charIndex) {
-        case 0:
-          mesh = getMelty();
-          break;
-        case 1:
-          mesh = getCubey();
-          break;
-        case 2:
-          mesh = getSolidLogo();
-          break;
-      }
-      if (mesh) {
-        let box = new THREE.Box3();
-        box.setFromObject(mesh);
-        camera.position.y = 0.5* (box.min.y + box.max.y);
-        characterGroup.add(mesh);
-      }
-    };
-
-    createEffect(
-      () => selectedCharacter(),
-      (charIndex) => {
-        untrack(() => {
-          updateCharacter(charIndex);
-        });
-      }
-    );
-
-    updateCharacter(0);
-
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-      if (characterGroup) {
-        characterGroup.rotation.y += 0.01;
-      }
-      if (renderer && camera && scene) {
-        renderer.render(scene, camera);
-      }
-    };
-    animate();
-  };
-
-  const cleanup = () => {
-    if (animationFrameId !== undefined) {
-      cancelAnimationFrame(animationFrameId);
-    }
-    if (renderer) {
-      renderer.dispose();
-    }
-  };
-
-  onCleanup(cleanup);
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (!showSelection() || confirmed()) return;
@@ -218,18 +116,9 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
   });
 
   const Canvas3DPreview: Component = () => {
-    let canvasDivEl: HTMLDivElement | undefined;
-    let canvasEl: HTMLCanvasElement | undefined;
-    let initialized = false;
-
-    const setRefs = (el: HTMLDivElement) => {
-      canvasDivEl = el;
-    };
-
     const CanvasWrapper: Component = () => {
       return (
         <div
-          ref={setRefs}
           style={{
             width: "min(300px, 60vw)",
             height: "min(300px, 60vw)",
@@ -243,16 +132,57 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
             "overflow": "hidden",
           }}
         >
-          <canvas
-            ref={(el: HTMLCanvasElement) => {
-              if (!initialized && el && canvasDivEl) {
-                canvasEl = el;
-                initThreeJS(el, canvasDivEl);
-                initialized = true;
-              }
+          <Canvas
+            ref={(ctx) => {
+              useFrame((ctx, dt) => {
+                setRotationAngle((a) => (a + dt) % 360.0);
+              });
             }}
-            style={{ width: "100%", height: "100%" }}
-          />
+            camera={{ position: [ 0.0, 0.0, 1.5, ], }}
+            frameloop="always"
+          >
+            <T.AmbientLight
+              args={[ 0xFFFFFF, 0.6, ]}
+            />
+            <T.DirectionalLight
+              args={[ 0xFFFFFF, 1.0, ]}
+              position={[ 5.0, 10.0, 7.0, ]}
+            />
+            <T.Group
+              position={[ 0.0, -0.35, 0.0, ]}
+              quaternion={new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationAngle())}
+            >
+              <Switch>
+                <Match when={selectedCharacter() == 0}>
+                    <Melty/>
+                </Match>
+                <Match when={selectedCharacter() == 1}>
+                  <Show when={cubeyModel()}>
+                    {(model) => (
+                      <>{(() => {
+                        let model2 = model();
+                        return untrack(() => (
+                          <Entity from={model2}/>
+                        ));
+                      })()}</>
+                    )}
+                  </Show>
+                </Match>
+                <Match when={selectedCharacter() == 2}>
+                  <Show when={solidLogoModel()}>
+                    {(model) => (
+                      <>{(() => {
+                        let model2 = model();
+                        return untrack(() => (
+                          <Entity from={model2}/>
+                        ));
+                      })()}</>
+                    )}
+                  </Show>
+                </Match>
+              </Switch>
+            </T.Group>
+          </Canvas>
         </div>
       );
     };

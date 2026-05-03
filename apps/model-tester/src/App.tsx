@@ -1,8 +1,12 @@
-import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component } from "solid-js";
+import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, untrack } from "solid-js";
+import { JSX } from "@solidjs/web";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
+import { Canvas, Entity, useFrame, useThree } from "solid-three";
+import { T } from "../../melty-karts/src/t";
+import { Dynamic } from "@solidjs/web";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -16,6 +20,7 @@ const App: Component = () => {
   let [ composer, setComposer, ] = createSignal<EffectComposer>();
   let [ camera, setCamera, ] = createSignal<THREE.PerspectiveCamera>();
   let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
+  /*
   let scene = new THREE.Scene();
   // lights
   {
@@ -35,6 +40,7 @@ const App: Component = () => {
     let axesHelper = new THREE.AxesHelper(1.5);
     scene.add(axesHelper);
   }
+  */
   let rerender = (() => {
     let aboutToRender = false;
     let render = () => {
@@ -53,6 +59,7 @@ const App: Component = () => {
       requestAnimationFrame(render);
     };
   })();
+  /*
   onSettled(() => {
     let canvasDiv2 = canvasDiv();
     if (canvasDiv2 == undefined) {
@@ -115,103 +122,7 @@ const App: Component = () => {
       cleanups.splice(0, cleanups.length);
     };
   });
-  {
-    let meltyModel = createMeltyModelHMR();
-    let cubeyModel = createCubeyModelHMR();
-    let solidLogoModel = createSolidLogoModelHMR();
-    let kartModel = createKartModelHMR();
-    let [ light, setLight, ] = createSignal<"Red" | "Yellow" | "Green">();
-    let readySteadyGoModel = createReadySteadyGoTrafficLightModelHMR(light);
-    let readySteadyGoSound = createReadySteadyGoSound();
-    let bananaModel = createBananaModelHMR();
-    createEffect(
-      () => state.model,
-      (model) => {
-        if (model !== "ReadySteadyGo") {
-          setLight(undefined);
-          return;
-        }
-        let stop = false;
-        queueMicrotask(async () => {
-          while (!stop) {
-            setLight("Red");
-            rerender();
-            readySteadyGoSound.play();
-            await new Promise<void>((resolve) => {
-              setTimeout(
-                () => {
-                  resolve();
-                },
-                (
-                  defaultReadySteadyGoConfig.steadyBeep.startTime
-                ) * 1000.0,
-              );
-            });
-            setLight("Yellow");
-            rerender();
-            await new Promise<void>((resolve) => {
-              setTimeout(
-                () => {
-                  resolve();
-                },
-                (
-                  defaultReadySteadyGoConfig.goBeep.startTime
-                    - defaultReadySteadyGoConfig.steadyBeep.startTime
-                ) * 1000.0,
-              );
-            });
-            setLight("Green");
-            rerender();
-            await new Promise<void>((resolve) => {
-              setTimeout(
-                () => {
-                  resolve();
-                },
-                4000.0,
-              );
-            });
-          }
-        });
-        return () => { stop = true; };
-      },
-    );
-    createMemo(() => {
-      let model: Accessor<THREE.Object3D | undefined>;
-      switch (state.model) {
-        case "Melty":
-          model = meltyModel;
-          break;
-        case "Cubey":
-          model = cubeyModel;
-          break;
-        case "SolidLogo":
-          model = solidLogoModel;
-          break;
-        case "Kart":
-          model = kartModel;
-          break;
-        case "ReadySteadyGo":
-          model = readySteadyGoModel;
-          break;
-        case "Banana":
-          model = bananaModel;
-          break;
-      }
-      createEffect(
-        model,
-        (model) => {
-          if (model == undefined) {
-            return undefined;
-          }
-          scene.add(model);
-          rerender();
-          return () => {
-            scene.remove(model);
-          };
-        },
-      );
-    });
-  }
+  */
   return (
     <div
       ref={setCanvasDiv}
@@ -222,7 +133,165 @@ const App: Component = () => {
         "background-color": "darkgray",
       }}
     >
-      <canvas ref={setCanvas}/>
+      <Canvas
+        ref={(ctx) => {
+          onSettled(() => {
+            ctx.camera.lookAt(0.0, 0.0, 0.0);
+            let canvasDiv2 = canvasDiv();
+            if (canvasDiv2 == undefined) {
+              return;
+            }
+            let rect = canvasDiv2.getBoundingClientRect();
+            setCanvas(ctx.canvas);
+            // Resolution, strength, radius, threshold
+            const bloomPass = new UnrealBloomPass(
+              new THREE.Vector2(rect.width, rect.height), 
+              1.5,  // strength
+              0.4,  // radius
+              0.3,  // threshold
+            );
+            const composer2 = new EffectComposer(ctx.gl as unknown as THREE.WebGLRenderer);
+            const renderScene = new RenderPass(ctx.scene as unknown as THREE.Scene, ctx.camera as unknown as THREE.PerspectiveCamera);
+            composer2.addPass(renderScene);
+            composer2.addPass(bloomPass);
+            composer2.setSize(rect.width, rect.height);
+            setComposer(composer2);
+            composer2.render();
+            //
+            let orbitControls2 = new OrbitControls(ctx.camera, canvasDiv2);
+            orbitControls2.addEventListener("change", () => rerender());
+            setOrbitControls(orbitControls2);
+            rerender();
+            let resizeObserver = new ResizeObserver(() => {});
+            resizeObserver.observe(canvasDiv2);
+            return () => {
+              resizeObserver.unobserve(canvasDiv2);
+              resizeObserver.disconnect();
+            };
+          });
+        }}
+        camera={{ position: [ 5.0, 5.0, 5.0, ] }}
+        frameloop="demand"
+      >
+        <T.Color attach={"background"} args={["black"]}/>
+        {/* Lights */}
+        <T.AmbientLight
+          args={[ 0xFFFFFF, 0.5 ]}
+        />
+        <T.DirectionalLight
+          args={[ 0xFFFFFF, 1.0, ]}
+          position={[ 5.0, 10.0, 7.0 ]}
+        />
+        {/* Grid helper and axes */}
+        <T.GridHelper
+          args={[ 6.0, 6, ]}
+          position={[ 0.0, -0.001, 0.0, ]}
+        />
+        <T.AxesHelper
+          args={[ 1.5, ]}
+        />
+        {/*
+        <T.Mesh>
+          <T.BoxGeometry
+            args={[ 1, 1, 1, ]}
+          />
+          <T.MeshNormalMaterial/>
+        </T.Mesh>
+        */}
+        {(() => {
+          let model: Accessor<THREE.Object3D | undefined>;
+          {
+            let meltyModel = createMeltyModelHMR();
+            let cubeyModel = createCubeyModelHMR();
+            let solidLogoModel = createSolidLogoModelHMR();
+            let kartModel = createKartModelHMR();
+            let [ light, setLight, ] = createSignal<"Red" | "Yellow" | "Green">();
+            let readySteadyGoModel = createReadySteadyGoTrafficLightModelHMR(light);
+            let readySteadyGoSound = createReadySteadyGoSound();
+            let bananaModel = createBananaModelHMR();
+            createEffect(
+              () => state.model,
+              (model) => {
+                if (model !== "ReadySteadyGo") {
+                  setLight(undefined);
+                  return;
+                }
+                let stop = false;
+                queueMicrotask(async () => {
+                  while (!stop) {
+                    setLight("Red");
+                    rerender();
+                    readySteadyGoSound.play();
+                    await new Promise<void>((resolve) => {
+                      setTimeout(
+                        () => {
+                          resolve();
+                        },
+                        (
+                          defaultReadySteadyGoConfig.steadyBeep.startTime
+                        ) * 1000.0,
+                      );
+                    });
+                    setLight("Yellow");
+                    rerender();
+                    await new Promise<void>((resolve) => {
+                      setTimeout(
+                        () => {
+                          resolve();
+                        },
+                        (
+                          defaultReadySteadyGoConfig.goBeep.startTime
+                            - defaultReadySteadyGoConfig.steadyBeep.startTime
+                        ) * 1000.0,
+                      );
+                    });
+                    setLight("Green");
+                    rerender();
+                    await new Promise<void>((resolve) => {
+                      setTimeout(
+                        () => {
+                          resolve();
+                        },
+                        4000.0,
+                      );
+                    });
+                  }
+                });
+                return () => { stop = true; };
+              },
+            );
+            model = createMemo(() => {
+              switch (state.model) {
+                case "Melty":
+                  return meltyModel();
+                case "Cubey":
+                  return cubeyModel();
+                case "SolidLogo":
+                  return solidLogoModel();
+                case "Kart":
+                  return kartModel();
+                case "ReadySteadyGo":
+                  return readySteadyGoModel();
+                case "Banana":
+                  return bananaModel();
+              }
+            });
+          }
+          return untrack(() => (
+            <Show when={model()}>
+              {(model) => (
+                <>{(() => {
+                  let model2 = model();
+                  rerender();
+                  return untrack(() => (
+                    <Entity from={model2}/>
+                  ));
+                })()}</>
+              )}
+            </Show>
+          ));
+        })()}
+      </Canvas>
       <select
         style={{
           "position": "absolute",
@@ -236,6 +305,7 @@ const App: Component = () => {
           setState((s) => {
             s.model = e.currentTarget.selectedOptions[0].value as any;
           });
+          rerender();
         }}
       >
         <option value="Melty" selected={state.model == "Melty"}>Melty</option>

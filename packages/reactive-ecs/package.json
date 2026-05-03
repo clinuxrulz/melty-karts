@@ -11,15 +11,16 @@
   },
   "peerDependencies": {
     "@oasys/oecs": "^0.2.1",
-    "solid-js": "2.0.0-beta.3"
+    "solid-js": "2.0.0-beta.10"
   },
   "devDependencies": {
     "@oasys/oecs": "^0.2.1",
     "@playwright/test": "^1.59.1",
-    "babel-preset-solid": "2.0.0-beta.3",
+    "@solidjs/web": "2.0.0-beta.10",
+    "babel-preset-solid": "2.0.0-beta.10",
     "jsdom": "^29.0.2",
     "playwright": "^1.59.1",
-    "solid-js": "2.0.0-beta.3",
+    "solid-js": "2.0.0-beta.10",
     "typescript": "^5.7.2",
     "vite": "^7.1.4",
     "vite-plugin-solid": "^3.0.0-next.4",

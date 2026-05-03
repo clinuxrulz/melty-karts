@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
 import { System } from "./System";
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner, Show } from "solid-js";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
 import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished } from "../World";
@@ -17,31 +17,36 @@ import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
 import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { Canvas, useProps } from "solid-three";
 
 export function createInGameSystem(ecs: ReactiveECS): System {
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
-  let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
-  let [ canvasSize, setCanvasSize, ] = createSignal<THREE.Vector3>();
-  let [ canvasMounted, setCanvasMounted, ] = createSignal(false);
+  //let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
+  let [ canvasSize, setCanvasSize, ] = createSignal<THREE.Vector2>();
+  //let [ canvasMounted, setCanvasMounted, ] = createSignal(false);
   createEffect(
     () => [
       canvasDiv(),
-      canvas(),
-    ] as const,
+    ],
     ([
       canvasDiv,
-      canvas,
     ]) => {
       if (canvasDiv == undefined) {
         return;
       }
-      if (canvas == undefined) {
-        return;
-      }
-      setCanvasMounted(true);
+      let resizeObserver = new ResizeObserver(() => {
+        let rect = canvasDiv.getBoundingClientRect();
+        setCanvasSize(new THREE.Vector2(rect.width, rect.height));
+      });
+      resizeObserver.observe(canvasDiv);
+      return () => {
+        resizeObserver.unobserve(canvasDiv);
+        resizeObserver.disconnect();
+      };
     },
-  )
+  );
   let [ renderSystem, setRenderSystem ] = createSignal<System>();
+  /*
   createMemo(() => {
     let canvasDiv2 = canvasDiv();
     if (canvasDiv2 == undefined) {
@@ -65,6 +70,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     queueMicrotask(() => setRenderSystem(renderSystem2));
     onCleanup(dispose);
   });
+  */
   let soundEnabled = createMemo(() =>
     ecs.resource(RegisteredSoundEnabled).get("enabled") != 0
   );
@@ -254,10 +260,53 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         "bottom": "0",
       }}
     >
+      <Canvas
+        ref={(ctx) => {
+          let owner = getOwner();
+          queueMicrotask(() => {
+            let canvasDiv2 = canvasDiv();
+            if (canvasDiv2 === undefined) {
+              return;
+            }
+            let {
+              dispose,
+              renderSystem,
+            } = runWithOwner(owner, () => initScene(
+              ecs,
+              canvasDiv2,
+              ctx.scene,
+              ctx.canvas,
+              ctx.camera as THREE.PerspectiveCamera,
+              ctx.gl,
+              (size) => {
+                /*
+                ctx.canvas.width = size.x;
+                ctx.canvas.height = size.y;*/
+                // No operation
+              },
+            ));
+            runWithOwner(owner, () => {
+              onCleanup(() => dispose());
+            });
+            setRenderSystem(renderSystem);
+          });
+        }}
+        style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
+        camera={{ fov: 75.0, }}
+        frameloop="never"
+      >
+        <Show when={renderSystem()?.three?.()}>
+          {(three) => (<>{(() => {
+            let Three = three();
+            return untrack(() => (<Three/>));
+          })()}</>)}
+        </Show>
+      </Canvas>
+      {/*
       <canvas
         ref={setCanvas}
         style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
-      />
+      />*/}
       <joystick.UI/>
       <actionButton.UI/>
     </div>
@@ -327,7 +376,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
 function initScene(
   ecs: ReactiveECS,
   canvasDiv: HTMLDivElement,
+  scene: THREE.Scene,
   canvas: HTMLCanvasElement,
+  camera: THREE.PerspectiveCamera,
+  renderer: THREE.WebGLRenderer,
   setCanvasSize: (x: THREE.Vector2) => void,
 ) {
   const isMultiplayer = ecs.resource(RegisteredGameMode).get("mode") === 1 && multiplayerSession.isActive;
@@ -362,7 +414,7 @@ function initScene(
     ecs.resource(RegisteredOrbitEnabled).get("enabled") != 0
   );
 
-  const scene = new THREE.Scene();
+  //const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x5ba8c9);
   
   const ambient = new THREE.AmbientLight(0xffffff, 0.7);
@@ -417,7 +469,7 @@ function initScene(
     });
   }
 
-  const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
+  //const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
 
   const renderSystem = createRenderSystem(ecs, scene, camera);
   const { dispose: disposeRender } = renderSystem;
@@ -446,7 +498,7 @@ function initScene(
   const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs, soundEnabled);
   const rollbackSystem = isMultiplayer ? createRollbackNetcodeSystem(ecs) : undefined;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
+  //const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
