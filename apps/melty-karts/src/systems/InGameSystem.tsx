@@ -397,6 +397,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             
             const laps = entity.getField(RegisteredRaceStats, "laps");
             const finished = entity.getField(RegisteredRaceStats, "finished");
+            const displayLap = Math.min(Math.max(0, laps) + 1, MAX_LAPS);
             
             const rankSuffix = index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
             
@@ -411,7 +412,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 "font-size": "34px",
                 "text-align": "right",
               }}>
-                {index() + 1}{rankSuffix} ({laps}/{MAX_LAPS} laps)
+                {index() + 1}{rankSuffix} ({displayLap}/{MAX_LAPS} laps)
                 {finished ? " ✓" : ""}
               </div>
             );
@@ -647,7 +648,7 @@ function initScene(
       facingForward: true,
       reactiveEcs: ecs,
     });
-    ecs.add_component(kartEntityId as EntityID, RegisteredRaceStats, { laps: 0, progress: 0, finished: 0, lastT: t, rank: 0 });
+    ecs.add_component(kartEntityId as EntityID, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
     ecs.add_component(kartEntityId as EntityID, RegisteredLocalPlayerPosition, { rank: 0 });
 
     // Create AI karts
@@ -686,7 +687,7 @@ function initScene(
       ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
 
       ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
-      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: 0, progress: 0, finished: 0, lastT: aiT, rank: 0 });
+      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
   }
 

@@ -77,14 +77,14 @@ export const NetworkSlot = {
 
 export const RaceStats = {
     def: {
-        laps: "u8",
+        laps: "i8",
         progress: "f64", // Total progress: laps + currentT
         finished: "u8", // 0 or 1
         lastT: "f64",
         rank: "u8", // 0 if not finished, 1-6 if finished
     } as const,
     schema: {
-        laps: 0,
+        laps: -1,
         progress: 0.0,
         finished: 0,
         lastT: 0.0,
