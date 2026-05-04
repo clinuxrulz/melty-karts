@@ -13,6 +13,8 @@ import {
   RegisteredOrbitEnabled,
   RegisteredAIControlled,
   RegisteredOrientation,
+  RegisteredRaceStats,
+  RegisteredLocalPlayerPosition,
 } from "../World";
 import { generateTrack } from "../models/Track";
 import { simulateKartStep } from "../systems/KartPhysicsSystem";
@@ -256,7 +258,7 @@ class MultiplayerSessionController {
       } else {
         playerType = "Solid";
       }
-      createKart({
+      const kartEntityId = createKart({
         position: startPos,
         velocity: startPos.clone().set(0, 0, 0),
         playerType,
@@ -264,6 +266,8 @@ class MultiplayerSessionController {
         reactiveEcs: ecs,
         networkSlot: slot,
       });
+      ecs.add_component(kartEntityId as never, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
+      ecs.add_component(kartEntityId as never, RegisteredLocalPlayerPosition, { rank: 0 });
     }
 
     // Add 2 AI players in multiplayer
@@ -300,6 +304,7 @@ class MultiplayerSessionController {
       ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
 
       ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
+      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
   }
 
