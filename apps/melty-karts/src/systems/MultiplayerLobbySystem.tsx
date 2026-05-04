@@ -1,4 +1,5 @@
 import { createEffect, createSignal, onCleanup, onSettled, type Component, For, Show } from "solid-js";
+import { JSX as SolidJSX } from "@solidjs/web";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import QRCode from "qrcode";
 import { multiplayerSession } from "../netcode/MultiplayerSession";

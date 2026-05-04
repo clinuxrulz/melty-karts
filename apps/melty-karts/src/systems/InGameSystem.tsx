@@ -2,21 +2,23 @@ import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
 import { System } from "./System";
-import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner, Show, For, createTrackedEffect } from "solid-js";
+import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
 import { createKartPhysicsSystem } from "./KartPhysicsSystem";
 import { createAISystem } from "./AISystem";
+import { createRaceSystem } from "./RaceSystem";
 import { createSoundSystem } from "./SoundSystem";
 import { untrack } from "@solidjs/web";
 import { createRollbackNetcodeSystem } from "./RollbackNetcodeSystem";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
-import { RegisteredAIControlled } from "../World";
+import { RegisteredAIControlled, RegisteredRaceStats, RegisteredLocalPlayerPosition, RegisteredRaceRankings, RegisteredRaceResults, MasterState, RegisteredMasterState, MAX_LAPS } from "../World";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
 import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { Canvas } from "solid-three";
@@ -255,6 +257,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   let subsystems = createMemo(() => {
     return [
       untrack(() => createReadySteadyGoSystem(ecs)),
+      untrack(() => createRaceSystem(ecs)),
     ];
   });
   //
@@ -319,6 +322,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       />*/}
       <joystick.UI/>
       <actionButton.UI/>
+      {rankingDisplay()}
+      {raceResultsUI()}
     </div>
   ));
   let topLeftOverlayUi = createMemo(() => () =>
@@ -342,6 +347,171 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       </label>
     </>
   );
+
+  // Helper to get player type name
+  const getPlayerTypeName = (playerType: number): string => {
+    switch (playerType) {
+      case 0: return "Melty";
+      case 1: return "Cubey";
+      case 2: return "Solid";
+      default: return "Unknown";
+    }
+  };
+
+  // Ranking display in top-right corner
+  let rankingDisplay = () => {
+    const rankings = createMemo(() => ecs.resource(RegisteredRaceRankings));
+    
+    const rankEntities = createMemo(() => {
+      let rankings2 = rankings();
+      
+      return [
+        { rank: 1, entityId: rankings2.get("rank1") },
+        { rank: 2, entityId: rankings2.get("rank2") },
+        { rank: 3, entityId: rankings2.get("rank3") },
+        { rank: 4, entityId: rankings2.get("rank4") },
+        { rank: 5, entityId: rankings2.get("rank5") },
+        { rank: 6, entityId: rankings2.get("rank6") },
+      ].filter(r => r.entityId !== -1);
+    });
+
+    return (
+      <div style={{
+        position: "absolute",
+        top: "10px",
+        right: "10px",
+        "z-index": 100,
+        "pointer-events": "none",
+        color: "white",
+        "font-family": "sans-serif",
+        "font-size": "14px",
+      }}>
+        <For each={rankEntities()}>
+          {(item, index) => {
+            const itemId = item();
+            const entity = ecs.entity(itemId.entityId as EntityID);
+            const hasRaceStats = entity.hasComponent(RegisteredRaceStats);
+            const hasLocalPlayer = entity.hasComponent(RegisteredLocalPlayerPosition);
+            
+            if (!hasRaceStats || !hasLocalPlayer) return null;
+            
+            const laps = entity.getField(RegisteredRaceStats, "laps");
+            const finished = entity.getField(RegisteredRaceStats, "finished");
+            
+            const rankSuffix = index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
+            
+            return (
+              <div style={{
+                "background-color": "rgba(0, 0, 0, 0.6)",
+                color: "white",
+                padding: "4px 8px",
+                "margin-bottom": "4px",
+                "border-radius": "4px",
+                "font-family": "sans-serif",
+                "font-size": "34px",
+                "text-align": "right",
+              }}>
+                {index() + 1}{rankSuffix} ({laps}/{MAX_LAPS} laps)
+                {finished ? " ✓" : ""}
+              </div>
+            );
+          }}
+        </For>
+      </div>
+    );
+  };
+
+  // Race Results UI with slide-in animation
+  let raceResultsVisible = createSignal(false);
+  let setRaceResultsVisible = raceResultsVisible[1];
+  
+  createMemo(() => {
+    const results = ecs.resource(RegisteredRaceResults);
+    if (results.get("finished") === 1) {
+      // Delay showing results for dramatic effect
+      setTimeout(() => setRaceResultsVisible(true), 1000);
+    }
+  });
+
+  let raceResultsUI = createMemo(() => {
+    const visible = raceResultsVisible[0]();
+    const rankings = ecs.resource(RegisteredRaceRankings);
+    
+    const rankEntities = [
+      { rank: 1, entityId: rankings.get("rank1") },
+      { rank: 2, entityId: rankings.get("rank2") },
+      { rank: 3, entityId: rankings.get("rank3") },
+      { rank: 4, entityId: rankings.get("rank4") },
+      { rank: 5, entityId: rankings.get("rank5") },
+      { rank: 6, entityId: rankings.get("rank6") },
+    ].filter(r => r.entityId !== -1);
+
+    return (
+      <div style={{
+        position: "absolute",
+        top: "0",
+        right: visible ? "0" : "-450px",
+        bottom: "0",
+        width: "400px",
+        display: "flex",
+        "justify-content": "center",
+        "align-items": "center",
+        "z-index": 200,
+        transition: "right 0.5s ease-out",
+        "pointer-events": visible ? "auto" : "none",
+      }}>
+        <div style={{
+          "background-color": "rgba(0, 0, 0, 0.7)",
+          "backdrop-filter": "blur(10px)",
+          color: "white",
+          padding: "30px",
+          "border-radius": "10px 0 0 10px",
+          "min-width": "300px",
+          "max-width": "350px",
+        }}>
+          <h2 style={{
+            "text-align": "center",
+            "font-family": "sans-serif",
+            "margin-top": "0",
+            "font-size": "24px",
+          }}>
+            Race Results
+          </h2>
+          <For each={rankEntities}>
+             {(item, index) => {
+               const itemId = item();
+               const entity = ecs.entity(itemId.entityId as EntityID);
+               const hasLocalPlayer = entity.hasComponent(RegisteredLocalPlayerPosition);
+               
+               if (!hasLocalPlayer) return null;
+               
+               const rankSuffix = index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
+               
+               return (
+                 <div style={{
+                   "background-color": hasLocalPlayer ? "rgba(255, 215, 0, 0.3)" : "rgba(255, 255, 255, 0.1)",
+                   padding: "12px 16px",
+                   "margin-bottom": "8px",
+                   "border-radius": "6px",
+                   "font-family": "sans-serif",
+                   "font-size": "18px",
+                   opacity: visible ? 1 : 0,
+                   transform: visible ? "translateX(0)" : "translateX(50px)",
+                   transition: `opacity 0.3s ease-out ${index() * 0.1}s, transform 0.3s ease-out ${index() * 0.1}s`,
+                 }}>
+                    <span style={{ "font-weight": "bold" }}>
+                      {index() + 1}{rankSuffix}
+                    </span>
+                    {' - You'}
+                    {hasLocalPlayer ? " (You)" : ""}
+                 </div>
+               );
+             }}
+           </For>
+        </div>
+      </div>
+    );
+  });
   //
   queueMicrotask(() => {
     ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
@@ -477,6 +647,8 @@ function initScene(
       facingForward: true,
       reactiveEcs: ecs,
     });
+    ecs.add_component(kartEntityId as EntityID, RegisteredRaceStats, { laps: 0, progress: 0, finished: 0, lastT: t, rank: 0 });
+    ecs.add_component(kartEntityId as EntityID, RegisteredLocalPlayerPosition, { rank: 0 });
 
     // Create AI karts
     const aiCount = 3;
@@ -514,6 +686,7 @@ function initScene(
       ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
 
       ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
+      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: 0, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
   }
 
@@ -704,7 +877,9 @@ function initScene(
       yaw = Math.atan2(forward.x, forward.z);
     }
     
-    physicsSystem?.update(dt);
+    if (!ecs.entity(kartEntityId as EntityID).hasComponent(RegisteredAIControlled)) {
+      physicsSystem?.update(dt);
+    }
     aiSystem?.update?.(dt);
     updateSound(dt, kartEntityId as EntityID);
     

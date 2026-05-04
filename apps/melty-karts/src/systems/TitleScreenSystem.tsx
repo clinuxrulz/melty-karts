@@ -1,4 +1,5 @@
 import { type Component } from "solid-js";
+import { JSX as SolidJSX } from "@solidjs/web";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";

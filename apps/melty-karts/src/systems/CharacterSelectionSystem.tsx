@@ -1,4 +1,5 @@
 import { createSignal, createMemo, type Accessor, type Component, onCleanup, createEffect, untrack, Loading, Switch, Match, Show } from "solid-js";
+import { JSX as SolidJSX } from "@solidjs/web";
 import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";

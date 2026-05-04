@@ -341,6 +341,11 @@ class MultiplayerSessionController {
           if (entityId === undefined) {
             continue;
           }
+
+          if (ecs.entity(entityId as never).hasComponent(RegisteredAIControlled)) {
+            continue;
+          }
+
           const input = inputs.get(playerIds[slot] as PlayerId);
           const mask = input?.[0] ?? 0;
           simulateKartStep({

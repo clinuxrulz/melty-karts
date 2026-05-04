@@ -1,4 +1,5 @@
-import { createSignal, createMemo, type Accessor, type Component, type Signal, onCleanup, JSX, untrack } from "solid-js";
+import { createSignal, createMemo, type Accessor, type Component, type Signal, onCleanup, untrack } from "solid-js";
+import { JSX } from "@solidjs/web";
 import * as THREE from "three";
 
 const MAX_HOLD_TIME = 1.0;

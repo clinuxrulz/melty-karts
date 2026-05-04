@@ -13,6 +13,8 @@ import {
   NetworkSlot,
   PlayerTypeEnum,
   AIControlled,
+  RaceStats,
+  LocalPlayerPosition,
 } from "./components";
 import { defaultReadySteadyGoConfig } from "./sounds/ReadySteadyGo";
 
@@ -78,6 +80,8 @@ export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
 export const RegisteredKartRuntime = baseEcs.register_component(KartRuntime.def);
 export const RegisteredNetworkSlot = baseEcs.register_component(NetworkSlot.def);
+export const RegisteredRaceStats = baseEcs.register_component(RaceStats.def);
+export const RegisteredLocalPlayerPosition = baseEcs.register_component(LocalPlayerPosition.def);
 
 export enum ObsticleType {
   Banana = 0,
@@ -119,6 +123,26 @@ export const RegisteredJoystickInput = baseEcs.register_resource(
     joystickX: 0.0,
     joystickY: 0.0,
   },
+);
+
+export const MAX_LAPS = 3;
+
+export const RegisteredRaceResults = baseEcs.register_resource(
+  ["finished"] as const,
+  {
+    finished: 0, // 0: in progress, 1: results ready
+  }
+);
+export const RegisteredRaceRankings = baseEcs.register_resource(
+  ["rank1", "rank2", "rank3", "rank4", "rank5", "rank6"] as const,
+  {
+    rank1: -1, // EntityIDs or -1
+    rank2: -1,
+    rank3: -1,
+    rank4: -1,
+    rank5: -1,
+    rank6: -1,
+  }
 );
 
 export function World(): {
