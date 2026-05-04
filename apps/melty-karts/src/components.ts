@@ -31,6 +31,16 @@ export const InputControlled = {
     name: "InputControlled"
 }
 
+export const AIControlled = {
+    def: {
+        targetT: "f64", // Progress along the track curve (0 to 1)
+    } as const,
+    schema: {
+        targetT: 0.0,
+    },
+    name: "AIControlled",
+};
+
 export const Renderable = {
     def: { meshId: "u32" } as const,
     schema: { meshId: 0 },

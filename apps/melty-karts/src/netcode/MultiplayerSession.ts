@@ -11,9 +11,12 @@ import {
   RegisteredJoystickInput,
   RegisteredSoundEnabled,
   RegisteredOrbitEnabled,
+  RegisteredAIControlled,
+  RegisteredOrientation,
 } from "../World";
 import { generateTrack } from "../models/Track";
 import { simulateKartStep } from "../systems/KartPhysicsSystem";
+import { createAISystem } from "../systems/AISystem";
 import { PeerJsTransport } from "./PeerJsTransport";
 import { makeInviteCode, inviteCodeToId } from "./InviteCode";
 
@@ -239,7 +242,7 @@ class MultiplayerSessionController {
       {
         let v = curve.getTangentAt(t);
         let u = v.cross(new THREE.Vector3(0, 1, 0));
-        u.normalize().multiplyScalar(slot * 1.5);
+        u.normalize().multiplyScalar(slot * 1.5 - (playerIds.length - 1) * 0.75);
         offsetStart = u;
       }
       const startPos = curve.getPointAt(t).add(offsetStart);
@@ -261,6 +264,42 @@ class MultiplayerSessionController {
         reactiveEcs: ecs,
         networkSlot: slot,
       });
+    }
+
+    // Add 2 AI players in multiplayer
+    const aiCount = 2;
+    const aiPlayerTypes: ("Melty" | "Cubey" | "Solid")[] = ["Melty", "Cubey", "Solid"];
+    for (let i = 0; i < aiCount; i++) {
+      const aiT = (0.98 - (i + playerIds.length) * 0.01 + 1) % 1;
+      const aiStartPos = curve.getPointAt(aiT);
+      
+      const tangent = curve.getTangentAt(aiT);
+      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const horizontalOffset = (i - 0.5) * 3.0;
+      aiStartPos.add(normal.multiplyScalar(horizontalOffset));
+      aiStartPos.y += 0.1;
+
+      const aiEntityId = createKart({
+        position: aiStartPos,
+        velocity: new THREE.Vector3(0, 0, 0),
+        playerType: aiPlayerTypes[(i + playerIds.length) % aiPlayerTypes.length],
+        facingForward: true,
+        reactiveEcs: ecs,
+      });
+
+      const lookDir = tangent.clone().multiplyScalar(-1);
+      const lookMat = new THREE.Matrix4().lookAt(
+        new THREE.Vector3(0,0,0),
+        lookDir,
+        new THREE.Vector3(0,1,0)
+      );
+      const q = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "x", q.x);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "y", q.y);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "z", q.z);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
+
+      ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
     }
   }
 
@@ -315,6 +354,11 @@ class MultiplayerSessionController {
             driftDown: (mask & 0b0010) !== 0,
           });
         }
+
+        // Simulate AI players deterministically
+        const aiSystem = createAISystem(ecs);
+        aiSystem.update?.(1 / 60);
+
         this.#update?.(1 / 60);
       },
       hash: () => ecs.hash(ignoredResources),

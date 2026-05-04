@@ -52,6 +52,9 @@ importers:
       three:
         specifier: ^0.183.2
         version: 0.183.2
+      three-mesh-bvh:
+        specifier: ^0.9.9
+        version: 0.9.9(three@0.183.2)
       three-stdlib:
         specifier: ^2.36.1
         version: 2.36.1(three@0.183.2)
@@ -1135,6 +1138,11 @@ packages:
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
+  three-mesh-bvh@0.9.9:
+    resolution: {integrity: sha512-FJKitcjvbALmeQRK+Sc+nLGorCpkrZBrbgJZFzhdyWboak37DZikn46hvQkNqSbJPm227ahYmS6k3N/GXaAyXw==}
+    peerDependencies:
+      three: '>= 0.159.0'
+
   three-stdlib@2.36.1:
     resolution: {integrity: sha512-XyGQrFmNQ5O/IoKm556ftwKsBg11TIb301MB5dWNicziQBEs2g3gtOYIf7pFiLa0zI2gUwhtCjv9fmjnxKZ1Cg==}
     peerDependencies:
@@ -2188,6 +2196,10 @@ snapshots:
       ansi-regex: 5.0.1
 
   symbol-tree@3.2.4: {}
+
+  three-mesh-bvh@0.9.9(three@0.183.2):
+    dependencies:
+      three: 0.183.2
 
   three-stdlib@2.36.1(three@0.183.2):
     dependencies:

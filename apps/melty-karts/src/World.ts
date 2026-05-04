@@ -12,6 +12,7 @@ import {
   Orientation,
   NetworkSlot,
   PlayerTypeEnum,
+  AIControlled,
 } from "./components";
 import { defaultReadySteadyGoConfig } from "./sounds/ReadySteadyGo";
 
@@ -72,6 +73,7 @@ export const RegisteredVelocity = baseEcs.register_component(Velocity.def);
 export const RegisteredOrientation = baseEcs.register_component(Orientation.def);
 export const RegisteredPlayerConfig = baseEcs.register_component(PlayerConfig.def);
 export const RegisteredInputControlled = baseEcs.register_component(InputControlled.def);
+export const RegisteredAIControlled = baseEcs.register_component(AIControlled.def);
 export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
 export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
 export const RegisteredKartRuntime = baseEcs.register_component(KartRuntime.def);

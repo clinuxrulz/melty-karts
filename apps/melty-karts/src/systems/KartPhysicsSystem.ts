@@ -208,9 +208,15 @@ export function simulateKartStep(params: {
     const barrierRadius = TRACK_WIDTH / 2;
     const distToTrack = getDistanceToTrackCenter(newPos.x, newPos.z);
     if (distToTrack > barrierRadius && distToTrack < 50 && Number.isFinite(newPos.x) && Number.isFinite(newPos.z)) {
+      // Find nearest point - Track is segmented so we can use a fast local search
+      // (Simplified search using the approximated points from Track.ts)
       let nearestX = 0;
       let nearestZ = 0;
       let minDist = Infinity;
+      
+      // Get the current progress (T) to narrow search if available
+      // but getDistanceToTrackCenter already did the heavy lifting
+      // We'll use the track points directly for the collision normal
       for (let j = 0; j <= 800; j++) {
         const point = trackCurve.getPointAt(j / 800);
         const dx = point.x - newPos.x;
@@ -245,31 +251,38 @@ export function simulateKartStep(params: {
     let groundY = getGroundHeight(wheelPos.x, wheelPos.z);
 
     if (trackCurve) {
-      let minDist = Infinity;
-      let nearestY = 0;
-      for (let j = 0; j <= 200; j++) {
-        const trackPoint = trackCurve.getPointAt(j / 200);
-        const dx = trackPoint.x - wheelPos.x;
-        const dz = trackPoint.z - wheelPos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestY = trackPoint.y;
-        }
-      }
+      // For wheel height, we only need to check if we are near the track height
+      const dToCenter = getDistanceToTrackCenter(wheelPos.x, wheelPos.z);
+      if (dToCenter <= TRACK_WIDTH / 2 + 3.0) {
+          // Use track height if on/near track
+          // A more optimized way would be to get the T from the j above
+          // but for now this is consistent
+          let minDist = Infinity;
+          let nearestY = 0;
+          for (let j = 0; j <= 200; j++) {
+            const trackPoint = trackCurve.getPointAt(j / 200);
+            const dx = trackPoint.x - wheelPos.x;
+            const dz = trackPoint.z - wheelPos.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestY = trackPoint.y;
+            }
+          }
 
-      const halfWidth = TRACK_WIDTH / 2;
-      const blendMargin = 3.0;
-      let height = groundY;
-      if (minDist <= halfWidth + blendMargin) {
-        if (minDist <= halfWidth) {
-          height = nearestY;
-        } else {
-          const blendFactor = (minDist - halfWidth) / blendMargin;
-          height = (nearestY * (1 - blendFactor)) + (height * blendFactor);
-        }
+          const halfWidth = TRACK_WIDTH / 2;
+          const blendMargin = 3.0;
+          let h = groundY;
+          if (minDist <= halfWidth + blendMargin) {
+            if (minDist <= halfWidth) {
+              h = nearestY;
+            } else {
+              const blendFactor = (minDist - halfWidth) / blendMargin;
+              h = (nearestY * (1 - blendFactor)) + (h * blendFactor);
+            }
+          }
+          groundY = Math.max(h, nearestY);
       }
-      groundY = Math.max(height, nearestY);
     }
 
     wheelHeights.push(groundY + WHEEL_RADIUS + SUSPENSION_REST_LENGTH);

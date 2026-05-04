@@ -10,14 +10,24 @@ import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } fr
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
 import { createKartPhysicsSystem } from "./KartPhysicsSystem";
+import { createAISystem } from "./AISystem";
 import { createSoundSystem } from "./SoundSystem";
 import { untrack } from "@solidjs/web";
 import { createRollbackNetcodeSystem } from "./RollbackNetcodeSystem";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
+import { RegisteredAIControlled } from "../World";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
 import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
-import { Canvas, useProps } from "solid-three";
+import { Canvas } from "solid-three";
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// Add BVH to THREE
+// @ts-ignore
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+// @ts-ignore
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 export function createInGameSystem(ecs: ReactiveECS): System {
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
@@ -467,6 +477,44 @@ function initScene(
       facingForward: true,
       reactiveEcs: ecs,
     });
+
+    // Create AI karts
+    const aiCount = 3;
+    const aiPlayerTypes: ("Melty" | "Cubey" | "Solid")[] = ["Melty", "Cubey", "Solid"];
+    for (let i = 0; i < aiCount; i++) {
+      const aiT = (0.99 - (i + 1) * 0.005 + 1) % 1; // Slightly behind player
+      const aiStartPos = curve.getPointAt(aiT);
+      
+      // Add slight horizontal offset so they aren't all in a line
+      const tangent = curve.getTangentAt(aiT);
+      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const horizontalOffset = (i - 1) * 2.0; // Spaced out
+      aiStartPos.add(normal.multiplyScalar(horizontalOffset));
+      aiStartPos.y += 0.1;
+
+      const aiEntityId = createKart({
+        position: aiStartPos,
+        velocity: new THREE.Vector3(0, 0, 0),
+        playerType: aiPlayerTypes[i % aiPlayerTypes.length],
+        facingForward: true,
+        reactiveEcs: ecs,
+      });
+
+      // Set initial orientation to face the direction of the track (decreasing T)
+      const lookDir = tangent.clone().multiplyScalar(-1);
+      const lookMat = new THREE.Matrix4().lookAt(
+        new THREE.Vector3(0,0,0),
+        lookDir,
+        new THREE.Vector3(0,1,0)
+      );
+      const q = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "x", q.x);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "y", q.y);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "z", q.z);
+      ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
+
+      ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
+    }
   }
 
   //const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
@@ -495,6 +543,8 @@ function initScene(
         driftDown,
       });
 
+  const aiSystem = isMultiplayer ? undefined : createAISystem(ecs);
+
   const { update: updateSound, dispose: disposeSound } = createSoundSystem(ecs, soundEnabled);
   const rollbackSystem = isMultiplayer ? createRollbackNetcodeSystem(ecs) : undefined;
 
@@ -506,7 +556,7 @@ function initScene(
     new THREE.Vector2(window.innerWidth, window.innerHeight), 
     1.5,  // strength
     0.4,  // radius
-    0.85  // threshold
+    0.4,  // threshold
   );
   const composer = new EffectComposer(renderer);
   const renderScene = new RenderPass(scene, camera);
@@ -655,6 +705,7 @@ function initScene(
     }
     
     physicsSystem?.update(dt);
+    aiSystem?.update?.(dt);
     updateSound(dt, kartEntityId as EntityID);
     
     // Initialize camera on first frame
@@ -709,7 +760,7 @@ function initScene(
       camera.position.copy(smoothCameraPos);
       camera.lookAt(smoothCameraLookAt);
     }
-    
+
     composer.render();
     requestAnimationFrame(animate);
   };
@@ -758,84 +809,106 @@ function computeWorldBounds(curve: THREE.CatmullRomCurve3, propSpread: number) {
   return { centerX, centerZ, size: halfWidth * 2 };
 }
 
-function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Mesh; bounds: { centerX: number; centerZ: number; size: number } } {
+function createTerrain(curve: THREE.CatmullRomCurve3): { mesh: THREE.Group; bounds: { centerX: number; centerZ: number; size: number } } {
   const bounds = computeWorldBounds(curve, 18);
   const size = bounds.size;
-  const resolution = 160;
-  const vertices: number[] = [];
-  const indices: number[] = [];
-  const uvs: number[] = [];
+  const globalResolution = 160;
+  const chunks = 8;
+  const resPerChunk = globalResolution / chunks;
   
   const segments = 800;
   const trackPoints = curve.getSpacedPoints(segments);
   const halfSize = size / 2;
-  
-  for (let z = 0; z <= resolution; z++) {
-    for (let x = 0; x <= resolution; x++) {
-      const worldX = bounds.centerX - halfSize + (x / resolution) * size;
-      const worldZ = bounds.centerZ - halfSize + (z / resolution) * size;
-      
-      let minDist = Infinity;
-      let roadY = 0;
-      for (let i = 0; i < segments; i++) {
-        const dx = trackPoints[i].x - worldX;
-        const dz = trackPoints[i].z - worldZ;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) {
-          minDist = dist;
-          roadY = trackPoints[i].y;
-        }
-      }
-      
-      const halfWidth = TRACK_WIDTH / 2;
-      const blendMargin = 3.0;
-      let height = getGroundHeight(worldX, worldZ);
-      
-      if (minDist <= halfWidth + blendMargin) {
-        const roadSurfaceY = roadY - 0.2; // Slightly deeper carving
-        if (minDist <= halfWidth) {
-          height = roadSurfaceY;
-        } else {
-          const blendFactor = (minDist - halfWidth) / blendMargin;
-          // Interpolate with original ground height
-          const originalHeight = getGroundHeight(worldX, worldZ);
-          const interpolatedHeight = (roadSurfaceY * (1 - blendFactor)) + (originalHeight * blendFactor);
-          // NEW: Force the terrain to stay below the road level near the edges
-          const heightCap = roadSurfaceY + blendFactor * 1.5;
-          height = Math.min(interpolatedHeight, heightCap);
-        }
-      }
-      
-      vertices.push(worldX, height, worldZ);
-      uvs.push(x / resolution * 4, z / resolution * 4);
-    }
-  }
-  
-  for (let z = 0; z < resolution; z++) {
-    for (let x = 0; x < resolution; x++) {
-      const a = z * (resolution + 1) + x;
-      const b = a + 1;
-      const c = (z + 1) * (resolution + 1) + x;
-      const d = c + 1;
-      
-      indices.push(b, a, d);
-      indices.push(c, d, a);
-    }
-  }
-  
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  
+
+  const terrainGroup = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({
     color: 0x4a7c3f,
     roughness: 0.9,
     flatShading: true,
   });
+
+  for (let cz = 0; cz < chunks; cz++) {
+    for (let cx = 0; cx < chunks; cx++) {
+      const vertices: number[] = [];
+      const indices: number[] = [];
+      const uvs: number[] = [];
+      
+      const xStart = cx * resPerChunk;
+      const xEnd = (cx + 1) * resPerChunk;
+      const zStart = cz * resPerChunk;
+      const zEnd = (cz + 1) * resPerChunk;
+
+      for (let z = zStart; z <= zEnd; z++) {
+        for (let x = xStart; x <= xEnd; x++) {
+          const worldX = bounds.centerX - halfSize + (x / globalResolution) * size;
+          const worldZ = bounds.centerZ - halfSize + (z / globalResolution) * size;
+          
+          let minDist = Infinity;
+          let roadY = 0;
+          for (let i = 0; i < segments; i++) {
+            const dx = trackPoints[i].x - worldX;
+            const dz = trackPoints[i].z - worldZ;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < minDist) {
+              minDist = dist;
+              roadY = trackPoints[i].y;
+            }
+          }
+          
+          const halfWidth = TRACK_WIDTH / 2;
+          const blendMargin = 3.0;
+          let height = getGroundHeight(worldX, worldZ);
+          
+          if (minDist <= halfWidth + blendMargin) {
+            const roadSurfaceY = roadY - 0.2;
+            if (minDist <= halfWidth) {
+              height = roadSurfaceY;
+            } else {
+              const blendFactor = (minDist - halfWidth) / blendMargin;
+              const originalHeight = getGroundHeight(worldX, worldZ);
+              const interpolatedHeight = (roadSurfaceY * (1 - blendFactor)) + (originalHeight * blendFactor);
+              const heightCap = roadSurfaceY + blendFactor * 1.5;
+              height = Math.min(interpolatedHeight, heightCap);
+            }
+          }
+          
+          vertices.push(worldX, height, worldZ);
+          uvs.push(x / globalResolution * 4, z / globalResolution * 4);
+        }
+      }
+      
+      const width = xEnd - xStart;
+      const height = zEnd - zStart;
+
+      for (let z = 0; z < height; z++) {
+        for (let x = 0; x < width; x++) {
+          const a = z * (width + 1) + x;
+          const b = a + 1;
+          const c = (z + 1) * (width + 1) + x;
+          const d = c + 1;
+          
+          indices.push(b, a, d);
+          indices.push(c, d, a);
+        }
+      }
+      
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      
+      // Compute BVH for the chunk
+      // @ts-ignore
+      geometry.computeBoundsTree();
+      
+      const chunkMesh = new THREE.Mesh(geometry, material);
+      chunkMesh.receiveShadow = true;
+      terrainGroup.add(chunkMesh);
+    }
+  }
   
-  return { mesh: new THREE.Mesh(geometry, material), bounds };
+  return { mesh: terrainGroup, bounds };
 }
 
 function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
@@ -848,17 +921,27 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
     return x - Math.floor(x);
   };
 
+  const treeTrunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1, 6);
+  const treeFoliageGeo = new THREE.ConeGeometry(1, 1, 6);
+  const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 });
+  const treeFoliageMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
+
+  const buildingBodyGeo = new THREE.BoxGeometry(1, 1, 1);
+  const buildingRoofGeo = new THREE.ConeGeometry(1, 1, 4);
+  const buildingBodyMat = new THREE.MeshStandardMaterial({ roughness: 0.7 });
+  const buildingRoofMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.8 });
+  const buildingColors = [0x8b7765, 0xa08070, 0x9c8c7c, 0x7a6a5a];
+
+  // Temporarily store matrices to count valid props
+  const treeData: { matrixTrunk: THREE.Matrix4; matrixFoliage: THREE.Matrix4 }[] = [];
+  const buildingData: { matrixBody: THREE.Matrix4; matrixRoof: THREE.Matrix4; color: THREE.Color }[] = [];
+
   for (let i = 0; i < totalProps; i++) {
-    // Pick a random spot along the track
     const t = rng(i * 13);
-    
-    // Skip if near the rock tunnel (t ~ 0.5)
     if (Math.abs(t - 0.5) < 0.22) continue;
 
     const pos = curve.getPointAt(t);
     const tangent = curve.getTangentAt(t);
-
-    // Calculate normal for side offset
     const nx = -tangent.z;
     const nz = tangent.x;
     const nLen = Math.sqrt(nx * nx + nz * nz);
@@ -876,7 +959,6 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
     const blendMargin = 6.0;
     let height = terrainHeight;
 
-    // Apply same carving logic as terrain mesh
     if (distanceOffset <= halfWidth + blendMargin) {
       const roadTargetY = pos.y + 0.02;
       const blendFactor = (distanceOffset - halfWidth) / blendMargin;
@@ -885,14 +967,24 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
     }
 
     if (i < treeCount) {
-      const tree = createTree(1.5 + rng(i * 7) * 2);
-      tree.position.set(x, height, z);
-      scene.add(tree);
+      const treeH = 1.5 + rng(i * 7) * 2;
+      
+      const trunkM = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height + treeH * 0.2, z),
+        new THREE.Quaternion(),
+        new THREE.Vector3(1, treeH * 0.4, 1)
+      );
+      const foliageM = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height + treeH * 0.6, z),
+        new THREE.Quaternion(),
+        new THREE.Vector3(treeH * 0.4, treeH * 0.7, treeH * 0.4)
+      );
+      treeData.push({ matrixTrunk: trunkM, matrixFoliage: foliageM });
     } else {
       const w = 1 + rng(i * 3) * 2;
       const h = 1.5 + rng(i * 4) * 3;
       const d = 1 + rng(i * 5) * 2;
-      const building = createBuilding(w, h, d);
+      
       let height2 = Math.min(
         height,
         getGroundHeight(x - 0.5 * w, z - 0.5 * d),
@@ -900,53 +992,73 @@ function placeProps(curve: THREE.CatmullRomCurve3, scene: THREE.Scene) {
         getGroundHeight(x + 0.5 * w, z - 0.5 * d),
         getGroundHeight(x + 0.5 * w, z + 0.5 * d),
       );
-      building.position.set(x, height2, z);
-      // Face the building towards the track
-      building.lookAt(pos.x, height, pos.z);
-      scene.add(building);
+
+      const lookMat = new THREE.Matrix4().lookAt(
+        new THREE.Vector3(x, height2, z),
+        new THREE.Vector3(pos.x, height, pos.z),
+        new THREE.Vector3(0, 1, 0)
+      );
+      const quat = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+
+      const bodyM = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height2 + h / 2, z),
+        quat,
+        new THREE.Vector3(w, h, d)
+      );
+
+      const roofQuat = quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4));
+      const roofM = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height2 + h + h * 0.15, z),
+        roofQuat,
+        new THREE.Vector3(Math.max(w, d) * 0.7, h * 0.3, Math.max(w, d) * 0.7)
+      );
+
+      buildingData.push({
+        matrixBody: bodyM,
+        matrixRoof: roofM,
+        color: new THREE.Color(buildingColors[Math.floor(rng(i * 23) * buildingColors.length)])
+      });
     }
+  }
+
+  // Create InstancedMeshes
+  if (treeData.length > 0) {
+    const trunkInstances = new THREE.InstancedMesh(treeTrunkGeo, treeTrunkMat, treeData.length);
+    const foliageInstances = new THREE.InstancedMesh(treeFoliageGeo, treeFoliageMat, treeData.length);
+    trunkInstances.castShadow = true;
+    foliageInstances.castShadow = true;
+
+    treeData.forEach((data, idx) => {
+      trunkInstances.setMatrixAt(idx, data.matrixTrunk);
+      foliageInstances.setMatrixAt(idx, data.matrixFoliage);
+    });
+    scene.add(trunkInstances);
+    scene.add(foliageInstances);
+  }
+
+  if (buildingData.length > 0) {
+    const bodyInstances = new THREE.InstancedMesh(buildingBodyGeo, buildingBodyMat, buildingData.length);
+    const roofInstances = new THREE.InstancedMesh(buildingRoofGeo, buildingRoofMat, buildingData.length);
+    bodyInstances.castShadow = true;
+    bodyInstances.receiveShadow = true;
+    roofInstances.castShadow = true;
+
+    buildingData.forEach((data, idx) => {
+      bodyInstances.setMatrixAt(idx, data.matrixBody);
+      bodyInstances.setColorAt(idx, data.color);
+      roofInstances.setMatrixAt(idx, data.matrixRoof);
+    });
+    scene.add(bodyInstances);
+    scene.add(roofInstances);
   }
 }
 
 function createTree(height: number): THREE.Group {
-  const group = new THREE.Group();
-  
-  const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, height * 0.4, 6);
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 });
-  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-  trunk.position.y = height * 0.2;
-  trunk.castShadow = true;
-  group.add(trunk);
-  
-  const foliageGeo = new THREE.ConeGeometry(height * 0.4, height * 0.7, 6);
-  const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
-  const foliage = new THREE.Mesh(foliageGeo, foliageMat);
-  foliage.position.y = height * 0.6;
-  foliage.castShadow = true;
-  group.add(foliage);
-  
-  return group;
+  // Not used anymore but kept for compatibility if needed
+  return new THREE.Group();
 }
 
 function createBuilding(width: number, height: number, depth: number): THREE.Group {
-  const group = new THREE.Group();
-  
-  const bodyGeo = new THREE.BoxGeometry(width, height, depth);
-  const colors = [0x8b7765, 0xa08070, 0x9c8c7c, 0x7a6a5a];
-  const bodyMat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)], roughness: 0.7 });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.y = height / 2;
-  body.castShadow = true;
-  body.receiveShadow = true;
-  group.add(body);
-  
-  const roofGeo = new THREE.ConeGeometry(Math.max(width, depth) * 0.7, height * 0.3, 4);
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.8 });
-  const roof = new THREE.Mesh(roofGeo, roofMat);
-  roof.position.y = height + height * 0.15;
-  roof.rotation.y = Math.PI / 4;
-  roof.castShadow = true;
-  group.add(roof);
-  
-  return group;
+  // Not used anymore but kept for compatibility if needed
+  return new THREE.Group();
 }
