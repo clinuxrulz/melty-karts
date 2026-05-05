@@ -8,6 +8,7 @@ import { Canvas, Entity, useFrame } from "solid-three";
 
 import { T } from "../t";
 import Melty from "../models/melty";
+import { characterSelectionMusic } from "../Music";
 
 let meltyLibRef: Accessor<typeof import("../models/melty") | undefined> | undefined;
 let cubeyLibRef: Accessor<typeof import("../models/cubey") | undefined> | undefined;
@@ -77,6 +78,13 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
   const [showSelection, setShowSelection] = createSignal(true);
   const [confirmed, setConfirmed] = createSignal(false);
   const [rotationAngle, setRotationAngle] = createSignal(0.0);
+
+  {
+    characterSelectionMusic.play();
+    onCleanup(() => {
+      characterSelectionMusic.stop();
+    });
+  }
 
   const onConfirm = () => {
     setConfirmed(true);

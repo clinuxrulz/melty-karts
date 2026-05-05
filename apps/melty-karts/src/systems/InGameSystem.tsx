@@ -23,6 +23,7 @@ import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
 import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { Canvas } from "solid-three";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { raceMusic } from "../Music";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -523,6 +524,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       },
     );
   });
+  let musicStarted = false;
   return {
     subsystems,
     ui,
@@ -549,6 +551,27 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           );
         }
       }
+      // Start music after go
+      {
+        if (!musicStarted) {
+          (() => {
+            let preReadySteadyGoFinished = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
+            if (!preReadySteadyGoFinished) {
+              return;
+            }
+            let isReadySteadyGo = ecs.resource(RegisteredInGameState).get("isReadySteadyGo");
+            if (isReadySteadyGo) {
+              let isGo = ecs.resource(RegisteredInGameState).get("readySteadyGoStage") == ReadySteadyGoStage.GO;
+              if (!isGo) {
+                return;
+              }
+            }
+            raceMusic.play();
+            musicStarted = true;
+          })();
+        }
+      }
+      //
       renderSystem()?.update?.(dt);
     },
   };

@@ -12,7 +12,7 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
   const engineSound = new Howl({
     src: ["./engine.mp3"],
     loop: true,
-    volume: 0.5,
+    volume: 0.1,
     autoplay: false,
     onloaderror: (id, err) => console.error("Engine load error:", err),
     onplayerror: (id, err) => console.error("Engine play error:", err),
@@ -20,7 +20,7 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
 
   const hitSound = new Howl({
     src: ["./crash.ogg"],
-    volume: 0.5,
+    volume: 0.1,
     onloaderror: (id, err) => console.error("Crash load error:", err),
   });
 

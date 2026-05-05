@@ -1,11 +1,18 @@
-import { type Component } from "solid-js";
+import { onCleanup, type Component } from "solid-js";
 import { JSX as SolidJSX } from "@solidjs/web";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
+import { introMusic } from "../Music";
 
 export function createTitleScreenSystem(ecs: ReactiveECS): System {
+  {
+    introMusic.play();
+    onCleanup(() => {
+      introMusic.stop();
+    });
+  }
   const startSinglePlayer = () => {
     multiplayerSession.leave();
     ecs.set_resource(RegisteredGameMode, { mode: 0 });
