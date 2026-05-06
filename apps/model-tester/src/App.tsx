@@ -1,16 +1,18 @@
-import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, untrack } from "solid-js";
+import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, untrack, Switch, Match } from "solid-js";
 import { JSX } from "@solidjs/web";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
-import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
+import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createMysteryBoxHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useFrame, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
 import { Dynamic } from "@solidjs/web";
+import MisteryBox from "../../melty-karts/src/models/MysteryBox";
+import MysteryBox from "../../melty-karts/src/models/MysteryBox";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox",
   }>({
     model: "SolidLogo",
   });
@@ -123,6 +125,7 @@ const App: Component = () => {
     };
   });
   */
+  let mysteryBoxModel = createMysteryBoxHMR();
   return (
     <div
       ref={setCanvasDiv}
@@ -148,7 +151,7 @@ const App: Component = () => {
               new THREE.Vector2(rect.width, rect.height), 
               1.5,  // strength
               0.4,  // radius
-              0.3,  // threshold
+              0.4,  // threshold
             );
             const composer2 = new EffectComposer(ctx.gl as unknown as THREE.WebGLRenderer);
             const renderScene = new RenderPass(ctx.scene as unknown as THREE.Scene, ctx.camera as unknown as THREE.PerspectiveCamera);
@@ -274,6 +277,8 @@ const App: Component = () => {
                   return readySteadyGoModel();
                 case "Banana":
                   return bananaModel();
+                default:
+                  return undefined;
               }
             });
           }
@@ -291,6 +296,13 @@ const App: Component = () => {
             </Show>
           ));
         })()}
+        <Switch>
+          <Match when={state.model === "MysteryBox"}>
+            <MysteryBox
+              onHMR={() => rerender()}
+            />
+          </Match>
+        </Switch>
       </Canvas>
       <select
         style={{
@@ -314,6 +326,7 @@ const App: Component = () => {
         <option value="Kart" selected={state.model == "Kart"}>Kart</option>
         <option value="ReadySteadyGo" selected={state.model == "ReadySteadyGo"}>ReadySteadyGo</option>
         <option value="Banana" selected={state.model == "Banana"}>Banana</option>
+        <option value="MysteryBox" selected={state.model == "MysteryBox"}>Mystery Box</option>
       </select>
     </div>
   );

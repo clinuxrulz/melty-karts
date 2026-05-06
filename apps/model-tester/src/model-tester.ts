@@ -1,4 +1,4 @@
-import { createSignal, createMemo, Accessor } from "solid-js";
+import { createSignal, createMemo, Accessor, Component } from "solid-js";
 import * as THREE from "three";
 
 let [ meltyLib, setMeltyLib, ] = createSignal<typeof import("../../melty-karts/src/models/melty")>();
@@ -12,6 +12,10 @@ let [ readySteadyGoLib, setReadySteadyGoLib ] =
 let [ bananaLib, setBananaLib ] =
   createSignal<typeof import("../../melty-karts/src/models/banana")>(
     async () => import("../../melty-karts/src/models/banana")
+  );
+let [ mysteryBoxLib, setMysteryBoxLib, ] =
+  createSignal<typeof import("../../melty-karts/src/models/MysteryBox")>(
+    async () => import("../../melty-karts/src/models/MysteryBox")
   );
 
 import("../../melty-karts/src/models/melty").then(setMeltyLib);
@@ -68,6 +72,10 @@ export function createBananaModelHMR(): Accessor<THREE.Object3D> {
   return createMemo(() => bananaLib().createBanana());
 }
 
+export function createMysteryBoxHMR(): Accessor<Component> {
+  return createMemo(() => mysteryBoxLib().default);
+}
+
 if (import.meta.hot) {
   import.meta.hot.accept("../../melty-karts/src/models/melty", (lib) => {
     setMeltyLib(lib as any);
@@ -87,4 +95,7 @@ if (import.meta.hot) {
   import.meta.hot.accept("../../melty-karts/src/models/banana", (lib) => {
     setBananaLib(lib as any);
   });
+  import.meta.hot.accept("../../melty-karts/src/models/MysteryBox", (lib) => {
+    setMysteryBoxLib(lib as any);
+  })
 }
