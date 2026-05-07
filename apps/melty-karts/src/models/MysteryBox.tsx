@@ -1,6 +1,25 @@
-import { Component, onCleanup, onSettled } from "solid-js";
+import { Component, onCleanup, onSettled, Show } from "solid-js";
 import * as THREE from "three";
 import { T } from "../t";
+
+const questionMarkMaterial = (() => {
+  let canvas = new OffscreenCanvas(128, 128);
+  let ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    return undefined;
+  }
+  ctx.font = "bold 100px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#888";
+  ctx.fillText("?", 64, 64);
+  let texture = new THREE.CanvasTexture(canvas);
+  return new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+  });
+})();
 
 const MysteryBox: Component<{
   onHMR?: () => void,
@@ -12,38 +31,55 @@ const MysteryBox: Component<{
     });
   }
   const geometry = new THREE.OctahedronGeometry(1, 0);
-  const count = geometry.attributes.position.count;
-  const colors = [];
-  const brightColors = [
-    new THREE.Color(0xff0000),
-    new THREE.Color(0x00ff00),
-    new THREE.Color(0x0000ff),
+  const position = geometry.attributes.position;
+  const count = position.count;
+  const colours: number[] = [];
+  const brightColours = [
+    new THREE.Color("#ff0000"),
+    new THREE.Color("#00ff00"),
+    new THREE.Color("#0000ff"),
+    new THREE.Color("#ff00ff"),
+    new THREE.Color("#ff7f00"),
+    new THREE.Color("#ff007f"),
   ];
   for (let i = 0; i < count; i++) {
-    let j = i;
-    if (i >= 3 && i < 6) {
-      j = 7 - j;
-    } else if (i >= 6 && i < 9) {
-      j = i;
-    } else if (i >= 9 && i < 12) {
-      j = 13 - i;
-    } else if (i >= 12 && i < 15) {
-      j = i;
-    } else if (i >= 15 && i < 18) {
-      j = 19 - i;
-    } else if (i >= 18 && i < 21) {
-      j = i;
-    } else if (i >= 21 && i < 24) {
-      j = 25 - i;
+    let x = position.getX(i);
+    let y = position.getY(i);
+    let z = position.getZ(i);
+    let xZero = Math.abs(x) < 0.001;
+    let yZero = Math.abs(y) < 0.001;
+    let zZero = Math.abs(z) < 0.001;
+    if (xZero && zZero) {
+      if (y > 0.0) {
+        const colour = brightColours[0];
+        colours.push(colour.r, colour.g, colour.b);
+      } else {
+        const colour = brightColours[2];
+        colours.push(colour.r, colour.g, colour.b);
+      }
+    } else if (yZero && zZero) {
+      if (x > 0.0) {
+        const colour = brightColours[1];
+        colours.push(colour.r, colour.g, colour.b);
+      } else {
+        const colour = brightColours[3];
+        colours.push(colour.r, colour.g, colour.b);
+      }
+    } else {
+      if (z > 0.0) {
+        const colour = brightColours[4];
+        colours.push(colour.r, colour.g, colour.b);
+      } else {
+        const colour = brightColours[5];
+        colours.push(colour.r, colour.g, colour.b);
+      }
     }
-    const color = brightColors[j % brightColors.length];
-    colors.push(color.r, color.g, color.b);
   }
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
   const material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.3,
   });
   onCleanup(() => {
     geometry.dispose();
@@ -56,7 +92,16 @@ const MysteryBox: Component<{
         geometry={geometry}
         material={material}
         scale={[ 0.85, 1.0, 0.85, ]}
+        renderOrder={1}
       />
+      <Show when={questionMarkMaterial}>
+        {(questionMarkMaterial) => (
+          <T.Sprite
+            position={[ 0, 0.9, 0.0, ]}
+            material={questionMarkMaterial()}
+          />
+        )}
+      </Show>
     </T.Group>
   );
 };
