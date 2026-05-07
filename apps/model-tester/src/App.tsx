@@ -1,18 +1,16 @@
 import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, untrack, Switch, Match } from "solid-js";
-import { JSX } from "@solidjs/web";
 import * as THREE from "three";
 import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createMysteryBoxHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useFrame, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
-import { Dynamic } from "@solidjs/web";
-import MisteryBox from "../../melty-karts/src/models/MysteryBox";
 import MysteryBox from "../../melty-karts/src/models/MysteryBox";
+import Bomb from "../../melty-karts/src/models/Bomb";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb",
   }>({
     model: "SolidLogo",
   });
@@ -125,7 +123,27 @@ const App: Component = () => {
     };
   });
   */
-  let mysteryBoxModel = createMysteryBoxHMR();
+  let animate = createMemo(() => state.model === "Bomb");
+  let [ time, setTime, ] = createSignal(0);
+  createEffect(
+    animate,
+    (animate) => {
+      if (!animate) {
+        return;
+      }
+      let again = true;
+      let update = (t: number) => {
+        setTime(t / 1000.0);
+        let composer2 = composer();
+        composer2?.render(1.0 / 60.0);
+        if (again) {
+          requestAnimationFrame(update);
+        }
+      };
+      requestAnimationFrame(update);
+      return () => again = false;
+    },
+  );
   return (
     <div
       ref={setCanvasDiv}
@@ -174,7 +192,7 @@ const App: Component = () => {
           });
         }}
         camera={{ position: [ 5.0, 5.0, 5.0, ] }}
-        frameloop="demand"
+        frameloop={"demand"}
       >
         <T.Color attach={"background"} args={["black"]}/>
         {/* Lights */}
@@ -302,6 +320,12 @@ const App: Component = () => {
               onHMR={() => rerender()}
             />
           </Match>
+          <Match when={state.model === "Bomb"}>
+            <Bomb
+              onHMR={() => rerender()}
+              time={time()}
+            />
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -327,6 +351,7 @@ const App: Component = () => {
         <option value="ReadySteadyGo" selected={state.model == "ReadySteadyGo"}>ReadySteadyGo</option>
         <option value="Banana" selected={state.model == "Banana"}>Banana</option>
         <option value="MysteryBox" selected={state.model == "MysteryBox"}>Mystery Box</option>
+        <option value="Bomb" selected={state.model == "Bomb"}>Bomb</option>
       </select>
     </div>
   );
