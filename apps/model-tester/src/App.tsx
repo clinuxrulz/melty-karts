@@ -8,10 +8,11 @@ import { T } from "../../melty-karts/src/t";
 import MysteryBox from "../../melty-karts/src/models/MysteryBox";
 import Bomb from "../../melty-karts/src/models/Bomb";
 import Lightning from "../../melty-karts/src/models/Lightning";
+import SlotMachine from "../../melty-karts/src/models/SlotMachine";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning" | "SlotMachine",
   }>({
     model: "SolidLogo",
   });
@@ -124,7 +125,11 @@ const App: Component = () => {
     };
   });
   */
-  let animate = createMemo(() => state.model === "Bomb" || state.model === "Lightning");
+  let animate = createMemo(() =>
+    state.model === "Bomb" ||
+    state.model === "Lightning" ||
+    state.model === "SlotMachine"
+  );
   let [ time, setTime, ] = createSignal(0);
   createEffect(
     animate,
@@ -332,6 +337,11 @@ const App: Component = () => {
               time={time()}
             />
           </Match>
+          <Match when={state.model === "SlotMachine"}>
+            <SlotMachine
+              time={time()}
+            />
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -359,6 +369,7 @@ const App: Component = () => {
         <option value="MysteryBox" selected={state.model == "MysteryBox"}>Mystery Box</option>
         <option value="Bomb" selected={state.model == "Bomb"}>Bomb</option>
         <option value="Lightning" selected={state.model == "Lightning"}>Lightning</option>
+        <option value="SlotMachine" selected={state.model == "SlotMachine"}>Slot Machine</option>
       </select>
     </div>
   );
