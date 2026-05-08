@@ -7,10 +7,11 @@ import { Canvas, Entity, useFrame, useThree } from "solid-three";
 import { T } from "../../melty-karts/src/t";
 import MysteryBox from "../../melty-karts/src/models/MysteryBox";
 import Bomb from "../../melty-karts/src/models/Bomb";
+import Lightning from "../../melty-karts/src/models/Lightning";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning",
   }>({
     model: "SolidLogo",
   });
@@ -123,7 +124,7 @@ const App: Component = () => {
     };
   });
   */
-  let animate = createMemo(() => state.model === "Bomb");
+  let animate = createMemo(() => state.model === "Bomb" || state.model === "Lightning");
   let [ time, setTime, ] = createSignal(0);
   createEffect(
     animate,
@@ -326,6 +327,11 @@ const App: Component = () => {
               time={time()}
             />
           </Match>
+          <Match when={state.model === "Lightning"}>
+            <Lightning
+              time={time()}
+            />
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -352,6 +358,7 @@ const App: Component = () => {
         <option value="Banana" selected={state.model == "Banana"}>Banana</option>
         <option value="MysteryBox" selected={state.model == "MysteryBox"}>Mystery Box</option>
         <option value="Bomb" selected={state.model == "Bomb"}>Bomb</option>
+        <option value="Lightning" selected={state.model == "Lightning"}>Lightning</option>
       </select>
     </div>
   );
