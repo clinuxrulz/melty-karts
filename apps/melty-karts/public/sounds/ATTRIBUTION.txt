@@ -1,0 +1,30 @@
+Sound Effect: slot_spin_loop.ogg
+Source: Procedurally generated (custom Python synthesis)
+  8-bit style loopable reel spin. Rapid cycling pentatonic arpeggio
+  (C-D-E-G-A-C) at constant speed. Square wave with triangle undertone.
+  0.5s loopable segment designed to be repeated in code for long spins.
+License: Public Domain (original work, no attribution needed)
+Description: Loopable 8-bit slot machine reel spin (~0.5s). Rapid chiptune
+  arpeggio at steady speed. Repeat in code for the long spin phase, then
+  transition to slot_reel_spin.ogg for the decelerating reveal.
+No attribution required.
+
+Sound Effect: slot_reel_spin.ogg
+Source: Procedurally generated (custom Python synthesis)
+  8-bit style decelerating arpeggio reveal. Rapid C major chord arpeggio
+  that decelerates (like a slot reel slowing to a stop). Square wave
+  with triangle undertone. Intended to follow slot_spin_loop.ogg.
+License: Public Domain (original work, no attribution needed)
+Description: 8-bit style slot machine reel reveal sound (~1.6s). Retro
+  chiptune arpeggio that decelerates. Play after slot_spin_loop.ogg stops
+  for the item reveal.
+No attribution required.
+
+Sound Effect: powerup_item_box.ogg
+Source: https://opengameart.org/content/power-up-sound-effects
+Author: Spring Spring (https://opengameart.org/users/spring-spring)
+License: CC0 1.0 Universal (Public Domain)
+  https://creativecommons.org/publicdomain/zero/1.0/
+Description: Chiptune-style power-up sound effect, suitable for item box
+  pickups in a Mario Kart clone.
+No attribution required, but credit goes to Spring Spring.
