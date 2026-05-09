@@ -151,6 +151,7 @@ const SlotMachine: Component<{
                     renderOrder={-1}
                   >
                     <Lightning
+                      clipped={true}
                       time={props.time}
                     />
                   </T.Group>
