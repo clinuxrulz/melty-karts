@@ -123,6 +123,9 @@ importers:
       '@solidjs/web':
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10(solid-js@2.0.0-beta.10)
+      '@types/howler':
+        specifier: ^2.2.12
+        version: 2.2.12
       howler:
         specifier: ^2.2.4
         version: 2.2.4

@@ -1,6 +1,7 @@
-import { Accessor, createSignal, For, type Component, createEffect, on } from "solid-js";
+import { Accessor, createSignal, For, type Component, createEffect } from "solid-js";
 import { Howl } from "howler";
 import { playReadySteadyGoFromTester } from "./sound-tester";
+import { powerupItemBox, slotSpinLoop, slotReelSpin } from "../../melty-karts/src/sounds/slot-machine";
 
 const App: Component = () => {
   const [ activeSound, setActiveSound ] = createSignal<string | null>(null);
@@ -23,6 +24,22 @@ const App: Component = () => {
     setTimeout(() => setActiveSound(null), 2000);
   };
 
+  const playPowerupItemBox = () => {
+    setActiveSound("Powerup Item Box");
+    powerupItemBox.play();
+    setTimeout(() => setActiveSound(null), 1000);
+  };
+
+  const playSlotLoop = () => {
+    setActiveSound("Slot Machine");
+    slotSpinLoop.play();
+    setTimeout(() => {
+      slotSpinLoop.stop();
+      slotReelSpin.play();
+      setActiveSound(null);
+    }, 3000);
+  };
+
   return (
     <div
       style={{
@@ -41,6 +58,12 @@ const App: Component = () => {
       <div style={{ "margin-bottom": "20px" }}>
         <button style={buttonStyle} onClick={playReadySteadyGo}>
           Play Ready Steady Go
+        </button><br/>
+        <button style={buttonStyle} onClick={playPowerupItemBox}>
+          Play Powerup Item Box
+        </button><br/>
+        <button style={buttonStyle} onClick={playSlotLoop}>
+          Play Slot Machine
         </button>
       </div>
 
