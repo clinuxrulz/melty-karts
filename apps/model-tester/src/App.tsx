@@ -170,6 +170,7 @@ const App: Component = () => {
             }
             let rect = canvasDiv2.getBoundingClientRect();
             setCanvas(ctx.canvas);
+            ctx.gl.localClippingEnabled = true;
             // Resolution, strength, radius, threshold
             const bloomPass = new UnrealBloomPass(
               new THREE.Vector2(rect.width, rect.height), 

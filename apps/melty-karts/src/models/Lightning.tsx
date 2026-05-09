@@ -56,6 +56,7 @@ const createBolts = () => {
       varying float vAcross;
       varying float vAlong;
       varying float vGlow;
+      #include <clipping_planes_pars_vertex>
 
       const float kBoltCount = 5.0;
       const float kSegmentsPerBolt = 16.0;
@@ -200,6 +201,7 @@ const createBolts = () => {
         vAcross = edgeIdx;
         vAlong = t;
         vGlow = pulse;
+        vClipPosition = -mvCurrent.xyz;
 
         gl_Position = projectionMatrix * mvCurrent;
       }
@@ -208,8 +210,11 @@ const createBolts = () => {
       varying float vAcross;
       varying float vAlong;
       varying float vGlow;
+      #include <clipping_planes_pars_fragment>
 
       void main() {
+        vec4 diffuseColor = vec4(1.0);
+        #include <clipping_planes_fragment>
         float edgeFade = 1.0 - smoothstep(0.15, 0.95, abs(vAcross - 0.5) * 2.0);
         float alongFade = smoothstep(0.0, 0.08, vAlong) * (1.0 - smoothstep(0.78, 1.0, vAlong));
         float core = pow(edgeFade, 3.5);

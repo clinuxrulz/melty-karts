@@ -55,6 +55,7 @@ const createWickFire = () => {
 
       varying float vFade;
       varying float vHeat;
+      #include <clipping_planes_pars_vertex>
 
       void main() {
         float age = mod(uTime + aOffset, aLife);
@@ -74,8 +75,11 @@ const createWickFire = () => {
         animatedPosition.y += (lifeT * lifeT) * 0.12 + flicker;
         animatedPosition.z += cos((uTime * 8.0) + aSpin + (lifeT * 10.0)) * 0.006 * (1.0 - lifeT);
 
-        vec4 mvPosition = modelViewMatrix * vec4(animatedPosition, 1.0);
+        vec3 transformed = animatedPosition;
+        vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
         gl_Position = projectionMatrix * mvPosition;
+        #include <worldpos_vertex>
+        #include <clipping_planes_vertex>
 
         float distanceToCamera = length(mvPosition.xyz);
         float perspectiveScale = 1.0 / max(0.1, distanceToCamera);
@@ -85,8 +89,10 @@ const createWickFire = () => {
     fragmentShader: `
       varying float vFade;
       varying float vHeat;
+      #include <clipping_planes_pars_fragment>
 
       void main() {
+        #include <clipping_planes_fragment>
         vec2 centered = gl_PointCoord - vec2(0.5);
         float dist = length(centered);
         if (dist > 0.5) {

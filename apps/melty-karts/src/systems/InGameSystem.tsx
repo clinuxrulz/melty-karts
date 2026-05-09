@@ -748,6 +748,7 @@ function initScene(
   //const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.localClippingEnabled = true;
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight), 
