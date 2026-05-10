@@ -10,6 +10,7 @@ import {
   RegisteredOrientation,
   RegisteredInGameState,
   ReadySteadyGoStage,
+  RegisteredMysteryBox,
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -18,8 +19,9 @@ import { createCubey } from "../models/cubey";
 import { createReadySteadyGoTrafficLight } from "../models/ReadySteadyGoTrafficLight";
 
 import { T } from "../t";
+import MysteryBox from "../models/MysteryBox";
 
-export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera: THREE.Camera): { update: () => void; three: Accessor<Component | undefined>; dispose: () => void } {
+export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera: THREE.Camera): { update: (dt: number) => void; three: Accessor<Component | undefined>; dispose: () => void } {
   return createRoot((dispose) => {
 
     let isReadySteadyGo = createMemo(() => ecs.resource(RegisteredInGameState).get("isReadySteadyGo"));
@@ -76,8 +78,18 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera:
     });
 
     return {
-      update: () => {
+      update: (dt) => {
         trafficLight()?.lookAtCamera();
+        for (let arch of ecs.query(RegisteredMysteryBox)) {
+          let entityIds = arch.entity_ids;
+          for (let i = 0; i < arch.entity_count; ++i) {
+            let mysteryBoxId = entityIds[i] as EntityID;
+            let mysteryBox = ecs.entity(mysteryBoxId);
+            let angle = mysteryBox.getField(RegisteredMysteryBox, "angle");
+            angle += 2.0 * dt;
+            ecs.set_field(mysteryBoxId, RegisteredMysteryBox, "angle", angle);
+          }
+        }
       },
       three: createMemo(() => () => {
         return (
@@ -150,6 +162,40 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera:
                     })()}</>
                     <Player/>
                   </T.Group>
+                );
+              }}
+            </For>
+            <For each={(() => {
+              let result: EntityID[] = [];
+              for (let arch of ecs.query(RegisteredPosition, RegisteredMysteryBox)) {
+                let entityIds = arch.entity_ids;
+                for (let i = 0; i < arch.entity_count; ++i) {
+                  result.push(entityIds[i] as EntityID);
+                }
+              }
+              return result;
+            })()}>
+              {(mysteryBox) => {
+                let mysteryBoxEntity = ecs.entity(mysteryBox());
+                let position = createMemo(() =>
+                  new THREE.Vector3(
+                    mysteryBoxEntity.getField(RegisteredPosition, "x"),
+                    mysteryBoxEntity.getField(RegisteredPosition, "y"),
+                    mysteryBoxEntity.getField(RegisteredPosition, "z"),
+                  )
+                );
+                let quaternion = createMemo(() =>
+                  new THREE.Quaternion().setFromAxisAngle(
+                    new THREE.Vector3(0.0, 1.0, 0.0),
+                    mysteryBoxEntity.getField(RegisteredMysteryBox, "angle"),
+                  )
+                );
+                return (
+                  <Show when={mysteryBoxEntity.getField(RegisteredMysteryBox, "spawned")}>
+                    <T.Group position={position()} quaternion={quaternion()}>
+                      <MysteryBox/>
+                    </T.Group>
+                  </Show>
                 );
               }}
             </For>

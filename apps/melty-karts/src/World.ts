@@ -91,6 +91,24 @@ export const RegisteredObsticle = baseEcs.register_component({
   type: "u32"
 });
 
+export const MYSTERY_BOX_RESPAWN_TIMEOUT = 5.0;
+export const RegisteredMysteryBox = baseEcs.register_component({
+  /**
+   * Rotation angle about the Y-axis in radians
+   */
+  "angle": "f32",
+  /**
+   * Weither the mystery box is spawned.
+   * 0 false, 1 true
+   */
+  "spawned": "u8",
+  /**
+   * Amount of time until the mystery box respawns if it is not current spawned.
+   * (I.E. if it has just been collected.)
+   */
+  "timeUntilRespawn": "f32",
+});
+
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });

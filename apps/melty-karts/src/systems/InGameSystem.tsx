@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -24,6 +24,8 @@ import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/
 import { Canvas } from "solid-three";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { raceMusic } from "../Music";
+import { placeMysteryBoxesAlongTrack } from "./track-util";
+import { powerupItemBox } from "../sounds/slot-machine";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -59,6 +61,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     },
   );
   let [ renderSystem, setRenderSystem ] = createSignal<System>();
+  let [ thisDevicePlayerEntityId, setThisDevicePlayerEntityId, ] = createSignal<EntityID>();
   /*
   createMemo(() => {
     let canvasDiv2 = canvasDiv();
@@ -283,6 +286,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               return;
             }
             let {
+              thisDevicePlayerEntityId: thisDevicePlayerEntityId2,
               dispose,
               renderSystem,
             } = runWithOwner(owner, () => initScene(
@@ -302,6 +306,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             runWithOwner(owner, () => {
               onCleanup(() => dispose());
             });
+            setThisDevicePlayerEntityId(thisDevicePlayerEntityId2);
             setRenderSystem(renderSystem);
           });
         }}
@@ -571,6 +576,59 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           })();
         }
       }
+      // Mystery Box Respawn
+      for (let mysteryBoxArch of ecs.query(RegisteredMysteryBox, RegisteredPosition)) {
+        let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
+        for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
+          let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
+          let mysteryBoxEntity = ecs.entity(mysteryBoxEntityId);
+          if (mysteryBoxEntity.getField(RegisteredMysteryBox, "spawned")) {
+            continue;
+          }
+          let timeout = mysteryBoxEntity.getField(RegisteredMysteryBox, "timeUntilRespawn");
+          timeout -= dt;
+          if (timeout <= 0.0) {
+            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", MYSTERY_BOX_RESPAWN_TIMEOUT);
+            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 1);
+          } else {
+            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", timeout);
+          }
+        }
+      }
+      // Kart Mystery Box collisions
+      for (let playerArch of ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
+        let playerEntityIds = playerArch.entity_ids;
+        for (let i = 0; i < playerArch.entity_count; ++i) {
+          let playerEntityId = playerEntityIds[i] as EntityID;
+          let playerEntity = ecs.entity(playerEntityId);
+          let playerX = playerEntity.getField(RegisteredPosition, "x");
+          let playerY = playerEntity.getField(RegisteredPosition, "y");
+          let playerZ = playerEntity.getField(RegisteredPosition, "z");
+          for (let mysteryBoxArch of ecs.query(RegisteredMysteryBox, RegisteredPosition)) {
+            let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
+            for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
+              let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
+              let mysteryBoxEntity = ecs.entity(mysteryBoxEntityId);
+              if (!mysteryBoxEntity.getField(RegisteredMysteryBox, "spawned")) {
+                continue;
+              }
+              let mysteryBoxX = mysteryBoxEntity.getField(RegisteredPosition, "x");
+              let mysteryBoxY = mysteryBoxEntity.getField(RegisteredPosition, "y");
+              let mysteryBoxZ = mysteryBoxEntity.getField(RegisteredPosition, "z");
+              let dx = mysteryBoxX - playerX;
+              let dy = mysteryBoxY - playerY;
+              let dz = mysteryBoxZ - playerZ;
+              let distSquared = dx*dx + dy*dy + dz*dz;
+              if (distSquared <= 1.0*1.0) {
+                ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 0);
+                if (playerEntityId === thisDevicePlayerEntityId()) {
+                  powerupItemBox.play();
+                }
+              }
+            }
+          }
+        }
+      }
       //
       renderSystem()?.update?.(dt);
     },
@@ -712,6 +770,9 @@ function initScene(
       ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
       ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
+
+    // add mystery boxes
+    placeMysteryBoxesAlongTrack(ecs, curve);
   }
 
   //const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
@@ -967,6 +1028,7 @@ function initScene(
   animate();
   
   return {
+    thisDevicePlayerEntityId: kartEntityId as EntityID,
     dispose: () => {
       running = false;
       rollbackSystem?.dispose();

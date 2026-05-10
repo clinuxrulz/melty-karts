@@ -21,6 +21,7 @@ import { simulateKartStep } from "../systems/KartPhysicsSystem";
 import { createAISystem } from "../systems/AISystem";
 import { PeerJsTransport } from "./PeerJsTransport";
 import { makeInviteCode, inviteCodeToId } from "./InviteCode";
+import { placeMysteryBoxesAlongTrack } from "../systems/track-util";
 
 type MultiplayerSnapshot = {
   status: "idle" | "hosting" | "joining" | "lobby" | "playing" | "error";
@@ -206,6 +207,7 @@ class MultiplayerSessionController {
       status: "idle",
       inviteUrl: null,
       inviteCode: null,
+      invitePayload: null,
       players: [],
       localPlayerId: null,
       error: null,
@@ -306,6 +308,9 @@ class MultiplayerSessionController {
       ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
       ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
+
+    // add mystery boxes
+    placeMysteryBoxesAlongTrack(ecs, curve);
   }
 
   buildLocalInput(ecs: ReactiveECS): Uint8Array {
