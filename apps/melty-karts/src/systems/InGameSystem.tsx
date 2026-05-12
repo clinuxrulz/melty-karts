@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -595,6 +595,35 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       }
+      // Simulate Slot Machines
+      for (let slotMachineArch of ecs.query(RegisteredSlotMachine)) {
+        let slotMachineIds = slotMachineArch.entity_ids;
+        for (let i = 0; i < slotMachineArch.entity_count; ++i) {
+          let slotMachineId = slotMachineIds[i] as EntityID;
+          let slotMachineEntity = ecs.entity(slotMachineId);
+          let phase = slotMachineEntity.getField(RegisteredSlotMachine, "phase") as SlotMachinePhase;
+          switch (phase) {
+            case SlotMachinePhase.Spinning: {
+              let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
+              phaseTimeout -= dt;
+              if (phaseTimeout <= 0.0) {
+                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
+                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
+              } else {
+                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
+                let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
+                spinningOffset += dt;
+                ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
+              }
+              break;
+            }
+            case SlotMachinePhase.DisplayResult:
+              // TODO: check if use-item action is triggered and remove slot
+              // machine component.
+              break;
+          }
+        }
+      }
       // Kart Mystery Box collisions
       for (let playerArch of ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
         let playerEntityIds = playerArch.entity_ids;
@@ -621,8 +650,19 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let distSquared = dx*dx + dy*dy + dz*dz;
               if (distSquared <= 1.0*1.0) {
                 ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 0);
-                if (playerEntityId === thisDevicePlayerEntityId()) {
-                  powerupItemBox.play();
+                if (!ecs.ecs.has_component(playerEntityId, RegisteredSlotMachine)) {
+                  if (playerEntityId === thisDevicePlayerEntityId()) {
+                    powerupItemBox.play();
+                  }
+                  ecs.add_component(
+                    playerEntityId,
+                    RegisteredSlotMachine,
+                    {
+                      "phase": SlotMachinePhase.Spinning,
+                      "phaseTimeout": SLOT_MACHINE_SPIN_TIMEOUT,
+                      "spinningOffset": 0.0,
+                    }
+                  );
                 }
               }
             }
@@ -777,7 +817,7 @@ function initScene(
 
   //const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
 
-  const renderSystem = createRenderSystem(ecs, scene, camera);
+  const renderSystem = createRenderSystem(ecs, scene, camera, () => kartEntityId);
   const { dispose: disposeRender } = renderSystem;
   const turnAmount = createMemo(() => {
     const joyX = joystickValue().x;

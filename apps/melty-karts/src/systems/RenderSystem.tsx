@@ -11,6 +11,7 @@ import {
   RegisteredInGameState,
   ReadySteadyGoStage,
   RegisteredMysteryBox,
+  RegisteredSlotMachine,
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -20,8 +21,9 @@ import { createReadySteadyGoTrafficLight } from "../models/ReadySteadyGoTrafficL
 
 import { T } from "../t";
 import MysteryBox from "../models/MysteryBox";
+import SlotMachine from "../models/SlotMachine";
 
-export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera: THREE.Camera): { update: (dt: number) => void; three: Accessor<Component | undefined>; dispose: () => void } {
+export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera: THREE.Camera, ownPlayerEntityId: Accessor<number | undefined>): { update: (dt: number) => void; three: Accessor<Component | undefined>; dispose: () => void } {
   return createRoot((dispose) => {
 
     let isReadySteadyGo = createMemo(() => ecs.resource(RegisteredInGameState).get("isReadySteadyGo"));
@@ -76,7 +78,7 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera:
         lookAtCamera,
       });
     });
-
+    let updateListeners: ((dt: number) => void)[] = [];
     return {
       update: (dt) => {
         trafficLight()?.lookAtCamera();
@@ -90,6 +92,7 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera:
             ecs.set_field(mysteryBoxId, RegisteredMysteryBox, "angle", angle);
           }
         }
+        updateListeners.forEach((u) => u(dt));
       },
       three: createMemo(() => () => {
         return (
@@ -204,6 +207,46 @@ export function createRenderSystem(ecs: ReactiveECS, scene: THREE.Scene, camera:
                 let Three = trafficLight().three;
                 return untrack(() => (<Three/>))
               })()}</>)}
+            </Show>
+            <Show when={(() => {
+              let entityId = ownPlayerEntityId();
+              if (entityId === undefined) {
+                return undefined;
+              }
+              let entity = ecs.entity(entityId as EntityID);
+              if (!entity.hasComponent(RegisteredSlotMachine)) {
+                return undefined;
+              }
+              return entity.getField(RegisteredSlotMachine, "spinningOffset");
+            })()}>
+              {(spinningOffset) => {
+                let [ group, setGroup, ] = createSignal<THREE.Group>();
+                let update = () => {
+                  let self = group();
+                  if (self === undefined) {
+                    return;
+                  }
+                  self.position.set(0, 2.5, -5);
+                  self.position.applyMatrix4(camera.matrixWorld);
+                  self.quaternion.set(0, 0, 0, 1);
+                  self.quaternion.multiply(camera.quaternion);
+                  self.updateMatrixWorld();
+                };
+                updateListeners.push(update);
+                onCleanup(() => {
+                  let idx = updateListeners.indexOf(update);
+                  if (idx !== -1) {
+                    updateListeners.splice(idx, 1);
+                  }
+                });
+                return (<T.Group
+                  ref={setGroup}
+                >
+                  <SlotMachine
+                    time={spinningOffset()}
+                  />
+                </T.Group>);
+              }}
             </Show>
           </>
         );

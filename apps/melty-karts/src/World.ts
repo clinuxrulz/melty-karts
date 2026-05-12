@@ -109,6 +109,33 @@ export const RegisteredMysteryBox = baseEcs.register_component({
   "timeUntilRespawn": "f32",
 });
 
+export const SLOT_MACHINE_SPIN_TIMEOUT = 5.0;
+
+export enum SlotMachinePhase {
+  Spinning = 0,
+  DisplayResult = 1,
+};
+
+/**
+ * This component gets attached to a player to represent the state of the slot
+ * machine after the player collects a mystery box.
+ */
+export const RegisteredSlotMachine = baseEcs.register_component({
+  /**
+   * Current phase of the slot machine.
+   * See: `SlotMachinePhase`
+   */
+  "phase": "u8",
+  /**
+   * The amount of time left for the current phase
+   */
+  "phaseTimeout": "f32",
+  /**
+   * The current spin position during spin phase
+   */
+  "spinningOffset": "f32",
+});
+
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });
 export const RegisteredOrbitEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 0, });
