@@ -20,7 +20,7 @@ import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
 import { RegisteredAIControlled, RegisteredRaceStats, RegisteredLocalPlayerPosition, RegisteredRaceRankings, RegisteredRaceResults, MasterState, RegisteredMasterState, MAX_LAPS } from "../World";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
-import { EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { ClearPass, EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { Canvas } from "solid-three";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { raceMusic } from "../Music";
@@ -296,12 +296,6 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               ctx.canvas,
               ctx.camera as THREE.PerspectiveCamera,
               ctx.gl,
-              (size) => {
-                /*
-                ctx.canvas.width = size.x;
-                ctx.canvas.height = size.y;*/
-                // No operation
-              },
             ));
             runWithOwner(owner, () => {
               onCleanup(() => dispose());
@@ -321,11 +315,6 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           })()}</>)}
         </Show>
       </Canvas>
-      {/*
-      <canvas
-        ref={setCanvas}
-        style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
-      />*/}
       <joystick.UI/>
       <actionButton.UI/>
       {rankingDisplay()}
@@ -682,7 +671,6 @@ function initScene(
   canvas: HTMLCanvasElement,
   camera: THREE.PerspectiveCamera,
   renderer: THREE.WebGLRenderer,
-  setCanvasSize: (x: THREE.Vector2) => void,
 ) {
   const isMultiplayer = ecs.resource(RegisteredGameMode).get("mode") === 1 && multiplayerSession.isActive;
   let joystickValue = createMemo(() =>
@@ -815,9 +803,32 @@ function initScene(
     placeMysteryBoxesAlongTrack(ecs, curve);
   }
 
-  //const camera = new THREE.PerspectiveCamera(75, 1.0, 0.1, 1000);
+  let [ canvasSize, setCanvasSize, ] = createSignal<THREE.Vector2>(new THREE.Vector2(
+    window.innerWidth,
+    window.innerHeight,
+  ));
 
-  const renderSystem = createRenderSystem(ecs, scene, camera, () => kartEntityId);
+  let hudScene = new THREE.Scene();
+  {
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    hudScene.add(ambient);
+    
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(20, 50, 20);
+    hudScene.add(dir);
+  }
+  let hudCamera = new THREE.OrthographicCamera();
+  hudCamera.position.set(0, 0, 10);
+  hudCamera.lookAt(0, 0, 0);
+
+  const renderSystem = createRenderSystem(
+    ecs,
+    scene,
+    camera,
+    () => kartEntityId,
+    canvasSize,
+    hudScene,
+  );
   const { dispose: disposeRender } = renderSystem;
   const turnAmount = createMemo(() => {
     const joyX = joystickValue().x;
@@ -859,8 +870,34 @@ function initScene(
   );
   const composer = new EffectComposer(renderer);
   const renderScene = new RenderPass(scene, camera);
+  const renderHud = new RenderPass(hudScene, hudCamera);
+  renderHud.clear = false;
+  renderHud.needsSwap = true;
   composer.addPass(renderScene);
+  composer.addPass(renderHud);
   composer.addPass(bloomPass);
+
+  /*
+  const hudBloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 
+    1.5,  // strength
+    0.4,  // radius
+    0.4,  // threshold
+  );
+  const hudComposer = new EffectComposer(renderer);
+  //const hudRenderScene = new RenderPass(hudScene, hudCamera);
+  //hudComposer.addPass(hudRenderScene);
+  hudComposer.addPass(hudBloomPass);
+*/
+
+  renderer.autoClear = false;
+  let render = () => {
+    renderer.clear();
+    composer.render();
+    //renderer.clearDepth();
+    //hudComposer.render();
+    //renderer.render(hudScene, hudCamera);
+  };
 
   let orbitYaw = 0;
   let orbitPitch = 0.5;
@@ -956,7 +993,14 @@ function initScene(
     composer.setSize(rect.width, rect.height);
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
-    composer.render();
+    hudCamera.position.set(0, 0, 10);
+    hudCamera.lookAt(0, 0, 0);
+    hudCamera.left = 0;
+    hudCamera.right = rect.width;
+    hudCamera.bottom = 0;
+    hudCamera.top = rect.height;
+    hudCamera.updateProjectionMatrix();
+    render();
   });
   resizeObserver.observe(canvasDiv);
   onCleanup(() => {
@@ -1062,7 +1106,7 @@ function initScene(
       camera.lookAt(smoothCameraLookAt);
     }
 
-    composer.render();
+    render();
     requestAnimationFrame(animate);
   };
   animate();
@@ -1077,6 +1121,7 @@ function initScene(
       renderer.dispose();
     },
     renderSystem,
+    hudScene,
   };
 }
 

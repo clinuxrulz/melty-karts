@@ -82,7 +82,7 @@ const createWickFire = () => {
         #include <clipping_planes_vertex>
 
         float distanceToCamera = length(mvPosition.xyz);
-        float perspectiveScale = 1.0 / max(0.1, distanceToCamera);
+        float perspectiveScale = projectionMatrix[3][3] > 0.5 ? 0.25 : 1.0 / max(0.1, distanceToCamera);
         gl_PointSize = max(0.0, aSize * vFade * perspectiveScale);
       }
     `,

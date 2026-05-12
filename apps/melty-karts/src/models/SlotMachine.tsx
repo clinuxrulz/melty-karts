@@ -115,7 +115,11 @@ const SlotMachine: Component<{
           });
           return (
             <T.Group>
+              {/*
               <T.Mesh
+                ref={(self) => {
+                  clippedSymbolGroups[item() + 3] = self;
+                }}
                 scale={0.85} position={[ 0, yPos3(), 0, ]}
                 visible={visible()}
               >
@@ -126,13 +130,14 @@ const SlotMachine: Component<{
                   opacity={0.4}
                 />
               </T.Mesh>
+              */}
               <Switch>
                 <Match when={item() == 0}>
                   <T.Group
                     ref={(group) => {
                       clippedSymbolGroups[item()] = group;
                     }}
-                    position={[ 0.0, yPos3(), 0.0, ]}
+                    position={[ -0.1, yPos3() - 0.1, 0.0, ]}
                     visible={visible()}
                   >
                     <Bomb

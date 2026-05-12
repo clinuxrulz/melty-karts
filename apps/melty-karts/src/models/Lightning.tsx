@@ -196,6 +196,7 @@ const createBolts = (clipped: boolean) => {
 
         float boltWidth = 0.3*mix(0.08, 0.012, t);
         boltWidth *= 0.8 + 0.35 * hash11(boltIdx * 13.0 + phaseSeed);
+        boltWidth *= projectionMatrix[3][3] > 0.5 ? 80.0 : 1.0;
         mvCurrent.xy += screenNormal * ((edgeIdx * 2.0) - 1.0) * boltWidth;
 
         vAcross = edgeIdx;
