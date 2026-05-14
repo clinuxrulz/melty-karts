@@ -601,7 +601,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               } else {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
-                spinningOffset += dt;
+                spinningOffset += 3.0 * dt;
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               }
               break;

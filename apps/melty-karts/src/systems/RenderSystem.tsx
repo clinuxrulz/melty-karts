@@ -11,7 +11,8 @@ import {
   RegisteredInGameState,
   ReadySteadyGoStage,
   RegisteredMysteryBox,
-  RegisteredSlotMachine
+  RegisteredSlotMachine,
+  SLOT_MACHINE_SPIN_TIMEOUT
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -231,9 +232,15 @@ export function createRenderSystem(
                 if (!entity.hasComponent(RegisteredSlotMachine)) {
                   return undefined;
                 }
-                return entity.getField(RegisteredSlotMachine, "spinningOffset");
+                let time = SLOT_MACHINE_SPIN_TIMEOUT - entity.getField(RegisteredSlotMachine, "phaseTimeout");
+                return {
+                  time: time,
+                  spinningOffset: entity.getField(RegisteredSlotMachine, "spinningOffset"),
+                };
               })()}>
-                {(spinningOffset) => {
+                {(timeAndSpinningOffset) => {
+                  let time = () => timeAndSpinningOffset().time;
+                  let spinningOffset = () => timeAndSpinningOffset().spinningOffset;
                   return (
                     <T.Group
                       position={[
@@ -244,7 +251,8 @@ export function createRenderSystem(
                       scale={100}
                     >
                       <SlotMachine
-                        time={spinningOffset()}
+                        time={time()}
+                        wheelRotation={spinningOffset()}
                       />
                     </T.Group>
                   );

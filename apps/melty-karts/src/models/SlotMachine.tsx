@@ -43,11 +43,12 @@ function applyClippingPlanesToObject(object: THREE.Object3D | undefined, clippin
 
 const SlotMachine: Component<{
   time: number,
+  wheelRotation: number,
 }> = (props) => {
   let banana = createBanana();
   let slotGroup: THREE.Group | undefined;
   const clippedSymbolGroups: Array<THREE.Object3D | undefined> = [];
-  let yPos = createMemo(() => 4.0 - (props.time * 2 % 3.0));
+  let yPos = createMemo(() => 4.0 - (props.wheelRotation * 2 % 3.0));
   let geometry = new THREE.BoxGeometry().toNonIndexed(); // Convert to non-indexed
   const posAttr = geometry.getAttribute("position");
   const filteredPositions = [];

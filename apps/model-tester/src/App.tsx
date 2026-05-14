@@ -341,6 +341,7 @@ const App: Component = () => {
           <Match when={state.model === "SlotMachine"}>
             <SlotMachine
               time={time()}
+              wheelRotation={time() * 3.0}
             />
           </Match>
         </Switch>
