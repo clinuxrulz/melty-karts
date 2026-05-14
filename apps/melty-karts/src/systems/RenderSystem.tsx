@@ -11,7 +11,7 @@ import {
   RegisteredInGameState,
   ReadySteadyGoStage,
   RegisteredMysteryBox,
-  RegisteredSlotMachine,
+  RegisteredSlotMachine
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -88,7 +88,12 @@ export function createRenderSystem(
     let updateListeners: ((dt: number) => void)[] = [];
     return {
       update: (dt) => {
-        trafficLight()?.lookAtCamera();
+        {
+          let stage = ecs.resource(RegisteredInGameState).get("readySteadyGoStage");
+          if (stage !== ReadySteadyGoStage.GO) {
+            trafficLight()?.lookAtCamera();
+          }
+        }
         for (let arch of ecs.query(RegisteredMysteryBox)) {
           let entityIds = arch.entity_ids;
           for (let i = 0; i < arch.entity_count; ++i) {
