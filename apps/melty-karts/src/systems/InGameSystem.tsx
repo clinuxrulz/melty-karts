@@ -317,8 +317,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       </Canvas>
       <joystick.UI/>
       <actionButton.UI/>
-      {rankingDisplay()}
-      {raceResultsUI()}
+      <RankingDisplay/>
+      <RaceResultsUI/>
     </div>
   ));
   let topLeftOverlayUi = createMemo(() => () =>
@@ -354,7 +354,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   };
 
   // Ranking display in top-right corner
-  let rankingDisplay = () => {
+  let RankingDisplay = () => {
     const rankings = createMemo(() => ecs.resource(RegisteredRaceRankings));
     
     const rankEntities = createMemo(() => {
@@ -383,33 +383,30 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       }}>
         <For each={rankEntities()}>
           {(item, index) => {
-            const itemId = item();
-            const entity = ecs.entity(itemId.entityId as EntityID);
-            const hasRaceStats = entity.hasComponent(RegisteredRaceStats);
-            const hasLocalPlayer = entity.hasComponent(RegisteredLocalPlayerPosition);
-            
-            if (!hasRaceStats || !hasLocalPlayer) return null;
-            
-            const laps = entity.getField(RegisteredRaceStats, "laps");
-            const finished = entity.getField(RegisteredRaceStats, "finished");
-            const displayLap = Math.min(Math.max(0, laps) + 1, MAX_LAPS);
-            
-            const rankSuffix = index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
-            
+            const itemId = untrack(item);
+            const entity = untrack(() => ecs.entity(itemId.entityId as EntityID));
+            const hasRaceStats = () => entity.hasComponent(RegisteredRaceStats);
+            const hasLocalPlayer = () => entity.hasComponent(RegisteredLocalPlayerPosition);
+            const laps = () => entity.getField(RegisteredRaceStats, "laps");
+            const finished = () => entity.getField(RegisteredRaceStats, "finished");
+            const displayLap = () => Math.min(Math.max(0, laps()) + 1, MAX_LAPS);
+            const rankSuffix = () => index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
             return (
-              <div style={{
-                "background-color": "rgba(0, 0, 0, 0.6)",
-                color: "white",
-                padding: "4px 8px",
-                "margin-bottom": "4px",
-                "border-radius": "4px",
-                "font-family": "sans-serif",
-                "font-size": "34px",
-                "text-align": "right",
-              }}>
-                {index() + 1}{rankSuffix} ({displayLap}/{MAX_LAPS} laps)
-                {finished ? " ✓" : ""}
-              </div>
+              <Show when={hasRaceStats() && hasLocalPlayer()}>
+                <div style={{
+                  "background-color": "rgba(0, 0, 0, 0.6)",
+                  color: "white",
+                  padding: "4px 8px",
+                  "margin-bottom": "4px",
+                  "border-radius": "4px",
+                  "font-family": "sans-serif",
+                  "font-size": "34px",
+                  "text-align": "right",
+                }}>
+                  {index() + 1}{rankSuffix()} (LAP {displayLap}/{MAX_LAPS})
+                  {finished() ? " ✓" : ""}
+                </div>
+              </Show>
             );
           }}
         </For>
@@ -429,24 +426,24 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     }
   });
 
-  let raceResultsUI = createMemo(() => {
-    const visible = raceResultsVisible[0]();
-    const rankings = ecs.resource(RegisteredRaceRankings);
+  let RaceResultsUI = () => {
+    const visible = () => raceResultsVisible[0]();
+    const rankings = createMemo(() => ecs.resource(RegisteredRaceRankings));
     
-    const rankEntities = [
-      { rank: 1, entityId: rankings.get("rank1") },
-      { rank: 2, entityId: rankings.get("rank2") },
-      { rank: 3, entityId: rankings.get("rank3") },
-      { rank: 4, entityId: rankings.get("rank4") },
-      { rank: 5, entityId: rankings.get("rank5") },
-      { rank: 6, entityId: rankings.get("rank6") },
-    ].filter(r => r.entityId !== -1);
+    const rankEntities = createMemo(() => [
+      { rank: 1, entityId: rankings().get("rank1") },
+      { rank: 2, entityId: rankings().get("rank2") },
+      { rank: 3, entityId: rankings().get("rank3") },
+      { rank: 4, entityId: rankings().get("rank4") },
+      { rank: 5, entityId: rankings().get("rank5") },
+      { rank: 6, entityId: rankings().get("rank6") },
+    ].filter(r => r.entityId !== -1));
 
     return (
       <div style={{
         position: "absolute",
         top: "0",
-        right: visible ? "0" : "-450px",
+        right: visible() ? "0" : "-450px",
         bottom: "0",
         width: "400px",
         display: "flex",
@@ -454,7 +451,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         "align-items": "center",
         "z-index": 200,
         transition: "right 0.5s ease-out",
-        "pointer-events": visible ? "auto" : "none",
+        "pointer-events": visible() ? "auto" : "none",
       }}>
         <div style={{
           "background-color": "rgba(0, 0, 0, 0.7)",
@@ -473,41 +470,43 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }}>
             Race Results
           </h2>
-          <For each={rankEntities}>
+          <For each={rankEntities()}>
              {(item, index) => {
-               const itemId = item();
-               const entity = ecs.entity(itemId.entityId as EntityID);
-               const hasLocalPlayer = entity.hasComponent(RegisteredLocalPlayerPosition);
+               const itemId = untrack(item);
+               const entity = untrack(() => ecs.entity(itemId.entityId as EntityID));
+               const hasLocalPlayer = () => entity.hasComponent(RegisteredLocalPlayerPosition);
                
                if (!hasLocalPlayer) return null;
                
-               const rankSuffix = index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
+               const rankSuffix = () => index() === 0 ? "st" : index() === 1 ? "nd" : index() === 2 ? "rd" : "th";
                
                return (
-                 <div style={{
-                   "background-color": hasLocalPlayer ? "rgba(255, 215, 0, 0.3)" : "rgba(255, 255, 255, 0.1)",
-                   padding: "12px 16px",
-                   "margin-bottom": "8px",
-                   "border-radius": "6px",
-                   "font-family": "sans-serif",
-                   "font-size": "18px",
-                   opacity: visible ? 1 : 0,
-                   transform: visible ? "translateX(0)" : "translateX(50px)",
-                   transition: `opacity 0.3s ease-out ${index() * 0.1}s, transform 0.3s ease-out ${index() * 0.1}s`,
-                 }}>
-                    <span style={{ "font-weight": "bold" }}>
-                      {index() + 1}{rankSuffix}
-                    </span>
-                    {' - You'}
-                    {hasLocalPlayer ? " (You)" : ""}
-                 </div>
+                 <Show when={hasLocalPlayer()}>
+                   <div style={{
+                     "background-color": hasLocalPlayer() ? "rgba(255, 215, 0, 0.3)" : "rgba(255, 255, 255, 0.1)",
+                     padding: "12px 16px",
+                     "margin-bottom": "8px",
+                     "border-radius": "6px",
+                     "font-family": "sans-serif",
+                     "font-size": "18px",
+                     opacity: visible() ? 1 : 0,
+                     transform: visible() ? "translateX(0)" : "translateX(50px)",
+                     transition: `opacity 0.3s ease-out ${index() * 0.1}s, transform 0.3s ease-out ${index() * 0.1}s`,
+                   }}>
+                      <span style={{ "font-weight": "bold" }}>
+                        {index() + 1}{rankSuffix}
+                      </span>
+                      {' - You'}
+                      {hasLocalPlayer() ? " (You)" : ""}
+                   </div>
+                 </Show>
                );
              }}
            </For>
         </div>
       </div>
     );
-  });
+  };
   //
   queueMicrotask(() => {
     ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
