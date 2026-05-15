@@ -149,6 +149,7 @@ export const RegisteredKeyboardInput = baseEcs.register_resource(
     "rightDown",
     "actionDown",
     "driftDown",
+    "useItemDown",
   ] as const,
   {
     upDown: 0,
@@ -157,6 +158,7 @@ export const RegisteredKeyboardInput = baseEcs.register_resource(
     rightDown: 0,
     actionDown: 0,
     driftDown: 0,
+    useItemDown: 0,
   }
 );
 export const RegisteredJoystickInput = baseEcs.register_resource(

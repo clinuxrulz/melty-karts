@@ -239,8 +239,8 @@ export function createRenderSystem(
                 };
               })()}>
                 {(timeAndSpinningOffset) => {
-                  let time = () => timeAndSpinningOffset().time;
-                  let spinningOffset = () => timeAndSpinningOffset().spinningOffset;
+                  let time = () => timeAndSpinningOffset() !== undefined ? timeAndSpinningOffset().time : 0.0;
+                  let spinningOffset = () => timeAndSpinningOffset() !== undefined ? timeAndSpinningOffset().spinningOffset : 0.0;
                   return (
                     <T.Group
                       position={[

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
 import { System } from "./System";
-import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner, Show, For, createTrackedEffect } from "solid-js";
+import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwner, Show, For, createTrackedEffect, createRenderEffect } from "solid-js";
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
@@ -116,6 +116,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     rightDown?: boolean,
     actionDown?: boolean,
     driftDown?: boolean,
+    useItemDown?: boolean,
   }) => {
     let s = {
       ...ecs.ecs.resource(RegisteredKeyboardInput),
@@ -137,6 +138,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     }
     if (params.driftDown !== undefined) {
       s.driftDown = params.driftDown ? 1 : 0;
+    }
+    if (params.useItemDown !== undefined) {
+      s.useItemDown = params.useItemDown ? 1 : 0;
     }
     ecs.set_resource(RegisteredKeyboardInput, s);
   };
@@ -173,6 +177,11 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           driftDown: true,
         });
         break;
+      case "Enter":
+        updateKeyboardInput({
+          useItemDown: true,
+        });
+        break;
     }
   };
   let keyUpListener = (e: KeyboardEvent) => {
@@ -206,6 +215,11 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       case "Z":
         updateKeyboardInput({
           driftDown: false,
+        });
+        break;
+      case "Enter":
+        updateKeyboardInput({
+          useItemDown: false,
         });
         break;
     }
@@ -248,6 +262,18 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       )
     ),
     size: () => actionButtonSize,
+  });
+  let useItemButtonSize = 80.0;
+  let useItemButton = ActionButton({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        (canvasSize()?.x ?? 0) - (50.0 + 0.5 * (80.0 - 100.0)) - actionButtonSize,
+        (canvasSize()?.y ?? 0) - 150.0 - actionButtonSize,
+      )
+    ),
+    size: () => useItemButtonSize,
+    colour: () => "red",
+    specialSlidePress: () => true,
   });
   createEffect(
     actionButton.pressed,
@@ -317,6 +343,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       </Canvas>
       <joystick.UI/>
       <actionButton.UI/>
+      <useItemButton.UI/>
       <RankingDisplay/>
       <RaceResultsUI/>
     </div>
@@ -605,10 +632,17 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               }
               break;
             }
-            case SlotMachinePhase.DisplayResult:
-              // TODO: check if use-item action is triggered and remove slot
-              // machine component.
+            case SlotMachinePhase.DisplayResult: {
+              let keyboard = ecs.resource(RegisteredKeyboardInput);
+              if (keyboard.get("useItemDown")) {
+                // remove slot machine
+                //debugger;
+                ecs.remove_component(slotMachineId, RegisteredSlotMachine);
+                // TODO: Make the item held by the player, ready for use
+                //
+              }
               break;
+            }
           }
         }
       }

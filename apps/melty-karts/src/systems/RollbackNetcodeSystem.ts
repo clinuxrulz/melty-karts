@@ -51,12 +51,14 @@ function readLocalInput(ecs: ReactiveECS): Uint8Array {
   const right = keyboard.rightDown !== 0 || joystick.joystickX > 0.2;
   const accelerate = keyboard.actionDown !== 0 || keyboard.upDown !== 0 || joystick.joystickY < -0.2;
   const drift = keyboard.driftDown !== 0;
+  const useItem = keyboard.useItemDown !== 0;
 
   const mask =
-    (accelerate ? 0b0001 : 0) |
-    (drift ? 0b0010 : 0) |
-    (left ? 0b0100 : 0) |
-    (right ? 0b1000 : 0);
+    (accelerate ? 0b00001 : 0) |
+    (drift ? 0b00010 : 0) |
+    (left ? 0b00100 : 0) |
+    (right ? 0b01000 : 0) |
+    (useItem ? 0b10000 : 0);
 
   return new Uint8Array([mask]);
 }
