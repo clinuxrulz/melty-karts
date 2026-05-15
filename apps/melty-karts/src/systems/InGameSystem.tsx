@@ -283,6 +283,14 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       });
     },
   );
+  createEffect(
+    useItemButton.pressed,
+    (useItemDown) => {
+      updateKeyboardInput({
+        useItemDown,
+      })
+    },
+  );
   //
   let subsystems = createMemo(() => {
     return [
