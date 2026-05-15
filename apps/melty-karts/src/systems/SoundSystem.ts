@@ -19,8 +19,10 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
   });
 
   const hitSound = new Howl({
-    src: ["./crash.ogg"],
+    src: ["./crash2.mp3"],
     volume: 0.1,
+    rate: 4.0,
+    loop: true,
     onloaderror: (id, err) => console.error("Crash load error:", err),
   });
 
@@ -70,9 +72,22 @@ export function createSoundSystem(ecs: ReactiveECS, getSoundEnabled?: Accessor<b
       const intensity = Math.min((ecs as any)._lastCollision, 1.0);
       if (intensity > 0.1) {
         hitSound.volume(intensity * 0.6);
-        hitSound.play();
+        if (!(ecs as any)._collisionPlaying) {
+          hitSound.play();
+          (ecs as any)._collisionPlaying = true;
+        }
+      } else {
+        if ((ecs as any)._collisionPlaying) {
+          hitSound.stop();
+        }
+        (ecs as any)._collisionPlaying = false;
       }
       (ecs as any)._lastCollision = 0;
+    } else {
+      if ((ecs as any)._collisionPlaying) {
+        hitSound.stop();
+      }
+      (ecs as any)._collisionPlaying = false;
     }
   };
 
