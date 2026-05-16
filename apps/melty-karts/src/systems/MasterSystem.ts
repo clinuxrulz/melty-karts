@@ -7,6 +7,7 @@ import { createCharacterSelectionSystem } from "./CharacterSelectionSystem";
 import { createInGameSystem } from "./InGameSystem";
 import { createMultiplayerLobbySystem } from "./MultiplayerLobbySystem";
 import { untrack } from "@solidjs/web";
+import { createKeyBindingSystem } from "./KeyBindingSystem";
 
 export function createMasterSystem(ecs: ReactiveECS): System {
   let masterState = createMemo(() => ecs.resource(RegisteredMasterState).get("masterState") as MasterState);
@@ -20,6 +21,10 @@ export function createMasterSystem(ecs: ReactiveECS): System {
       case MasterState.CHARACTER_SELECTION_SCREEN:
         return [
           createCharacterSelectionSystem(ecs),
+        ];
+      case MasterState.KEY_BINDINGS:
+        return [
+          createKeyBindingSystem(ecs),
         ];
       case MasterState.MULTIPLAYER_LOBBY:
         return [

@@ -17,6 +17,7 @@ import {
   LocalPlayerPosition,
 } from "./components";
 import { defaultReadySteadyGoConfig } from "./sounds/ReadySteadyGo";
+import { allocStringId } from "./StringTable";
 
 const baseEcs = new ECS();
 const reactiveEcs = new ReactiveECS(baseEcs);
@@ -24,8 +25,9 @@ const reactiveEcs = new ReactiveECS(baseEcs);
 export const enum MasterState {
   INTRO_SCREEN = 0,
   CHARACTER_SELECTION_SCREEN = 1,
-  MULTIPLAYER_LOBBY = 2,
-  IN_GAME = 3,
+  KEY_BINDINGS = 2,
+  MULTIPLAYER_LOBBY = 3,
+  IN_GAME = 4,
 };
 export const RegisteredMasterState = baseEcs.register_resource(
   ["masterState"] as const,
@@ -135,6 +137,27 @@ export const RegisteredSlotMachine = baseEcs.register_component({
    */
   "spinningOffset": "f32",
 });
+
+export const RegisteredKeyBindings = baseEcs.register_resource(
+  [
+    "upKey",
+    "downKey",
+    "leftKey",
+    "rightKey",
+    "actionKey",
+    "driftKey",
+    "useItemKey",
+  ] as const,
+  {
+    upKey: allocStringId("ArrowUp"),
+    downKey: allocStringId("ArrowDown"),
+    leftKey: allocStringId("ArrowLeft"),
+    rightKey: allocStringId("ArrowRight"),
+    actionKey: allocStringId(" "),
+    driftKey: allocStringId("z"),
+    useItemKey: allocStringId("Enter"),
+  },
+);
 
 export const RegisteredGlobalGravity = baseEcs.register_resource(["x", "y", "z"], GlobalGravity.schema);
 export const RegisteredSoundEnabled = baseEcs.register_resource([ "enabled", ] as const, { enabled: 1, });

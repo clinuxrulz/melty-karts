@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -26,6 +26,7 @@ import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-
 import { raceMusic } from "../Music";
 import { placeMysteryBoxesAlongTrack } from "./track-util";
 import { powerupItemBox } from "../sounds/slot-machine";
+import { lookupString } from "../StringTable";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -145,81 +146,95 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     ecs.set_resource(RegisteredKeyboardInput, s);
   };
   let keyDownListener = (e: KeyboardEvent) => {
+    let keyBindings = ecs.ecs.resource(RegisteredKeyBindings);
+    let upKey = lookupString(keyBindings.upKey);
+    let downKey = lookupString(keyBindings.downKey);
+    let leftKey = lookupString(keyBindings.leftKey);
+    let rightKey = lookupString(keyBindings.rightKey);
+    let actionKey = lookupString(keyBindings.actionKey);
+    let useItemKey = lookupString(keyBindings.useItemKey);
+    if (e.key === upKey) {
+      updateKeyboardInput({
+        upDown: true,
+      });
+    }
+    if (e.key === downKey) {
+      updateKeyboardInput({
+        downDown: true,
+      });
+    }
+    if (e.key === leftKey) {
+      updateKeyboardInput({
+        leftDown: true,
+      });
+    }
+    if (e.key === rightKey) {
+      updateKeyboardInput({
+        rightDown: true,
+      });
+    }
+    if (e.key === actionKey) {
+      updateKeyboardInput({
+        actionDown: true,
+      });
+    }
+    if (e.key === useItemKey) {
+      updateKeyboardInput({
+        useItemDown: true,
+      });
+    }
     switch (e.key) {
-      case "ArrowUp":
-        updateKeyboardInput({
-          upDown: true,
-        });
-        break;
-      case "ArrowDown":
-        updateKeyboardInput({
-          downDown: true,
-        });
-        break;
-      case "ArrowLeft":
-        updateKeyboardInput({
-          leftDown: true,
-        });
-        break;
-      case "ArrowRight":
-        updateKeyboardInput({
-          rightDown: true,
-        });
-        break;
-      case " ":
-        updateKeyboardInput({
-          actionDown: true,
-        });
-        break;
       case "z":
       case "Z":
         updateKeyboardInput({
           driftDown: true,
         });
         break;
-      case "Enter":
-        updateKeyboardInput({
-          useItemDown: true,
-        });
-        break;
     }
   };
   let keyUpListener = (e: KeyboardEvent) => {
+    let keyBindings = ecs.ecs.resource(RegisteredKeyBindings);
+    let upKey = lookupString(keyBindings.upKey);
+    let downKey = lookupString(keyBindings.downKey);
+    let leftKey = lookupString(keyBindings.leftKey);
+    let rightKey = lookupString(keyBindings.rightKey);
+    let actionKey = lookupString(keyBindings.actionKey);
+    let useItemKey = lookupString(keyBindings.useItemKey);
+    if (e.key === upKey) {
+      updateKeyboardInput({
+        upDown: false,
+      });
+    }
+    if (e.key === downKey) {
+      updateKeyboardInput({
+        downDown: false,
+      });
+    }
+    if (e.key === leftKey) {
+      updateKeyboardInput({
+        leftDown: false,
+      });
+    }
+    if (e.key === rightKey) {
+      updateKeyboardInput({
+        rightDown: false,
+      });
+    }
+    if (e.key === actionKey) {
+      updateKeyboardInput({
+        actionDown: false,
+      });
+    }
+    if (e.key === useItemKey) {
+      updateKeyboardInput({
+        useItemDown: false,
+      });
+    }
     switch (e.key) {
-      case "ArrowUp":
-        updateKeyboardInput({
-          upDown: false,
-        });
-        break;
-      case "ArrowDown":
-        updateKeyboardInput({
-          downDown: false,
-        });
-        break;
-      case "ArrowLeft":
-        updateKeyboardInput({
-          leftDown: false,
-        });
-        break;
-      case "ArrowRight":
-        updateKeyboardInput({
-          rightDown: false,
-        });
-        break;
-      case " ":
-        updateKeyboardInput({
-          actionDown: false,
-        });
-        break;
       case "z":
       case "Z":
         updateKeyboardInput({
           driftDown: false,
-        });
-        break;
-      case "Enter":
-        updateKeyboardInput({
-          useItemDown: false,
         });
         break;
     }

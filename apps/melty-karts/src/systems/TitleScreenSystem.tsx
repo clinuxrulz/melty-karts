@@ -24,6 +24,10 @@ export function createTitleScreenSystem(ecs: ReactiveECS): System {
     ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
   };
 
+  const startKeyBindings = () => {
+    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.KEY_BINDINGS, });
+  };
+
   const UI: Component = () => {
     return (
       <div
@@ -68,6 +72,13 @@ export function createTitleScreenSystem(ecs: ReactiveECS): System {
             style={basicButton("#5fcf8f", "#08120c")}
           >
             Multiplayer
+          </button>
+          <button
+            type="button"
+            onClick={startKeyBindings}
+            style={basicButton("#3848d7", "#000000")}
+          >
+            Key Bindings
           </button>
         </div>
 
