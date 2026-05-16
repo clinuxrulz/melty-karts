@@ -27,6 +27,7 @@ import { raceMusic } from "../Music";
 import { placeMysteryBoxesAlongTrack } from "./track-util";
 import { powerupItemBox } from "../sounds/slot-machine";
 import { lookupString } from "../StringTable";
+import { rng } from "../util";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -647,6 +648,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               if (phaseTimeout <= 0.0) {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
+                let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
+                spinningOffset = Math.round(spinningOffset);
+                ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               } else {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
@@ -656,6 +660,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               break;
             }
             case SlotMachinePhase.DisplayResult: {
+              let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
+              phaseTimeout -= dt;
+              ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
               let keyboard = ecs.resource(RegisteredKeyboardInput);
               if (keyboard.get("useItemDown")) {
                 // remove slot machine
@@ -705,7 +712,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                     {
                       "phase": SlotMachinePhase.Spinning,
                       "phaseTimeout": SLOT_MACHINE_SPIN_TIMEOUT,
-                      "spinningOffset": 0.0,
+                      "spinningOffset": rng(ecs) * 10.0,
                     }
                   );
                 }

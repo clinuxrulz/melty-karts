@@ -213,6 +213,13 @@ export const RegisteredRaceRankings = baseEcs.register_resource(
     rank5: -1,
     rank6: -1,
   }
+)
+
+export const RegisteredRng = baseEcs.register_resource(
+  [ "seed", ] as const,
+  {
+    seed: 42,
+  }
 );
 
 export function World(): {
