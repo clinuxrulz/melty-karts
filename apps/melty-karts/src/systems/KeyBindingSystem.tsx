@@ -40,6 +40,16 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       newKeyBindings[k] = newKeyId;
       ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
       freeStringId(oldKeyId);
+      let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: string } = {
+        upKey: lookupString(newKeyBindings.upKey),
+        downKey: lookupString(newKeyBindings.downKey),
+        leftKey: lookupString(newKeyBindings.leftKey),
+        rightKey: lookupString(newKeyBindings.rightKey),
+        actionKey: lookupString(newKeyBindings.actionKey),
+        driftKey: lookupString(newKeyBindings.driftKey),
+        useItemKey: lookupString(newKeyBindings.useItemKey),
+      };
+      window.localStorage.setItem("melty-karts-key-binding", JSON.stringify(toSave));
     };
   let upKey = createKey("upKey");
   let downKey = createKey("downKey");

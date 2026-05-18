@@ -1,4 +1,4 @@
-import { ECS } from "@oasys/oecs";
+import { ECS, ResourceDef } from "@oasys/oecs";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import {
   Position,
@@ -138,6 +138,38 @@ export const RegisteredSlotMachine = baseEcs.register_component({
   "spinningOffset": "f32",
 });
 
+let localStorageKeyBindings: object | null = null;
+{
+  let _localStorageKeyBindings = window.localStorage.getItem("melty-karts-key-binding");
+  if (_localStorageKeyBindings !== null) {
+    try {
+      localStorageKeyBindings = JSON.parse(_localStorageKeyBindings);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function readStoredKeyBinding(
+  name:
+    | "upKey"
+    | "downKey"
+    | "leftKey"
+    | "rightKey"
+    | "actionKey"
+    | "driftKey"
+    | "useItemKey",
+  defaultValue: string): number {
+  if (localStorageKeyBindings === null) {
+    return allocStringId(defaultValue);
+  }
+  let value = (localStorageKeyBindings as any)[name];
+  if (typeof value !== "string") {
+    return allocStringId(defaultValue);
+  }
+  return allocStringId(value);
+}
+
 export const RegisteredKeyBindings = baseEcs.register_resource(
   [
     "upKey",
@@ -149,13 +181,13 @@ export const RegisteredKeyBindings = baseEcs.register_resource(
     "useItemKey",
   ] as const,
   {
-    upKey: allocStringId("ArrowUp"),
-    downKey: allocStringId("ArrowDown"),
-    leftKey: allocStringId("ArrowLeft"),
-    rightKey: allocStringId("ArrowRight"),
-    actionKey: allocStringId(" "),
-    driftKey: allocStringId("z"),
-    useItemKey: allocStringId("Enter"),
+    upKey: readStoredKeyBinding("upKey", "ArrowUp"),
+    downKey: readStoredKeyBinding("downKey", "ArrowDown"),
+    leftKey: readStoredKeyBinding("leftKey", "ArrowLeft"),
+    rightKey: readStoredKeyBinding("rightKey", "ArrowRight"),
+    actionKey: readStoredKeyBinding("actionKey", " "),
+    driftKey: readStoredKeyBinding("driftKey", "z"),
+    useItemKey: readStoredKeyBinding("useItemKey", "Enter"),
   },
 );
 
