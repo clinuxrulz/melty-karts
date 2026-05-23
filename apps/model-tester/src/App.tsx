@@ -9,10 +9,11 @@ import MysteryBox from "../../melty-karts/src/models/MysteryBox";
 import Bomb from "../../melty-karts/src/models/Bomb";
 import Lightning from "../../melty-karts/src/models/Lightning";
 import SlotMachine from "../../melty-karts/src/models/SlotMachine";
+import Explosion from "../../melty-karts/src/models/Explosion";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning" | "SlotMachine",
+    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning" | "SlotMachine" | "Explosion",
   }>({
     model: "SolidLogo",
   });
@@ -128,7 +129,8 @@ const App: Component = () => {
   let animate = createMemo(() =>
     state.model === "Bomb" ||
     state.model === "Lightning" ||
-    state.model === "SlotMachine"
+    state.model === "SlotMachine" ||
+    state.model === "Explosion"
   );
   let [ time, setTime, ] = createSignal(0);
   createEffect(
@@ -344,6 +346,11 @@ const App: Component = () => {
               wheelRotation={time() * 3.0}
             />
           </Match>
+          <Match when={state.model === "Explosion"}>
+            <Explosion
+              time={time()}
+            />
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -362,16 +369,17 @@ const App: Component = () => {
           rerender();
         }}
       >
-        <option value="Melty" selected={state.model == "Melty"}>Melty</option>
-        <option value="Cubey" selected={state.model == "Cubey"}>Cubey</option>
-        <option value="SolidLogo" selected={state.model == "SolidLogo"}>SolidLogo</option>
-        <option value="Kart" selected={state.model == "Kart"}>Kart</option>
-        <option value="ReadySteadyGo" selected={state.model == "ReadySteadyGo"}>ReadySteadyGo</option>
-        <option value="Banana" selected={state.model == "Banana"}>Banana</option>
-        <option value="MysteryBox" selected={state.model == "MysteryBox"}>Mystery Box</option>
-        <option value="Bomb" selected={state.model == "Bomb"}>Bomb</option>
-        <option value="Lightning" selected={state.model == "Lightning"}>Lightning</option>
-        <option value="SlotMachine" selected={state.model == "SlotMachine"}>Slot Machine</option>
+        <option value="Melty" selected={state.model === "Melty"}>Melty</option>
+        <option value="Cubey" selected={state.model === "Cubey"}>Cubey</option>
+        <option value="SolidLogo" selected={state.model === "SolidLogo"}>SolidLogo</option>
+        <option value="Kart" selected={state.model === "Kart"}>Kart</option>
+        <option value="ReadySteadyGo" selected={state.model === "ReadySteadyGo"}>ReadySteadyGo</option>
+        <option value="Banana" selected={state.model === "Banana"}>Banana</option>
+        <option value="MysteryBox" selected={state.model === "MysteryBox"}>Mystery Box</option>
+        <option value="Bomb" selected={state.model === "Bomb"}>Bomb</option>
+        <option value="Lightning" selected={state.model === "Lightning"}>Lightning</option>
+        <option value="SlotMachine" selected={state.model === "SlotMachine"}>Slot Machine</option>
+        <option value="Explosion" selected={state.model === "Explosion"}>Explosion</option>
       </select>
     </div>
   );
