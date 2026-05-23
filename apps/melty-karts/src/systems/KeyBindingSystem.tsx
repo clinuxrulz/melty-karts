@@ -51,6 +51,35 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       };
       window.localStorage.setItem("melty-karts-key-binding", JSON.stringify(toSave));
     };
+  let reset = () => {
+    let keyBindings2 = untrack(keyBindings);
+    freeStringId(keyBindings2.get("upKey"));
+    freeStringId(keyBindings2.get("downKey"));
+    freeStringId(keyBindings2.get("leftKey"));
+    freeStringId(keyBindings2.get("rightKey"));
+    freeStringId(keyBindings2.get("actionKey"));
+    freeStringId(keyBindings2.get("useItemKey"));
+    let newKeyBindings: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: number } = {
+      upKey: allocStringId("ArrowUp"),
+      downKey: allocStringId("ArrowDown"),
+      leftKey: allocStringId("ArrowLeft"),
+      rightKey: allocStringId("ArrowRight"),
+      actionKey: allocStringId(" "),
+      driftKey: keyBindings2.get("driftKey"),
+      useItemKey: allocStringId("Enter"),
+    };
+    ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
+    let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: string } = {
+      upKey: lookupString(newKeyBindings.upKey),
+      downKey: lookupString(newKeyBindings.downKey),
+      leftKey: lookupString(newKeyBindings.leftKey),
+      rightKey: lookupString(newKeyBindings.rightKey),
+      actionKey: lookupString(newKeyBindings.actionKey),
+      driftKey: lookupString(newKeyBindings.driftKey),
+      useItemKey: lookupString(newKeyBindings.useItemKey),
+    };
+    window.localStorage.setItem("melty-karts-key-binding", JSON.stringify(toSave));
+  };
   let upKey = createKey("upKey");
   let downKey = createKey("downKey");
   let leftKey = createKey("leftKey");
@@ -203,12 +232,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
                       "border-radius": "15px",
                     }}
                     onClick={() => {
-                      updateKey("upKey", "ArrowUp");
-                      updateKey("downKey", "ArrowDown");
-                      updateKey("leftKey", "ArrowLeft");
-                      updateKey("rightKey", "ArrowRight");
-                      updateKey("actionKey", " ");
-                      updateKey("useItemKey", "Enter");
+                      reset();
                     }}
                   >
                     Reset
