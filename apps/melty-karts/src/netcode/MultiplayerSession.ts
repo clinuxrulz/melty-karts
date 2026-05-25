@@ -12,6 +12,7 @@ import {
   RegisteredSoundEnabled,
   RegisteredOrbitEnabled,
   RegisteredAIControlled,
+  RegisteredInputControlled,
   RegisteredOrientation,
   RegisteredRaceStats,
   RegisteredLocalPlayerPosition,
@@ -358,6 +359,12 @@ class MultiplayerSessionController {
 
           const input = inputs.get(playerIds[slot] as PlayerId);
           const mask = input?.[0] ?? 0;
+          const useItemDown = (mask & 0b10000) !== 0;
+
+          if (ecs.entity(entityId as never).hasComponent(RegisteredInputControlled)) {
+            ecs.set_field(entityId as never, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
+          }
+
           simulateKartStep({
             ecs,
             entityId: entityId as never,

@@ -2,7 +2,7 @@ import { type Accessor, createEffect, createSignal,  onCleanup, type Signal } fr
 import * as THREE from "three";
 import type { ReactiveECS } from "@melty-karts/reactive-ecs";
 import type { EntityID } from "@oasys/oecs";
-import { RegisteredPosition, RegisteredVelocity, RegisteredPlayerConfig, RegisteredKartConfig, RegisteredKartRuntime, RegisteredNetworkSlot, RegisteredOrientation } from "./World";
+import { RegisteredPosition, RegisteredVelocity, RegisteredPlayerConfig, RegisteredKartConfig, RegisteredKartRuntime, RegisteredNetworkSlot, RegisteredOrientation, RegisteredInputControlled } from "./World";
 import { PlayerTypeEnum } from "./components";
 
 export function createKart(params: {
@@ -29,6 +29,7 @@ export function createKart(params: {
     driftDirection: 0,
     verticalVelocity: 0.0,
   });
+  ecs.add_component(entityId, RegisteredInputControlled, { useItemDown: 0 });
   if (params.networkSlot !== undefined) {
     ecs.add_component(entityId, RegisteredNetworkSlot, { slot: params.networkSlot });
   }

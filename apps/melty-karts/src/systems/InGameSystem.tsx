@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -146,6 +146,14 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       s.useItemDown = params.useItemDown ? 1 : 0;
     }
     ecs.set_resource(RegisteredKeyboardInput, s);
+
+    // Update local InputControlled component if it exists
+    if (thisDevicePlayerEntityId() !== undefined) {
+      let entId = thisDevicePlayerEntityId()!;
+      if (ecs.ecs.has_component(entId, RegisteredInputControlled)) {
+        ecs.set_field(entId, RegisteredInputControlled, "useItemDown", s.useItemDown);
+      }
+    }
   };
   let keyDownListener = (e: KeyboardEvent) => {
     let keyBindings = ecs.ecs.resource(RegisteredKeyBindings);
@@ -664,8 +672,16 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
               phaseTimeout -= dt;
               ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
-              let keyboard = ecs.resource(RegisteredKeyboardInput);
-              if (keyboard.get("useItemDown")) {
+              
+              let useItemDown = false;
+              if (ecs.ecs.has_component(slotMachineId, RegisteredInputControlled)) {
+                useItemDown = ecs.ecs.get_field(slotMachineId, RegisteredInputControlled, "useItemDown") !== 0;
+              } else {
+                let keyboard = ecs.resource(RegisteredKeyboardInput);
+                useItemDown = keyboard.get("useItemDown") !== 0;
+              }
+
+              if (useItemDown) {
                 let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
                 item = Math.max(0, Math.min(2, item)) as Item;
                 if (item === Item.Banana || item === Item.Bomb) {
