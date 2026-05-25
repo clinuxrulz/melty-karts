@@ -10,10 +10,11 @@ import {
   RegisteredPreReadySteadyGoDelayFinished,
   RegisteredInGameState,
   ReadySteadyGoStage,
+  RegisteredRaceStats,
 } from "../World";
 import { EntityID } from "@oasys/oecs";
 import { Accessor } from "solid-js";
-import { getGroundHeight, getTrackCurveForPhysics, TRACK_WIDTH, getDistanceToTrackCenter } from "../models/Track";
+import { getGroundHeight, getTrackCurveForPhysics, TRACK_WIDTH, getDistanceToTrackCenter, trackGetClosestTToPointUsingLastT } from "../models/Track";
 
 // DEBUG: Wheel physics constants - START
 export const WHEEL_OFFSET_X = 0.45;  // Doubled from 0.35
@@ -103,6 +104,11 @@ export function simulateKartStep(params: {
   const posX = ecs.entity(entityId).getField(RegisteredPosition, "x");
   const posY = ecs.entity(entityId).getField(RegisteredPosition, "y");
   const posZ = ecs.entity(entityId).getField(RegisteredPosition, "z");
+
+  let lastTrackT: number | undefined;
+  if (ecs.ecs.has_component(entityId, RegisteredRaceStats)) {
+    lastTrackT = ecs.ecs.get_field(entityId, RegisteredRaceStats, "lastT");
+  }
 
   const velX = ecs.entity(entityId).getField(RegisteredVelocity, "x");
   const velY = ecs.entity(entityId).getField(RegisteredVelocity, "y");
@@ -206,40 +212,43 @@ export function simulateKartStep(params: {
 
   if (trackCurve) {
     const barrierRadius = TRACK_WIDTH / 2;
-    const distToTrack = getDistanceToTrackCenter(newPos.x, newPos.z);
+    let distToTrack: number;
+    let nearestPoint: THREE.Vector3 | undefined;
+
+    if (lastTrackT !== undefined) {
+      const t = trackGetClosestTToPointUsingLastT(trackCurve, newPos, lastTrackT);
+      nearestPoint = trackCurve.getPointAt(t);
+      distToTrack = nearestPoint.distanceTo(newPos);
+    } else {
+      distToTrack = getDistanceToTrackCenter(newPos.x, newPos.z);
+    }
+
     if (distToTrack > barrierRadius && distToTrack < 50 && Number.isFinite(newPos.x) && Number.isFinite(newPos.z)) {
-      // Find nearest point - Track is segmented so we can use a fast local search
-      // (Simplified search using the approximated points from Track.ts)
-      let nearestX = 0;
-      let nearestZ = 0;
-      let minDist = Infinity;
-      
-      // Get the current progress (T) to narrow search if available
-      // but getDistanceToTrackCenter already did the heavy lifting
-      // We'll use the track points directly for the collision normal
-      for (let j = 0; j <= 800; j++) {
-        const point = trackCurve.getPointAt(j / 800);
-        const dx = point.x - newPos.x;
-        const dz = point.z - newPos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestX = point.x;
-          nearestZ = point.z;
+      if (!nearestPoint) {
+        let minDist = Infinity;
+        for (let j = 0; j <= 200; j++) {
+          const point = trackCurve.getPointAt(j / 200);
+          const dist = point.distanceTo(newPos);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestPoint = point;
+          }
         }
       }
 
-      const normalX = (newPos.x - nearestX) / minDist;
-      const normalZ = (newPos.z - nearestZ) / minDist;
-      const overshoot = distToTrack - barrierRadius;
-      newPos.x -= normalX * overshoot;
-      newPos.z -= normalZ * overshoot;
+      if (nearestPoint && distToTrack > 0) {
+        const normalX = (newPos.x - nearestPoint.x) / distToTrack;
+        const normalZ = (newPos.z - nearestPoint.z) / distToTrack;
+        const overshoot = distToTrack - barrierRadius;
+        newPos.x -= normalX * overshoot;
+        newPos.z -= normalZ * overshoot;
 
-      if (overshoot > 0.02 && newSpeed > 2) {
-        const dot = newVel.x * normalX + newVel.z * normalZ;
-        newVel.x = (newVel.x - 2 * dot * normalX) * 0.3;
-        newVel.z = (newVel.z - 2 * dot * normalZ) * 0.3;
-        (ecs as any)._lastCollision = Math.min(overshoot * 5 + newSpeed / 40, 1.0);
+        if (overshoot > 0.02 && newSpeed > 2) {
+          const dot = newVel.x * normalX + newVel.z * normalZ;
+          newVel.x = (newVel.x - 2 * dot * normalX) * 0.3;
+          newVel.z = (newVel.z - 2 * dot * normalZ) * 0.3;
+          (ecs as any)._lastCollision = Math.min(overshoot * 5 + newSpeed / 40, 1.0);
+        }
       }
     }
   }
@@ -252,36 +261,41 @@ export function simulateKartStep(params: {
 
     if (trackCurve) {
       // For wheel height, we only need to check if we are near the track height
-      const dToCenter = getDistanceToTrackCenter(wheelPos.x, wheelPos.z);
+      let dToCenter: number;
+      let nPoint: THREE.Vector3 | undefined;
+      if (lastTrackT !== undefined) {
+        const t = trackGetClosestTToPointUsingLastT(trackCurve, wheelPos, lastTrackT);
+        nPoint = trackCurve.getPointAt(t);
+        dToCenter = nPoint.distanceTo(wheelPos);
+      } else {
+        dToCenter = getDistanceToTrackCenter(wheelPos.x, wheelPos.z);
+      }
       if (dToCenter <= TRACK_WIDTH / 2 + 3.0) {
-          // Use track height if on/near track
-          // A more optimized way would be to get the T from the j above
-          // but for now this is consistent
-          let minDist = Infinity;
           let nearestY = 0;
-          for (let j = 0; j <= 200; j++) {
-            const trackPoint = trackCurve.getPointAt(j / 200);
-            const dx = trackPoint.x - wheelPos.x;
-            const dz = trackPoint.z - wheelPos.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < minDist) {
-              minDist = dist;
-              nearestY = trackPoint.y;
+          let minDist = dToCenter;
+          if (nPoint) {
+            nearestY = nPoint.y;
+          } else {
+            for (let j = 0; j <= 200; j++) {
+              const trackPoint = trackCurve.getPointAt(j / 200);
+              const dist = trackPoint.distanceTo(wheelPos);
+              if (dist < minDist) {
+                minDist = dist;
+                nearestY = trackPoint.y;
+              }
             }
           }
 
           const halfWidth = TRACK_WIDTH / 2;
           const blendMargin = 3.0;
-          let h = groundY;
           if (minDist <= halfWidth + blendMargin) {
             if (minDist <= halfWidth) {
-              h = nearestY;
+              groundY = nearestY;
             } else {
               const blendFactor = (minDist - halfWidth) / blendMargin;
-              h = (nearestY * (1 - blendFactor)) + (h * blendFactor);
+              groundY = (nearestY * (1 - blendFactor)) + (groundY * blendFactor);
             }
           }
-          groundY = Math.max(h, nearestY);
       }
     }
 

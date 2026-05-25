@@ -36,6 +36,11 @@ export const RegisteredMasterState = baseEcs.register_resource(
   }
 );
 
+export const RegisteredTime = baseEcs.register_resource(
+  [ "time", ] as const,
+  { time: 0.0, },
+)
+
 // For Handling the Ready-Steady-Go state at the start of the race
 export const enum ReadySteadyGoStage {
   READY = 0,
@@ -136,6 +141,53 @@ export const RegisteredSlotMachine = baseEcs.register_component({
    * The current spin position during spin phase
    */
   "spinningOffset": "f32",
+});
+
+export const RegisteredHasCarriedItems = baseEcs.register_component({
+  /**
+   * Entity ID of the first carried item in the link list
+   */
+  head: "i32",
+  /**
+   * Enttiy ID of the last carried item in the link list
+   */
+  tail: "i32",
+  /**
+   * The number of items currently being carried
+   */
+  count: "u32",
+});
+
+export enum Item {
+  Banana = 0,
+  Lightning = 1,
+  Bomb = 2,
+}
+
+export const RegisteredCarriedItem = baseEcs.register_component({
+  /**
+   * Entity ID of the owner carrying the item
+   */
+  owner: "i32",
+  /**
+   * Current item being carried.
+   * See: `Item`.
+   * Only certain items are carriable.
+   */
+  item: "u8",
+  /**
+   * Entity ID of the previous item in the items carried by owner.
+   */
+  prev: "i32",
+  /**
+   * Entity ID of the next item in the items carried by owner.
+   */
+  next: "i32",
+  /**
+   * The maximum distance the item is from the owner.
+   * It allows for the item to be dragged behind the owner.
+   */
+  maxDistance: "f32",
 });
 
 let localStorageKeyBindings: object | null = null;

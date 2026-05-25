@@ -36,7 +36,7 @@ class TriggerStore {
     }
     let trigger = this.#triggers.get(key);
     if (trigger === undefined) {
-      trigger = { signal: createSignal(0, { pureWrite: true, }), refCount: 1, };
+      trigger = { signal: createSignal(0, { pureWrite: true, ownedWrite: true }), refCount: 1, };
       this.#triggers.set(key, trigger);
     } else {
       trigger.refCount++;
@@ -253,6 +253,7 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
       return this.#query.archetype_count;
     }
     this.#triggerStore.track(`${this.#queryKey}:archetype_count`);
+    this.#triggerStore.track("world:entities");
     return this.#query.archetype_count;
   }
 
@@ -278,7 +279,6 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
 
   *[Symbol.iterator]() {
     const observer = getObserver();
-    const archetypes = this.#query.archetypes;
     if (observer === null) {
       for (const arch of this.#query) {
         yield arch;
@@ -286,6 +286,7 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
       return;
     }
     this.#triggerStore.track(`${this.#queryKey}:archetypes`);
+    this.#triggerStore.track("world:entities");
     for (const arch of this.#query) {
       yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch, this.#queryKey);
     }

@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -28,6 +28,7 @@ import { placeMysteryBoxesAlongTrack } from "./track-util";
 import { powerupItemBox } from "../sounds/slot-machine";
 import { lookupString } from "../StringTable";
 import { rng } from "../util";
+import { addCarriedItem } from "./util";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -649,7 +650,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
-                spinningOffset = Math.round(spinningOffset);
+                spinningOffset = Math.round(spinningOffset) % 3;
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               } else {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
@@ -665,6 +666,11 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
               let keyboard = ecs.resource(RegisteredKeyboardInput);
               if (keyboard.get("useItemDown")) {
+                let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
+                item = Math.max(0, Math.min(2, item)) as Item;
+                if (item === Item.Banana || item === Item.Bomb) {
+                  addCarriedItem(ecs, slotMachineId, item);
+                }
                 // remove slot machine
                 //debugger;
                 ecs.remove_component(slotMachineId, RegisteredSlotMachine);
@@ -721,8 +727,48 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       }
+      // Animate carried items
+      for (let arch of ecs.ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
+        for (let i = 0; i < arch.entity_count; ++i) {
+          let entityId = arch.entity_ids[i] as EntityID;
+          let itemX = ecs.ecs.get_field(entityId, RegisteredPosition, "x");
+          let itemY = ecs.ecs.get_field(entityId, RegisteredPosition, "y");
+          let itemZ = ecs.ecs.get_field(entityId, RegisteredPosition, "z");
+          let ownerId = ecs.ecs.get_field(entityId, RegisteredCarriedItem, "owner") as EntityID;
+          let ownerX = ecs.ecs.get_field(ownerId, RegisteredPosition, "x");
+          let ownerY = ecs.ecs.get_field(ownerId, RegisteredPosition, "y");
+          let ownerZ = ecs.ecs.get_field(ownerId, RegisteredPosition, "z");
+          let dx = ownerX - itemX;
+          let dy = ownerY - itemY;
+          let dz = ownerZ - itemZ;
+          let distSquared = dx * dx + dy * dy + dz * dz;
+          let maxDist = ecs.ecs.get_field(entityId, RegisteredCarriedItem, "maxDistance");
+          if (distSquared > maxDist * maxDist) {
+            let dist = Math.sqrt(distSquared);
+            let s = maxDist / dist;
+            let ux = dx * s;
+            let uy = dy * s;
+            let uz = dz * s;
+            let newX = ownerX - ux;
+            let newY = ownerY - uy;
+            let newZ = ownerZ - uz;
+            ecs.set_field(entityId, RegisteredPosition, "x", newX);
+            ecs.set_field(entityId, RegisteredPosition, "y", newY);
+            ecs.set_field(entityId, RegisteredPosition, "z", newZ);
+          }
+        }
+      }
+      // TODO
       //
       renderSystem()?.update?.(dt);
+      // Keep time moving
+      {
+        let time = ecs.ecs.resource(RegisteredTime);
+        ecs.set_resource(RegisteredTime, {
+          time: time.time + dt,
+        });
+      }
+      //
     },
   };
 }

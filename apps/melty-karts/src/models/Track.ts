@@ -432,3 +432,63 @@ export function createStartFinishLine(curve: THREE.CatmullRomCurve3, t: number =
   
   return group;
 }
+
+const _trackGetClosestTToPointUsingLastT_p1 = new THREE.Vector3();
+const _trackGetClosestTToPointUsingLastT_p2 = new THREE.Vector3();
+const _trackGetClosestTToPointUsingLastT_segment = new THREE.Vector3();
+const _trackGetClosestTToPointUsingLastT_toPt = new THREE.Vector3();
+export function trackGetClosestTToPointUsingLastT(trackCurve: THREE.CatmullRomCurve3, pt: THREE.Vector3, lastT: number) {
+  let bestT: number | undefined = undefined;
+  let bestDistSquared: number | undefined = undefined;
+
+  let p1 = _trackGetClosestTToPointUsingLastT_p1;
+  let p2 = _trackGetClosestTToPointUsingLastT_p2;
+
+  for (let step = -0.05; step <= 0.05; step += 0.005) {
+    let t = (lastT + step + 1.0) % 1.0;
+    trackCurve.getPointAt(t, p1);
+    const dSq = p1.distanceToSquared(pt);
+    if (bestDistSquared === undefined || dSq < bestDistSquared) {
+      bestDistSquared = dSq;
+      bestT = t;
+    }
+  }
+
+  if (bestT === undefined) {
+    return lastT;
+  }
+
+  let nextBestT = bestT;
+  let nextBestTDistSquared: number | undefined = undefined;
+  let atT = bestT - 0.005;
+  for (let i = 0; i < 2; ++i, atT += 0.01) {
+    let t = (atT + 1.0) % 1.0;
+    trackCurve.getPointAt(t, p1);
+    const dSq = p1.distanceToSquared(pt);
+    if (nextBestTDistSquared === undefined || dSq < nextBestTDistSquared) {
+      nextBestTDistSquared = dSq;
+      nextBestT = t;
+    }
+  }
+
+  let prevT = bestT;
+  let nextT = nextBestT;
+
+  let prevPoint = trackCurve.getPointAt(prevT, p1);
+  let nextPoint = trackCurve.getPointAt(nextT, p2);
+  const segment = _trackGetClosestTToPointUsingLastT_segment.subVectors(nextPoint, prevPoint);
+  const segmentLengthSq = segment.lengthSq();
+  
+  if (segmentLengthSq > 0.0001) {
+    const toPt = _trackGetClosestTToPointUsingLastT_toPt.subVectors(pt, prevPoint);
+    let tParam = toPt.dot(segment) / segmentLengthSq;
+    tParam = Math.max(0, Math.min(1, tParam));
+    
+    let deltaT = nextT - prevT;
+    if (deltaT > 0.5) deltaT -= 1.0;
+    if (deltaT < -0.5) deltaT += 1.0;
+    
+    bestT = (prevT + tParam * deltaT + 1.0) % 1.0;
+  }
+  return bestT;
+}

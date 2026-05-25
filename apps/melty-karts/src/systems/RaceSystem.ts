@@ -10,7 +10,7 @@ import {
   RegisteredLocalPlayerPosition,
   RegisteredRaceResults,
 } from "../World";
-import { getTrackCurveForPhysics } from "../models/Track";
+import { getTrackCurveForPhysics, trackGetClosestTToPointUsingLastT } from "../models/Track";
 import * as THREE from "three";
 
 export function createRaceSystem(ecs: ReactiveECS): System {
@@ -38,57 +38,8 @@ export function createRaceSystem(ecs: ReactiveECS): System {
           const posZ = entity.getField(RegisteredPosition, "z");
           const kartPos = new THREE.Vector3(posX, posY, posZ);
 
-          // Find current T using linear interpolation between closest sample points
-          let bestT = lastT;
-          let minDistSq = Infinity;
-          let prevT = lastT;
-          let prevDistSq = Infinity;
-          let nextT = lastT;
-          let nextDistSq = Infinity;
-          
-          // Sample points and track the closest point and its neighbors
-          const samples: { t: number; distSq: number }[] = [];
-          for (let step = -0.05; step <= 0.05; step += 0.005) {
-            let t = (lastT + step + 1) % 1;
-            const p = trackCurve.getPointAt(t);
-            const dSq = p.distanceToSquared(kartPos);
-            samples.push({ t, distSq: dSq });
-            if (dSq < minDistSq) {
-              minDistSq = dSq;
-              bestT = t;
-            }
-          }
-          
-          // Find the points immediately before and after bestT
-          const bestIndex = samples.findIndex(s => Math.abs(s.t - bestT) < 0.0001 || Math.abs(s.t - bestT - 1) < 0.0001 || Math.abs(s.t - bestT + 1) < 0.0001);
-          if (bestIndex > 0 && bestIndex < samples.length - 1) {
-            const prev = samples[bestIndex - 1];
-            const next = samples[bestIndex + 1];
-            
-            // Use the two closest points for interpolation
-            if (prev.distSq < next.distSq) {
-              prevT = prev.t;
-              nextT = bestT;
-            } else {
-              prevT = bestT;
-              nextT = next.t;
-            }
-            
-            const prevPoint = trackCurve.getPointAt(prevT);
-            const nextPoint = trackCurve.getPointAt(nextT);
-            const segment = new THREE.Vector3().subVectors(nextPoint, prevPoint);
-            const segmentLengthSq = segment.lengthSq();
-            
-            if (segmentLengthSq > 0.0001) {
-              const toPlayer = new THREE.Vector3().subVectors(kartPos, prevPoint);
-              let tParam = toPlayer.dot(segment) / segmentLengthSq;
-              tParam = Math.max(0, Math.min(1, tParam));
-              bestT = prevT + tParam * ((nextT > prevT ? nextT - prevT : nextT + 1 - prevT));
-              if (bestT >= 1) bestT -= 1;
-            }
-          }
-          
-          const currentT = bestT;
+          // Find current T using the optimized lookup
+          const currentT = trackGetClosestTToPointUsingLastT(trackCurve, kartPos, lastT);
 
           // Lap wrapping logic (detect crossing finish line)
           // Finish line is at T=0/1. If we go from ~0.9 to ~0.1, we wrapped forward.

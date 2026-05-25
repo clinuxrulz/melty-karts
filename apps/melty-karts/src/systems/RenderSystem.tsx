@@ -12,7 +12,10 @@ import {
   ReadySteadyGoStage,
   RegisteredMysteryBox,
   RegisteredSlotMachine,
-  SLOT_MACHINE_SPIN_TIMEOUT
+  SLOT_MACHINE_SPIN_TIMEOUT,
+  RegisteredCarriedItem,
+  Item,
+  RegisteredTime
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -23,6 +26,8 @@ import { createReadySteadyGoTrafficLight } from "../models/ReadySteadyGoTrafficL
 import { T } from "../t";
 import MysteryBox from "../models/MysteryBox";
 import SlotMachine from "../models/SlotMachine";
+import Bomb from "../models/Bomb";
+import { createBanana } from "../models/banana";
 
 export function createRenderSystem(
   ecs: ReactiveECS,
@@ -87,6 +92,7 @@ export function createRenderSystem(
       });
     });
     let updateListeners: ((dt: number) => void)[] = [];
+    let time = createMemo(() => ecs.resource(RegisteredTime).get("time"));
     return {
       update: (dt) => {
         {
@@ -212,6 +218,52 @@ export function createRenderSystem(
                       <MysteryBox/>
                     </T.Group>
                   </Show>
+                );
+              }}
+            </For>
+            <For
+              each={(() => {
+                let result: EntityID[] = [];
+                for (let arch of ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
+                  for (let i = 0; i < arch.entity_count; ++i) {
+                    let entityId: EntityID = arch.entity_ids[i] as EntityID;
+                    result.push(entityId);
+                  }
+                }
+                return result;
+              })()}
+            >
+              {(entityId) => {
+                let entity = ecs.entity(untrack(() => entityId()));
+                let item = createMemo(() => entity.getField(RegisteredCarriedItem, "item") as Item);
+                let pos = createMemo(() =>
+                  new THREE.Vector3(
+                    entity.getField(RegisteredPosition, "x"),
+                    entity.getField(RegisteredPosition, "y"),
+                    entity.getField(RegisteredPosition, "z"),
+                  )
+                );
+                // TODO
+                return (
+                  <Switch>
+                    <Match when={item() === Item.Banana}>
+                      <T.Group position={pos()} scale={3.0}>
+                        {(() => {
+                          let banana = createBanana();
+                          return untrack(() => (<Entity from={banana}/>));
+                        })()}
+                      </T.Group>
+                    </Match>
+                    <Match when={item() === Item.Bomb}>
+                      <T.Group
+                        position={pos()}
+                      >
+                        <T.Group position={[ 0.0, 0.25, 0.0, ]}>
+                          <Bomb time={time()}/>
+                        </T.Group>
+                      </T.Group>
+                    </Match>
+                  </Switch>
                 );
               }}
             </For>
