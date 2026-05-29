@@ -658,7 +658,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
-                spinningOffset = Math.round(spinningOffset) % 3;
+                spinningOffset = Math.round(spinningOffset) % 5;
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               } else {
                 ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
@@ -683,9 +683,18 @@ export function createInGameSystem(ecs: ReactiveECS): System {
 
               if (useItemDown) {
                 let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
-                item = Math.max(0, Math.min(2, item)) as Item;
+                item = Math.max(0, Math.min(4, item)) as Item;
                 if (item === Item.Banana || item === Item.Bomb) {
                   addCarriedItem(ecs, slotMachineId, item);
+                } else if (item === Item.Bombombomb) {
+                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                } else if (item === Item.Banananananananana) {
+                  addCarriedItem(ecs, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, slotMachineId, Item.Banana);
                 }
                 // remove slot machine
                 //debugger;

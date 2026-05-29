@@ -45,10 +45,13 @@ const SlotMachine: Component<{
   time: number,
   wheelRotation: number,
 }> = (props) => {
-  let banana = createBanana();
+  let bananas: THREE.Object3D[] = new Array(5);
+  for (let i = 0; i < 5; ++i) {
+    bananas[i] = createBanana();
+  }
   let slotGroup: THREE.Group | undefined;
   const clippedSymbolGroups: Array<THREE.Object3D | undefined> = [];
-  let yPos = createMemo(() => 4.0 - (props.wheelRotation * 2 % 3.0));
+  let yPos = createMemo(() => 6.0 - (props.wheelRotation * 2.0 % 5.0));
   let geometry = new THREE.BoxGeometry().toNonIndexed(); // Convert to non-indexed
   const posAttr = geometry.getAttribute("position");
   const filteredPositions = [];
@@ -73,7 +76,7 @@ const SlotMachine: Component<{
     new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0.0, 0.0, -1.0), new THREE.Vector3(0.0, 0.0, 0.5)),
   ];
   const clippingPlanes = clipTemplatePlanes.map((plane) => plane.clone());
-  applyClippingPlanesToObject(banana, clippingPlanes);
+  applyClippingPlanesToObject(bananas[0], clippingPlanes);
   createRenderEffect(
     () => props.time,
     () => {
@@ -106,10 +109,10 @@ const SlotMachine: Component<{
           color="gray"
         />
       </T.Mesh>
-      <For each={[ 0, 1, 2, ].reverse()} keyed={false}>
+      <For each={[ 0, 1, 2, 3, 4, ].reverse()} keyed={false}>
         {(item, idx) => {
           let yPos2 = createMemo(() => yPos() + idx() * -1.0);
-          let yPos3 = () => (yPos2() % 3) - 0.5;
+          let yPos3 = () => (yPos2() % 5) - 0.5;
           let visible = createMemo(() => {
             let yPos4 = yPos3();
             return -0.5 <= yPos4 && yPos4 <= 1.5;
@@ -146,7 +149,7 @@ const SlotMachine: Component<{
                     />
                   </T.Group>
                 </Match>
-                <Match when={item() == 1}>
+                <Match when={item() === 1}>
                   <T.Group
                     ref={(group) => {
                       clippedSymbolGroups[item()] = group;
@@ -162,7 +165,7 @@ const SlotMachine: Component<{
                     />
                   </T.Group>
                 </Match>
-                <Match when={item() == 2}>
+                <Match when={item() === 2}>
                   <T.Group
                     ref={(group) => {
                       clippedSymbolGroups[item()] = group;
@@ -173,8 +176,73 @@ const SlotMachine: Component<{
                     renderOrder={-1}
                   >
                     <Entity
-                      from={banana}
+                      from={bananas[0]}
                     />
+                  </T.Group>
+                </Match>
+                <Match when={item() === 3}>
+                  <T.Group
+                    ref={(group) => {
+                      clippedSymbolGroups[item()] = group;
+                    }}
+                    position={[ -0.1, yPos3() - 0.1, 0.0, ]}
+                    scale={0.6}
+                    visible={visible()}
+                  >
+                    <T.Group
+                      position={[ -0.1, 0.0, -0.3, ]}
+                      quaternion={new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)}
+                    >
+                      <Bomb
+                        time={props.time}
+                      />
+                    </T.Group>
+                    <T.Group
+                      position={[ 0.0, 0.3, 0.3, ]}
+                    >
+                      <Bomb
+                        time={props.time}
+                      />
+                    </T.Group>
+                    <T.Group
+                      position={[ 0.3, 0.0, 0.0, ]}
+                    >
+                      <Bomb
+                        time={props.time}
+                      />
+                    </T.Group>
+                  </T.Group>
+                </Match>
+                <Match when={item() === 4}>
+                  <T.Group
+                    ref={(group) => {
+                      clippedSymbolGroups[item()] = group;
+                    }}
+                    position={[ -0.1, yPos3() - 0.1, 0.0, ]}
+                    scale={2.0}
+                    visible={visible()}
+                  >
+                    <T.Group
+                      position={[ -0.1/2, 0.0-0.05, -0.3/2, ]}
+                      quaternion={new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)}
+                    >
+                      <Entity from={bananas[1]}/>
+                    </T.Group>
+                    <T.Group
+                      position={[ 0.0, 0.3/2-0.05, 0.3/2, ]}
+                    >
+                      <Entity from={bananas[2]}/>
+                    </T.Group>
+                    <T.Group
+                      position={[ 0.3/2, 0.0, 0.0, ]}
+                    >
+                      <Entity from={bananas[3]}/>
+                    </T.Group>
+                    <T.Group
+                      position={[ 0.3/2, -0.3/2, 0.0, ]}
+                    >
+                      <Entity from={bananas[4]}/>
+                    </T.Group>
                   </T.Group>
                 </Match>
               </Switch>

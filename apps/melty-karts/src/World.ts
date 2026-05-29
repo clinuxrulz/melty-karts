@@ -159,9 +159,11 @@ export const RegisteredHasCarriedItems = baseEcs.register_component({
 });
 
 export enum Item {
-  Banana = 0,
+  Banananananananana = 0,
   Lightning = 1,
-  Bomb = 2,
+  Bombombomb = 2,
+  Bomb = 3,
+  Banana = 4,
 }
 
 export const RegisteredCarriedItem = baseEcs.register_component({
