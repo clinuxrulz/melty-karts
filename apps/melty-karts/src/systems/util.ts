@@ -1,5 +1,5 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
-import { Item, RegisteredCarriedItem, RegisteredHasCarriedItems, RegisteredPosition } from "../World";
+import { Item, RegisteredBanana, RegisteredBomb, RegisteredCarriedItem, RegisteredHasCarriedItems, RegisteredPosition } from "../World";
 import { EntityID } from "@oasys/oecs";
 
 export function addCarriedItem(ecs: ReactiveECS, target: EntityID, item: Item) {
@@ -60,5 +60,44 @@ export function addCarriedItem(ecs: ReactiveECS, target: EntityID, item: Item) {
       tail,
       count,
     });
+  }
+}
+
+export function hasCarriedItem(ecs: ReactiveECS, target: EntityID): boolean {
+  if (!ecs.ecs.has_component(target, RegisteredHasCarriedItems)) {
+    return false;
+  }
+  let head = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "head") as EntityID;
+  return head !== -1;
+}
+
+export function dropCarriedItem(ecs: ReactiveECS, target: EntityID) {
+  if (!ecs.ecs.has_component(target, RegisteredHasCarriedItems)) {
+    return;
+  }
+  let head = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "head") as EntityID | -1;
+  let tail = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "tail") as EntityID | -1;
+  let count = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "count");
+  if (head === -1 || tail === -1) {
+    return;
+  }
+  let tailPrev = ecs.ecs.get_field(tail, RegisteredCarriedItem, "prev") as EntityID | -1;
+  if (tailPrev !== -1) {
+    ecs.set_field(tail, RegisteredCarriedItem, "prev", -1);
+    ecs.set_field(tailPrev, RegisteredCarriedItem, "next", -1);
+    ecs.set_field(target, RegisteredHasCarriedItems, "tail", tailPrev);
+  } else {
+    ecs.set_field(target, RegisteredHasCarriedItems, "head", -1);
+    ecs.set_field(target, RegisteredHasCarriedItems, "tail", -1);
+  }
+  ecs.set_field(target, RegisteredHasCarriedItems, "count", count - 1);
+  let item = ecs.ecs.get_field(tail, RegisteredCarriedItem, "item") as Item;
+  ecs.remove_component(tail, RegisteredCarriedItem);
+  if (item === Item.Banana) {
+    ecs.add_component(tail, RegisteredBanana);
+  } else if (item === Item.Bomb) {
+    ecs.add_component(tail, RegisteredBomb);
+  } else {
+    ecs.destroy_entity_deferred(tail);
   }
 }

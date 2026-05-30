@@ -192,6 +192,10 @@ export const RegisteredCarriedItem = baseEcs.register_component({
   maxDistance: "f32",
 });
 
+export const RegisteredBanana = baseEcs.register_tag();
+
+export const RegisteredBomb = baseEcs.register_tag();
+
 let localStorageKeyBindings: object | null = null;
 {
   let _localStorageKeyBindings = window.localStorage.getItem("melty-karts-key-binding");

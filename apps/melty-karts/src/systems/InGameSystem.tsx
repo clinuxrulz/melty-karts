@@ -28,7 +28,7 @@ import { placeMysteryBoxesAlongTrack } from "./track-util";
 import { powerupItemBox } from "../sounds/slot-machine";
 import { lookupString } from "../StringTable";
 import { rng } from "../util";
-import { addCarriedItem } from "./util";
+import { addCarriedItem, dropCarriedItem, hasCarriedItem } from "./util";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -643,11 +643,13 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       }
+      let entityHadSlotMachine: { [entityId: number]: boolean, } = {};
       // Simulate Slot Machines
       for (let slotMachineArch of ecs.query(RegisteredSlotMachine)) {
         let slotMachineIds = slotMachineArch.entity_ids;
         for (let i = 0; i < slotMachineArch.entity_count; ++i) {
           let slotMachineId = slotMachineIds[i] as EntityID;
+          entityHadSlotMachine[slotMachineId] = true;
           let slotMachineEntity = ecs.entity(slotMachineId);
           let phase = slotMachineEntity.getField(RegisteredSlotMachine, "phase") as SlotMachinePhase;
           switch (phase) {
@@ -672,7 +674,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
               phaseTimeout -= dt;
               ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
-              
+              let useItemWasDown = ecs.ecs.get_field(slotMachineId, RegisteredPlayerConfig, "useItemWasDown");
               let useItemDown = false;
               if (ecs.ecs.has_component(slotMachineId, RegisteredInputControlled)) {
                 useItemDown = ecs.ecs.get_field(slotMachineId, RegisteredInputControlled, "useItemDown") !== 0;
@@ -681,7 +683,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 useItemDown = keyboard.get("useItemDown") !== 0;
               }
 
-              if (useItemDown) {
+              if (!useItemWasDown && useItemDown && !hasCarriedItem(ecs, slotMachineId)) {
                 let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
                 item = Math.max(0, Math.min(4, item)) as Item;
                 if (item === Item.Banana || item === Item.Bomb) {
@@ -750,6 +752,19 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               }
             }
           }
+          if (!entityHadSlotMachine[playerEntityId] && hasCarriedItem(ecs, playerEntityId)) {
+            let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
+            let useItemDown = false;
+            if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
+              useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
+            } else {
+              let keyboard = ecs.resource(RegisteredKeyboardInput);
+              useItemDown = keyboard.get("useItemDown") !== 0;
+            }
+            if (!useItemWasDown && useItemDown) {
+              dropCarriedItem(ecs, playerEntityId);
+            }
+          }
         }
       }
       // Animate carried items
@@ -783,9 +798,23 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       }
-      // TODO
       //
       renderSystem()?.update?.(dt);
+      // remember if useItem was down last frame
+      for (let playerArch of ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
+        let playerEntityIds = playerArch.entity_ids;
+        for (let i = 0; i < playerArch.entity_count; ++i) {
+          let playerEntityId = playerEntityIds[i] as EntityID;
+          let useItemDown = false;
+          if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
+            useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
+          } else {
+            let keyboard = ecs.resource(RegisteredKeyboardInput);
+            useItemDown = keyboard.get("useItemDown") !== 0;
+          }
+          ecs.set_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
+        }
+      }
       // Keep time moving
       {
         let time = ecs.ecs.resource(RegisteredTime);

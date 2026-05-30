@@ -20,8 +20,16 @@ export const Orientation = {
 
 export type PlayerTypeEnum = 0 | 1 | 2;
 export const PlayerConfig = {
-    def: { playerType: "u8", facingForward: "u8" } as const,
-    schema: { playerType: 0 as PlayerTypeEnum, facingForward: 0 },
+    def: {
+        playerType: "u8",
+        facingForward: "u8",
+        useItemWasDown: "u8",
+    } as const,
+    schema: {
+        playerType: 0 as PlayerTypeEnum,
+        facingForward: 0,
+        useItemWasDown: 0,
+    },
     name: "PlayerConfig"
 };
 

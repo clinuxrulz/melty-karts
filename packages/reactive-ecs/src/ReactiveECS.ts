@@ -1,4 +1,4 @@
-import { createSignal, createStore, getObserver, onCleanup, untrack, type Signal } from "solid-js";
+import { Accessor, createMemo, createSignal, createStore, getObserver, onCleanup, untrack, type Signal } from "solid-js";
 import type { ECS } from "@oasys/oecs";
 import type { Query } from "@oasys/oecs";
 import type { ResourceDef, ResourceReader } from "@oasys/oecs";
@@ -437,6 +437,33 @@ export class ReactiveECS {
   query<Defs extends ComponentDef[]>(...defs: Defs): ReactiveQuery<Defs> {
     const queryKey = `query:${defs.map(d => d.toString()).join(",")}`;
     return new ReactiveQuery(this.#triggers, this.#ecs, defs, queryKey);
+  }
+
+  createQueryEntityIds<Defs extends ComponentDef[]>(...defs: Defs): Accessor<EntityID[]> {
+    let result: EntityID[] = [];
+    return createMemo(
+      () => {
+        let i = 0;
+        for (let arch of this.query(...defs)) {
+          for (let j = 0; j < arch.entity_count; ++j) {
+            let entityId = arch.entity_ids[j] as EntityID;
+            if (i < result.length) {
+              result[i++] = entityId;
+            } else {
+              ++i;
+              result.push(entityId);
+            }
+          }
+        }
+        while (result.length > i) {
+          result.pop();
+        }
+        return result;
+      },
+      {
+        equals: false,
+      },
+    );
   }
 
   resource<F extends readonly string[]>(def: ResourceDef<F>): ReactiveResource<F> {

@@ -15,7 +15,9 @@ import {
   SLOT_MACHINE_SPIN_TIMEOUT,
   RegisteredCarriedItem,
   Item,
-  RegisteredTime
+  RegisteredTime,
+  RegisteredBanana,
+  RegisteredBomb
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -114,6 +116,8 @@ export function createRenderSystem(
         updateListeners.forEach((u) => u(dt));
       },
       three: createMemo(() => () => {
+        let bananaEntityIds = ecs.createQueryEntityIds(RegisteredBanana, RegisteredPosition);
+        let bombEntityIds = ecs.createQueryEntityIds(RegisteredBomb, RegisteredPosition);
         return (
           <>
             <For each={(() => {
@@ -243,7 +247,6 @@ export function createRenderSystem(
                     entity.getField(RegisteredPosition, "z"),
                   )
                 );
-                // TODO
                 return (
                   <Switch>
                     <Match when={item() === Item.Banana}>
@@ -264,6 +267,49 @@ export function createRenderSystem(
                       </T.Group>
                     </Match>
                   </Switch>
+                );
+              }}
+            </For>
+            <For each={bananaEntityIds()}>
+              {(bananaEntityId) => {
+                let bananaEntity = ecs.entity(untrack(bananaEntityId));
+                let positionX = () => bananaEntity.getField(RegisteredPosition, "x");
+                let positionY = () => bananaEntity.getField(RegisteredPosition, "y");
+                let positionZ = () => bananaEntity.getField(RegisteredPosition, "z");
+                let banana = createBanana();
+                return (
+                  <T.Group
+                    position={[
+                      positionX(),
+                      positionY(),
+                      positionZ(),
+                    ]}
+                  >
+                    <Entity
+                      from={banana}
+                    />
+                  </T.Group>
+                );
+              }}
+            </For>
+            <For each={bombEntityIds()}>
+              {(entityId) => {
+                let bombEntity = ecs.entity(untrack(entityId));
+                let positionX = () => bombEntity.getField(RegisteredPosition, "x");
+                let positionY = () => bombEntity.getField(RegisteredPosition, "y");
+                let positionZ = () => bombEntity.getField(RegisteredPosition, "z");
+                return (
+                  <T.Group
+                    position={[
+                      positionX(),
+                      positionY(),
+                      positionZ(),
+                    ]}
+                  >
+                    <Bomb
+                      time={time()}
+                    />
+                  </T.Group>
                 );
               }}
             </For>
