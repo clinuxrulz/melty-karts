@@ -183,7 +183,15 @@ export const RegisteredCarriedItem = baseEcs.register_component({
 
 export const RegisteredBanana = baseEcs.register_tag();
 
-export const RegisteredBomb = baseEcs.register_tag();
+export const BOMB_INITIAL_TIMEOUT_UNTIL_EXPLOSION = 5.0;
+export const RegisteredBomb = baseEcs.register_component({
+  timeoutUntilExplosion: "f32",
+});
+
+export const EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE = 1.0;
+export const RegisteredExplosion = baseEcs.register_component({
+  timeoutUntilGone: "f32",
+});
 
 let localStorageKeyBindings: object | null = null;
 {

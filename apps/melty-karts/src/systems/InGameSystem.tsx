@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem, RegisteredBomb, RegisteredExplosion, EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -625,7 +625,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         }
       }
       // Mystery Box Respawn
-      for (let mysteryBoxArch of ecs.query(RegisteredMysteryBox, RegisteredPosition)) {
+      ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).for_each((mysteryBoxArch) => {
         let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
         for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
           let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
@@ -642,9 +642,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", timeout);
           }
         }
-      }
+      });
       // Simulate Slot Machines
-      for (let slotMachineArch of ecs.query(RegisteredSlotMachine)) {
+      ecs.ecs.query(RegisteredSlotMachine).for_each((slotMachineArch) => {
         let slotMachineIds = slotMachineArch.entity_ids;
         for (let i = 0; i < slotMachineArch.entity_count; ++i) {
           let slotMachineId = slotMachineIds[i] as EntityID;
@@ -676,7 +676,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             }
           }
         }
-      }
+      });
       // Kart Mystery Box collisions
       ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).for_each((playerArch) => {
         let playerEntityIds = playerArch.entity_ids;
@@ -686,7 +686,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           let playerX = playerEntity.getField(RegisteredPosition, "x");
           let playerY = playerEntity.getField(RegisteredPosition, "y");
           let playerZ = playerEntity.getField(RegisteredPosition, "z");
-          for (let mysteryBoxArch of ecs.query(RegisteredMysteryBox, RegisteredPosition)) {
+          ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).for_each((mysteryBoxArch) => {
             let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
             for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
               let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
@@ -719,7 +719,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 }
               }
             }
-          }
+          });
           // Handle use item
           let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
           let useItemDown = false;
@@ -758,7 +758,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         }
       });
       // Animate carried items
-      for (let arch of ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
+      ecs.ecs.query(RegisteredCarriedItem, RegisteredPosition).for_each((arch) => {
         for (let i = 0; i < arch.entity_count; ++i) {
           let entityId = arch.entity_ids[i] as EntityID;
           let itemX = ecs.ecs.get_field(entityId, RegisteredPosition, "x");
@@ -787,11 +787,41 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             ecs.set_field(entityId, RegisteredPosition, "z", newZ);
           }
         }
-      }
+      });
+      // Step bombs
+      ecs.ecs.query(RegisteredBomb).for_each((arch) => {
+        for (let i = 0; i < arch.entity_count; ++i) {
+          let entity_id = arch.entity_ids[i] as EntityID;
+          let timeout = ecs.ecs.get_field(entity_id, RegisteredBomb, "timeoutUntilExplosion");
+          timeout -= dt;
+          if (timeout <= 0.0) {
+            ecs.remove_component(entity_id, RegisteredBomb);
+            ecs.add_component(entity_id, RegisteredExplosion, {
+              timeoutUntilGone: EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE,
+            });
+          } else {
+            ecs.set_field(entity_id, RegisteredBomb, "timeoutUntilExplosion", timeout);
+          }
+        }
+      });
+      // Step explosions
+      ecs.ecs.query(RegisteredExplosion).for_each((arch) => {
+        for (let i = 0; i < arch.entity_count; ++i) {
+          let entity_id = arch.entity_ids[i] as EntityID;
+          let timeout = ecs.ecs.get_field(entity_id, RegisteredExplosion, "timeoutUntilGone");
+          timeout -= dt;
+          if (timeout <= 0.0) {
+            ecs.remove_component(entity_id, RegisteredExplosion);
+            ecs.destroy_entity_deferred(entity_id);
+          } else {
+            ecs.set_field(entity_id, RegisteredExplosion, "timeoutUntilGone", timeout);
+          }
+        }
+      });
       //
       renderSystem()?.update?.(dt);
       // remember if useItem was down last frame
-      for (let playerArch of ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
+      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).for_each((playerArch) => {
         let playerEntityIds = playerArch.entity_ids;
         for (let i = 0; i < playerArch.entity_count; ++i) {
           let playerEntityId = playerEntityIds[i] as EntityID;
@@ -804,7 +834,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
           ecs.set_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
         }
-      }
+      });
       // Keep time moving
       {
         let time = ecs.ecs.resource(RegisteredTime);

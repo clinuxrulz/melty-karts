@@ -17,7 +17,9 @@ import {
   Item,
   RegisteredTime,
   RegisteredBanana,
-  RegisteredBomb
+  RegisteredBomb,
+  RegisteredExplosion,
+  EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE
 } from "../World";
 import { createSolidLogo } from "../models/SolidLogo";
 import { loadKartModel } from "../models/Kart";
@@ -30,6 +32,7 @@ import MysteryBox from "../models/MysteryBox";
 import SlotMachine from "../models/SlotMachine";
 import Bomb from "../models/Bomb";
 import { createBanana } from "../models/banana";
+import Explosion from "../models/Explosion";
 
 export function createRenderSystem(
   ecs: ReactiveECS,
@@ -118,6 +121,7 @@ export function createRenderSystem(
       three: createMemo(() => () => {
         let bananaEntityIds = ecs.createQueryEntityIds(RegisteredBanana, RegisteredPosition);
         let bombEntityIds = ecs.createQueryEntityIds(RegisteredBomb, RegisteredPosition);
+        let explosionIds = ecs.createQueryEntityIds(RegisteredExplosion);
         return (
           <>
             <For each={(() => {
@@ -310,6 +314,28 @@ export function createRenderSystem(
                     <T.Group position={[ 0.0, 0.25, 0.0, ]}>
                       <Bomb time={time()}/>
                     </T.Group>
+                  </T.Group>
+                );
+              }}
+            </For>
+            <For each={explosionIds()}>
+              {(entityId) => {
+                let explosionEntity = ecs.entity(untrack(entityId));
+                let positionX = () => explosionEntity.getField(RegisteredPosition, "x");
+                let positionY = () => explosionEntity.getField(RegisteredPosition, "y");
+                let positionZ = () => explosionEntity.getField(RegisteredPosition, "z");
+                let time = () => EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE - explosionEntity.getField(RegisteredExplosion, "timeoutUntilGone");
+                return (
+                  <T.Group
+                    position={[
+                      positionX(),
+                      positionY(),
+                      positionZ(),
+                    ]}
+                  >
+                    <Explosion
+                      time={time()}
+                    />
                   </T.Group>
                 );
               }}
