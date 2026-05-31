@@ -29,6 +29,7 @@ import { powerupItemBox } from "../sounds/slot-machine";
 import { lookupString } from "../StringTable";
 import { rng } from "../util";
 import { addCarriedItem, dropCarriedItem, hasCarriedItem } from "./util";
+import { EcsCommands } from "../EcsCommands";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -578,6 +579,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     );
   });
   let musicStarted = false;
+  let ecsCommands = new EcsCommands();
   return {
     subsystems,
     ui,
@@ -643,13 +645,11 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       }
-      let entityHadSlotMachine: { [entityId: number]: boolean, } = {};
       // Simulate Slot Machines
       for (let slotMachineArch of ecs.query(RegisteredSlotMachine)) {
         let slotMachineIds = slotMachineArch.entity_ids;
         for (let i = 0; i < slotMachineArch.entity_count; ++i) {
           let slotMachineId = slotMachineIds[i] as EntityID;
-          entityHadSlotMachine[slotMachineId] = true;
           let slotMachineEntity = ecs.entity(slotMachineId);
           let phase = slotMachineEntity.getField(RegisteredSlotMachine, "phase") as SlotMachinePhase;
           switch (phase) {
@@ -687,16 +687,16 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
                 item = Math.max(0, Math.min(4, item)) as Item;
                 if (item === Item.Banana || item === Item.Bomb) {
-                  addCarriedItem(ecs, slotMachineId, item);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, item);
                 } else if (item === Item.Bombombomb) {
-                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
-                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
-                  addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
                 } else if (item === Item.Banananananananana) {
-                  addCarriedItem(ecs, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
+                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
                 }
                 // remove slot machine
                 //debugger;
@@ -752,7 +752,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               }
             }
           }
-          if (!entityHadSlotMachine[playerEntityId] && hasCarriedItem(ecs, playerEntityId)) {
+          if (hasCarriedItem(ecs, playerEntityId)) {
             let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
             let useItemDown = false;
             if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
@@ -762,7 +762,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               useItemDown = keyboard.get("useItemDown") !== 0;
             }
             if (!useItemWasDown && useItemDown) {
-              dropCarriedItem(ecs, playerEntityId);
+              dropCarriedItem(ecs, ecsCommands, playerEntityId);
             }
           }
         }
@@ -815,6 +815,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           ecs.set_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
         }
       }
+      // Deferred commands
+      ecsCommands.executeCommands(ecs);
       // Keep time moving
       {
         let time = ecs.ecs.resource(RegisteredTime);

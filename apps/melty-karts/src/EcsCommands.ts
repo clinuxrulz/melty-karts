@@ -66,7 +66,7 @@ export class EcsCommands {
     command.value = value;
   }
 
-  createEntity(fn: (entityId: EntityID) => void): void {
+  create_entity(fn: (entityId: EntityID) => void): void {
     this.addCommand(
       CommandType.CreateEntity,
       fn,
@@ -77,7 +77,7 @@ export class EcsCommands {
     );
   }
 
-  destoryEntity(entityId: EntityID): void {
+  destroy_entity(entityId: EntityID): void {
     this.addCommand(
       CommandType.DestroyEntity,
       undefined,
@@ -88,7 +88,7 @@ export class EcsCommands {
     );
   }
 
-  addComponent<S extends ComponentSchema>(entityId: EntityID, def: ComponentDef<S>, s: S): void {
+  add_component<S extends ComponentSchema, S2 extends { [k in keyof S]: number }>(entityId: EntityID, def: ComponentDef<S>, s: S2): void {
     this.addCommand(
       CommandType.AddComponent,
       undefined,
@@ -99,7 +99,7 @@ export class EcsCommands {
     );
   }
 
-  removeComponent<S extends ComponentSchema>(entityId: EntityID, def: ComponentDef<S>): void {
+  remove_component<S extends ComponentSchema>(entityId: EntityID, def: ComponentDef<S>): void {
     this.addCommand(
       CommandType.RemoveComponent,
       undefined,
@@ -110,7 +110,7 @@ export class EcsCommands {
     );
   }
 
-  setField<S extends ComponentSchema, K extends keyof S>(entityId: EntityID, def: ComponentDef<S>, field: K, value: number): void {
+  set_field<S extends ComponentSchema, K extends keyof S>(entityId: EntityID, def: ComponentDef<S>, field: K, value: number): void {
     this.addCommand(
       CommandType.SetField,
       undefined,
