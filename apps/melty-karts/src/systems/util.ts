@@ -3,7 +3,7 @@ import { Item, RegisteredBanana, RegisteredBomb, RegisteredCarriedItem, Register
 import { EntityID } from "@oasys/oecs";
 import { EcsCommands } from "../EcsCommands";
 
-export function addCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, target: EntityID, item: Item) {
+export function addCarriedItem(ecs: ReactiveECS, target: EntityID, item: Item) {
   let carriedItem = ecs.create_entity();
   let head: EntityID | -1;
   let tail: EntityID | -1;
@@ -20,7 +20,7 @@ export function addCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, targe
     tail = -1;
     count = 0;
   }
-  ecsCommands.add_component(
+  ecs.add_component(
     carriedItem,
     RegisteredCarriedItem,
     {
@@ -31,7 +31,7 @@ export function addCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, targe
       maxDistance: 1.2 + count * 0.8,
     },
   );
-  ecsCommands.add_component(
+  ecs.add_component(
     carriedItem,
     RegisteredPosition,
     {
@@ -41,22 +41,22 @@ export function addCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, targe
     }
   );
   if (tail !== -1) {
-    ecsCommands.set_field(tail, RegisteredCarriedItem, "next", carriedItem);
+    ecs.set_field(tail, RegisteredCarriedItem, "next", carriedItem);
   }
   tail = carriedItem;
   ++count;
   if (ecs.ecs.has_component(target, RegisteredHasCarriedItems)) {
-    ecsCommands.set_field(target, RegisteredHasCarriedItems, "tail", tail);
-    ecsCommands.set_field(target, RegisteredHasCarriedItems, "count", count);
+    ecs.set_field(target, RegisteredHasCarriedItems, "tail", tail);
+    ecs.set_field(target, RegisteredHasCarriedItems, "count", count);
     if (head === -1) {
       head = tail;
-      ecsCommands.set_field(target, RegisteredHasCarriedItems, "head", head);
+      ecs.set_field(target, RegisteredHasCarriedItems, "head", head);
     }
   } else {
     if (head === -1) {
       head = tail;
     }
-    ecsCommands.add_component(target, RegisteredHasCarriedItems, {
+    ecs.add_component(target, RegisteredHasCarriedItems, {
       head,
       tail,
       count,
@@ -72,7 +72,7 @@ export function hasCarriedItem(ecs: ReactiveECS, target: EntityID): boolean {
   return head !== -1;
 }
 
-export function dropCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, target: EntityID) {
+export function dropCarriedItem(ecs: ReactiveECS, target: EntityID) {
   if (!ecs.ecs.has_component(target, RegisteredHasCarriedItems)) {
     return;
   }
@@ -84,21 +84,21 @@ export function dropCarriedItem(ecs: ReactiveECS, ecsCommands: EcsCommands, targ
   }
   let tailPrev = ecs.ecs.get_field(tail, RegisteredCarriedItem, "prev") as EntityID | -1;
   if (tailPrev !== -1) {
-    ecsCommands.set_field(tail, RegisteredCarriedItem, "prev", -1);
-    ecsCommands.set_field(tailPrev, RegisteredCarriedItem, "next", -1);
-    ecsCommands.set_field(target, RegisteredHasCarriedItems, "tail", tailPrev);
+    ecs.set_field(tail, RegisteredCarriedItem, "prev", -1);
+    ecs.set_field(tailPrev, RegisteredCarriedItem, "next", -1);
+    ecs.set_field(target, RegisteredHasCarriedItems, "tail", tailPrev);
   } else {
-    ecsCommands.set_field(target, RegisteredHasCarriedItems, "head", -1);
-    ecsCommands.set_field(target, RegisteredHasCarriedItems, "tail", -1);
+    ecs.set_field(target, RegisteredHasCarriedItems, "head", -1);
+    ecs.set_field(target, RegisteredHasCarriedItems, "tail", -1);
   }
-  ecsCommands.set_field(target, RegisteredHasCarriedItems, "count", count - 1);
+  ecs.set_field(target, RegisteredHasCarriedItems, "count", count - 1);
   let item = ecs.ecs.get_field(tail, RegisteredCarriedItem, "item") as Item;
-  ecsCommands.remove_component(tail, RegisteredCarriedItem);
+  ecs.remove_component(tail, RegisteredCarriedItem);
   if (item === Item.Banana) {
-    ecsCommands.add_component(tail, RegisteredBanana, {});
+    ecs.add_component(tail, RegisteredBanana, {});
   } else if (item === Item.Bomb) {
-    ecsCommands.add_component(tail, RegisteredBomb, {});
+    ecs.add_component(tail, RegisteredBomb, {});
   } else {
-    ecsCommands.destroy_entity(tail);
+    ecs.destroy_entity_deferred(tail);
   }
 }

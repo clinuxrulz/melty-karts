@@ -687,16 +687,23 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
                 item = Math.max(0, Math.min(4, item)) as Item;
                 if (item === Item.Banana || item === Item.Bomb) {
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, item);
+                  let item2 = item;
+                  ecsCommands.defer(() => {
+                    addCarriedItem(ecs, slotMachineId, item2);
+                  });
                 } else if (item === Item.Bombombomb) {
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Bomb);
+                  ecsCommands.defer(() => {
+                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
+                  });
                 } else if (item === Item.Banananananananana) {
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
-                  addCarriedItem(ecs, ecsCommands, slotMachineId, Item.Banana);
+                  ecsCommands.defer(() => {
+                    addCarriedItem(ecs, slotMachineId, Item.Banana);
+                    addCarriedItem(ecs, slotMachineId, Item.Banana);
+                    addCarriedItem(ecs, slotMachineId, Item.Banana);
+                    addCarriedItem(ecs, slotMachineId, Item.Banana);
+                  });
                 }
                 // remove slot machine
                 //debugger;
@@ -762,7 +769,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               useItemDown = keyboard.get("useItemDown") !== 0;
             }
             if (!useItemWasDown && useItemDown) {
-              dropCarriedItem(ecs, ecsCommands, playerEntityId);
+              ecsCommands.defer(() => {
+                dropCarriedItem(ecs, playerEntityId);
+              });
             }
           }
         }

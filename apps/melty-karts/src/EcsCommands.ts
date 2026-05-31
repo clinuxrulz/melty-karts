@@ -7,11 +7,12 @@ enum CommandType {
   AddComponent = 2,
   RemoveComponent = 3,
   SetField = 4,
+  Defer = 5,
 }
 
 class EcsCommand {
   type: CommandType;
-  callback: ((entityId: EntityID) => void) | undefined;
+  callback: ((entityId: EntityID) => void) | (() => void) | undefined;
   entityId: EntityID | undefined;
   def: ComponentDef<ComponentSchema> | undefined;
   field: string | undefined;
@@ -19,7 +20,7 @@ class EcsCommand {
 
   constructor(
     type: CommandType,
-    callback: ((entityId: EntityID) => void) | undefined,
+    callback: ((entityId: EntityID) => void) | (() => void) | undefined,
     entityId: EntityID | undefined,
     def: ComponentDef<ComponentSchema> | undefined,
     field: string | undefined,
@@ -121,6 +122,17 @@ export class EcsCommands {
     );
   }
 
+  defer(fn: () => void) {
+    this.addCommand(
+      CommandType.Defer,
+      fn,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
+  }
+
   executeCommands(ecs: ReactiveECS) {
     for (let i = 0; i < this.commandsSize; ++i) {
       let command = this.commands[i];
@@ -144,6 +156,10 @@ export class EcsCommands {
         }
         case CommandType.SetField: {
           ecs.set_field(command.entityId!, command.def! as any, command.field!, command.value as number);
+          break;
+        }
+        case CommandType.Defer: {
+          (command.callback! as () => void)();
           break;
         }
       }
