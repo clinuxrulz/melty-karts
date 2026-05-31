@@ -284,6 +284,7 @@ export function createRenderSystem(
                       positionY(),
                       positionZ(),
                     ]}
+                    scale={3.0}
                   >
                     <Entity
                       from={banana}
@@ -306,9 +307,9 @@ export function createRenderSystem(
                       positionZ(),
                     ]}
                   >
-                    <Bomb
-                      time={time()}
-                    />
+                    <T.Group position={[ 0.0, 0.25, 0.0, ]}>
+                      <Bomb time={time()}/>
+                    </T.Group>
                   </T.Group>
                 );
               }}
