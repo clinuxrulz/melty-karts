@@ -29,7 +29,6 @@ import { powerupItemBox } from "../sounds/slot-machine";
 import { lookupString } from "../StringTable";
 import { rng } from "../util";
 import { addCarriedItem, dropCarriedItem, hasCarriedItem } from "./util";
-import { EcsCommands } from "../EcsCommands";
 
 // Add BVH to THREE
 // @ts-ignore
@@ -579,7 +578,6 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     );
   });
   let musicStarted = false;
-  let ecsCommands = new EcsCommands();
   return {
     subsystems,
     ui,
@@ -674,53 +672,21 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
               phaseTimeout -= dt;
               ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
-              let useItemWasDown = ecs.ecs.get_field(slotMachineId, RegisteredPlayerConfig, "useItemWasDown");
-              let useItemDown = false;
-              if (ecs.ecs.has_component(slotMachineId, RegisteredInputControlled)) {
-                useItemDown = ecs.ecs.get_field(slotMachineId, RegisteredInputControlled, "useItemDown") !== 0;
-              } else {
-                let keyboard = ecs.resource(RegisteredKeyboardInput);
-                useItemDown = keyboard.get("useItemDown") !== 0;
-              }
-
-              if (!useItemWasDown && useItemDown && !hasCarriedItem(ecs, slotMachineId)) {
-                let item = Math.round(slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset"));
-                item = Math.max(0, Math.min(4, item)) as Item;
-                if (item === Item.Banana || item === Item.Bomb) {
-                  let item2 = item;
-                  ecsCommands.defer(() => {
-                    addCarriedItem(ecs, slotMachineId, item2);
-                  });
-                } else if (item === Item.Bombombomb) {
-                  ecsCommands.defer(() => {
-                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
-                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
-                    addCarriedItem(ecs, slotMachineId, Item.Bomb);
-                  });
-                } else if (item === Item.Banananananananana) {
-                  ecsCommands.defer(() => {
-                    addCarriedItem(ecs, slotMachineId, Item.Banana);
-                    addCarriedItem(ecs, slotMachineId, Item.Banana);
-                    addCarriedItem(ecs, slotMachineId, Item.Banana);
-                    addCarriedItem(ecs, slotMachineId, Item.Banana);
-                  });
-                }
-                // remove slot machine
-                //debugger;
-                ecs.remove_component(slotMachineId, RegisteredSlotMachine);
-                // TODO: Make the item held by the player, ready for use
-                //
-              }
               break;
             }
           }
         }
       }
       // Kart Mystery Box collisions
-      for (let playerArch of ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
+      let visitedPlayerIds: { [playerId: number]: boolean, } = {};
+      for (let playerArch of ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
         let playerEntityIds = playerArch.entity_ids;
         for (let i = 0; i < playerArch.entity_count; ++i) {
           let playerEntityId = playerEntityIds[i] as EntityID;
+          if (visitedPlayerIds[playerEntityId]) {
+            continue;
+          }
+          visitedPlayerIds[playerEntityId] = true;
           let playerEntity = ecs.entity(playerEntityId);
           let playerX = playerEntity.getField(RegisteredPosition, "x");
           let playerY = playerEntity.getField(RegisteredPosition, "y");
@@ -759,21 +725,41 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               }
             }
           }
-          if (hasCarriedItem(ecs, playerEntityId)) {
-            let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
-            let useItemDown = false;
-            if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
-              useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
-            } else {
-              let keyboard = ecs.resource(RegisteredKeyboardInput);
-              useItemDown = keyboard.get("useItemDown") !== 0;
-            }
-            if (!useItemWasDown && useItemDown) {
-              ecsCommands.defer(() => {
-                dropCarriedItem(ecs, playerEntityId);
-              });
+          // Handle use item
+          let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
+          let useItemDown = false;
+          if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
+            useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
+          } else {
+            let keyboard = ecs.resource(RegisteredKeyboardInput);
+            useItemDown = keyboard.get("useItemDown") !== 0;
+          }
+          if (!useItemWasDown && useItemDown) {
+            if (hasCarriedItem(ecs, playerEntityId)) {
+              dropCarriedItem(ecs, playerEntityId);
+            } else if (
+              ecs.ecs.has_component(playerEntityId, RegisteredSlotMachine) &&
+              ecs.ecs.get_field(playerEntityId, RegisteredSlotMachine, "phase") === SlotMachinePhase.DisplayResult
+            ) {
+              let item = Math.round(ecs.ecs.get_field(playerEntityId, RegisteredSlotMachine, "spinningOffset"));
+              item = Math.max(0, Math.min(4, item)) as Item;
+              if (item === Item.Banana || item === Item.Bomb) {
+                let item2 = item;
+                addCarriedItem(ecs, playerEntityId, item2);
+              } else if (item === Item.Bombombomb) {
+                addCarriedItem(ecs, playerEntityId, Item.Bomb);
+                addCarriedItem(ecs, playerEntityId, Item.Bomb);
+                addCarriedItem(ecs, playerEntityId, Item.Bomb);
+              } else if (item === Item.Banananananananana) {
+                addCarriedItem(ecs, playerEntityId, Item.Banana);
+                addCarriedItem(ecs, playerEntityId, Item.Banana);
+                addCarriedItem(ecs, playerEntityId, Item.Banana);
+                addCarriedItem(ecs, playerEntityId, Item.Banana);
+              }
+              ecs.remove_component(playerEntityId, RegisteredSlotMachine);
             }
           }
+          //
         }
       }
       // Animate carried items
@@ -824,8 +810,6 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           ecs.set_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
         }
       }
-      // Deferred commands
-      ecsCommands.executeCommands(ecs);
       // Keep time moving
       {
         let time = ecs.ecs.resource(RegisteredTime);
