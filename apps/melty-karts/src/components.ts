@@ -1,4 +1,4 @@
-import { type ComponentSchema, type ComponentDef, type ResourceDef } from "@oasys/oecs";
+import { type ComponentSchema, type ComponentDef } from "@oasys/oecs";
 
 export const Position = {
     def: { x: "f64", y: "f64", z: "f64" } as const,

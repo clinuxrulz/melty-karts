@@ -171,16 +171,16 @@ export function createMultiplayerLobbySystem(ecs: ReactiveECS): System {
                   {(p) => (
                     <div style={{ 
                       padding: "10px 16px", 
-                      background: p.id === snapshot().localPlayerId ? "#ffffff" : "#1a1a1a",
-                      color: p.id === snapshot().localPlayerId ? "#000000" : "#ffffff",
+                      background: p().id === snapshot().localPlayerId ? "#ffffff" : "#1a1a1a",
+                      color: p().id === snapshot().localPlayerId ? "#000000" : "#ffffff",
                       "border-radius": "10px",
                       "font-size": "14px",
                       display: "flex",
                       "justify-content": "space-between",
                       "align-items": "center"
                     }}>
-                      <span style={{ "font-family": "monospace" }}>{(p.id || "").slice(0, 12)}</span>
-                      {p.isHost && <span style={{ "font-size": "10px", "font-weight": "bold", opacity: 0.7 }}>HOST</span>}
+                      <span style={{ "font-family": "monospace" }}>{(p().id || "").slice(0, 12)}</span>
+                      {p().isHost && <span style={{ "font-size": "10px", "font-weight": "bold", opacity: 0.7 }}>HOST</span>}
                     </div>
                   )}
                 </For>

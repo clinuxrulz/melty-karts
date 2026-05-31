@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createRoot, createMemo, flush } from "solid-js";
-import { ECS } from "@oasys/oecs";
+import { ECS, resource_key } from "@oasys/oecs";
 import { ReactiveECS } from "./ReactiveECS";
 
 describe("ReactiveECS", () => {
@@ -104,7 +104,8 @@ describe("ReactiveECS", () => {
 
   describe("resource", () => {
     it("returns raw resource values outside reactive scope", () => {
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -117,7 +118,8 @@ describe("ReactiveECS", () => {
     });
 
     it("tracks resource field in reactive scope", () => {
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -142,7 +144,8 @@ describe("ReactiveECS", () => {
     });
 
     it("get method works outside reactive scope", () => {
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
@@ -249,7 +252,8 @@ describe("ReactiveECS", () => {
     });
 
     it("resource does not populate internal maps when read outside reactive", () => {
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
@@ -274,7 +278,8 @@ describe("ReactiveECS", () => {
 
     it("maps are cleaned up when reference count hits zero", () => {
       const Pos = ecs.register_component(["x", "y"] as const);
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
@@ -382,7 +387,8 @@ describe("ReactiveECS", () => {
     });
 
     it("set_resource triggers resource reactivity", () => {
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -433,7 +439,8 @@ describe("ReactiveECS", () => {
     it("serializes, deserializes, and hashes deterministically", () => {
       const Pos = ecs.register_component(["x", "y"] as const);
       const Tag = ecs.register_tag();
-      const Time = ecs.register_resource(["delta", "elapsed"] as const, {
+      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
+      ecs.register_resource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -453,11 +460,11 @@ describe("ReactiveECS", () => {
 
       reactive.deserialize(snapshot);
 
+      expect(reactive.resource(Time).get("delta")).toBe(0.016);
+      expect(reactive.resource(Time).get("elapsed")).toBe(12);
       expect(reactive.entity(entity).getField(Pos, "x")).toBe(3.5);
       expect(reactive.entity(entity).getField(Pos, "y")).toBe(7.25);
       expect(reactive.entity(entity).hasComponent(Tag)).toBe(true);
-      expect(reactive.resource(Time).delta).toBe(0.016);
-      expect(reactive.resource(Time).elapsed).toBe(12);
       expect(reactive.hash()).toBe(hashBefore);
     });
   });

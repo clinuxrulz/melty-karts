@@ -3,7 +3,7 @@ import { System } from "./System";
 import { Component, createMemo, createSignal, createStore, Match, onCleanup, onSettled, Switch } from "solid-js";
 import { MasterState, RegisteredKeyBindings, RegisteredMasterState } from "../World";
 import { allocStringId, freeStringId, lookupString } from "../StringTable";
-import { ResourceDef } from "@oasys/oecs";
+import { ResourceKey } from "@oasys/oecs";
 import { untrack } from "@solidjs/web";
 
 export function createKeyBindingSystem(ecs: ReactiveECS): System {
@@ -15,20 +15,20 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       }
     );
   };
-  type GetKeys<R> = R extends ResourceDef<infer K> ? K : never;
+  type GetKeys<R> = R extends ResourceKey<infer T> ? (string & keyof T) : never;
   let keyBindings = createMemo(() => ecs.resource(RegisteredKeyBindings));
   let createKey =
-    (k: GetKeys<typeof RegisteredKeyBindings>[number]) =>
+    (k: GetKeys<typeof RegisteredKeyBindings>) =>
       createMemo(() => lookupString(keyBindings().get(k)));
   let updateKey =
     (
-      k: GetKeys<typeof RegisteredKeyBindings>[number],
+      k: GetKeys<typeof RegisteredKeyBindings>,
       value: string
     ) => {
       let keyBindings2 = untrack(keyBindings);
       let oldKeyId = keyBindings2.get(k);
       let newKeyId = allocStringId(value);
-      let newKeyBindings: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: number } = {
+      let newKeyBindings: { [k in GetKeys<typeof RegisteredKeyBindings>]: number } = {
         upKey: keyBindings2.get("upKey"),
         downKey: keyBindings2.get("downKey"),
         leftKey: keyBindings2.get("leftKey"),
@@ -40,7 +40,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       newKeyBindings[k] = newKeyId;
       ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
       freeStringId(oldKeyId);
-      let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: string } = {
+      let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>]: string } = {
         upKey: lookupString(newKeyBindings.upKey),
         downKey: lookupString(newKeyBindings.downKey),
         leftKey: lookupString(newKeyBindings.leftKey),
@@ -59,7 +59,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
     freeStringId(keyBindings2.get("rightKey"));
     freeStringId(keyBindings2.get("actionKey"));
     freeStringId(keyBindings2.get("useItemKey"));
-    let newKeyBindings: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: number } = {
+    let newKeyBindings: { [k in GetKeys<typeof RegisteredKeyBindings>]: number } = {
       upKey: allocStringId("ArrowUp"),
       downKey: allocStringId("ArrowDown"),
       leftKey: allocStringId("ArrowLeft"),
@@ -69,7 +69,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       useItemKey: allocStringId("Enter"),
     };
     ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
-    let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>[number]]: string } = {
+    let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>]: string } = {
       upKey: lookupString(newKeyBindings.upKey),
       downKey: lookupString(newKeyBindings.downKey),
       leftKey: lookupString(newKeyBindings.leftKey),

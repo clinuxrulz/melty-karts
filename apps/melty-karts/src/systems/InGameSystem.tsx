@@ -678,15 +678,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         }
       }
       // Kart Mystery Box collisions
-      let visitedPlayerIds: { [playerId: number]: boolean, } = {};
-      for (let playerArch of ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition)) {
+      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).for_each((playerArch) => {
         let playerEntityIds = playerArch.entity_ids;
         for (let i = 0; i < playerArch.entity_count; ++i) {
           let playerEntityId = playerEntityIds[i] as EntityID;
-          if (visitedPlayerIds[playerEntityId]) {
-            continue;
-          }
-          visitedPlayerIds[playerEntityId] = true;
           let playerEntity = ecs.entity(playerEntityId);
           let playerX = playerEntity.getField(RegisteredPosition, "x");
           let playerY = playerEntity.getField(RegisteredPosition, "y");
@@ -761,9 +756,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
           //
         }
-      }
+      });
       // Animate carried items
-      for (let arch of ecs.ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
+      for (let arch of ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
         for (let i = 0; i < arch.entity_count; ++i) {
           let entityId = arch.entity_ids[i] as EntityID;
           let itemX = ecs.ecs.get_field(entityId, RegisteredPosition, "x");

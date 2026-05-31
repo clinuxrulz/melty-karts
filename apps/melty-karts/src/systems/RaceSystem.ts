@@ -19,7 +19,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
       const trackCurve = getTrackCurveForPhysics();
       if (!trackCurve) return;
 
-      const entities: { id: EntityID; progress: number; finished: boolean; rank: number }[] = [];
+      const entities: { id: EntityID; progress: number; finished: number; rank: number }[] = [];
       let allFinished = true;
 
       for (const arch of ecs.query(RegisteredRaceStats, RegisteredPosition)) {

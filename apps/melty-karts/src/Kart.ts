@@ -21,7 +21,7 @@ export function createKart(params: {
   ecs.add_component(entityId, RegisteredOrientation, { x: 0.0, y: 0.0, z: 0.0, w: 1.0, });
   const playerTypeNum: PlayerTypeEnum = params.playerType === "Melty" ? 0 : params.playerType === "Cubey" ? 1 : 2;
   const facingForwardNum: 0 | 1 = params.facingForward ? 1 : 0;
-  ecs.add_component(entityId, RegisteredPlayerConfig, { playerType: playerTypeNum, facingForward: facingForwardNum });
+  ecs.add_component(entityId, RegisteredPlayerConfig, { playerType: playerTypeNum, facingForward: facingForwardNum, useItemWasDown: 0 });
   ecs.add_component(entityId, RegisteredKartConfig, { speed: 0.0 });
   ecs.add_component(entityId, RegisteredKartRuntime, {
     driftCharge: 0.0,

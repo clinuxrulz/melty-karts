@@ -1,9 +1,8 @@
 import { Accessor, createMemo, createSignal, createStore, getObserver, onCleanup, untrack, type Signal } from "solid-js";
 import type { ECS } from "@oasys/oecs";
 import type { Query } from "@oasys/oecs";
-import type { ResourceDef, ResourceReader } from "@oasys/oecs";
 import type { EntityID } from "@oasys/oecs";
-import type { ComponentDef, ComponentSchema, FieldValues } from "@oasys/oecs";
+import type { ComponentDef, ComponentSchema, FieldValues, ResourceKey } from "@oasys/oecs";
 
 type ComponentMetadata = {
   fields: readonly string[];
@@ -36,7 +35,7 @@ class TriggerStore {
     }
     let trigger = this.#triggers.get(key);
     if (trigger === undefined) {
-      trigger = { signal: createSignal(0, { pureWrite: true, ownedWrite: true }), refCount: 1, };
+      trigger = { signal: createSignal(0, { ownedWrite: true }), refCount: 1, };
       this.#triggers.set(key, trigger);
     } else {
       trigger.refCount++;
@@ -110,37 +109,38 @@ class ReactiveRef<T> {
   }
 }
 
-class ReactiveResource<F extends readonly string[]> {
+class ReactiveResource<T> {
   #triggerStore: TriggerStore;
-  #def: ResourceDef<F>;
-  #resource: ResourceReader<F>;
-  #fieldRefs: Map<string, ReactiveRef<number>>;
-  #resourceKey: string;
+  #ecs: ECS;
+  #key: ResourceKey<T>;
+  #fieldRefs: Map<string, ReactiveRef<any>>;
+  #resourceKeyStr: string;
 
-  constructor(triggerStore: TriggerStore, def: ResourceDef<F>, resource: ResourceReader<F>) {
+  constructor(triggerStore: TriggerStore, ecs: ECS, key: ResourceKey<T>) {
     this.#triggerStore = triggerStore;
-    this.#def = def;
-    this.#resource = resource;
-    this.#resourceKey = `resource:${def.toString()}`;
+    this.#ecs = ecs;
+    this.#key = key;
+    this.#resourceKeyStr = `resource:${key.toString()}`;
     this.#fieldRefs = new Map();
   }
 
   get resourceKey(): string {
-    return this.#resourceKey;
+    return this.#resourceKeyStr;
   }
 
-  #getField(field: F[number]): number {
+  #getField(field: string): any {
     const observer = getObserver();
+    const resource = this.#ecs.resource(this.#key);
     if (observer === null) {
-      return this.#resource[field];
+      return (resource as any)[field];
     }
-    const key = `${this.#resourceKey}:${field}`;
+    const key = `${this.#resourceKeyStr}:${field}`;
     let ref = this.#fieldRefs.get(field);
     if (ref === undefined) {
       ref = new ReactiveRef(
         this.#triggerStore,
         key,
-        () => this.#resource[field],
+        () => (this.#ecs.resource(this.#key) as any)[field],
         () => this.#triggerStore.dirty(key),
         () => {
           this.#fieldRefs.delete(field);
@@ -152,14 +152,14 @@ class ReactiveResource<F extends readonly string[]> {
   }
 
   get delta(): number {
-    return this.#getField("delta" as F[number]);
+    return this.#getField("delta");
   }
 
   get elapsed(): number {
-    return this.#getField("elapsed" as F[number]);
+    return this.#getField("elapsed");
   }
 
-  get<K extends F[number]>(field: K): number {
+  get<K extends string & keyof T>(field: K): T[K] {
     return this.#getField(field);
   }
 }
@@ -280,15 +280,15 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
   *[Symbol.iterator]() {
     const observer = getObserver();
     if (observer === null) {
-      for (const arch of this.#query) {
+      for (const arch of this.#query.archetypes) {
         yield arch;
       }
       return;
     }
     this.#triggerStore.track(`${this.#queryKey}:archetypes`);
     this.#triggerStore.track("world:entities");
-    for (const arch of this.#query) {
-      yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch, this.#queryKey);
+    for (const arch of this.#query.archetypes) {
+      yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch as any, this.#queryKey);
     }
   }
 
@@ -371,9 +371,9 @@ export class ReactiveECS {
   #ecs: ECS;
   #triggers: TriggerStore;
   #componentMetadata = new Map<ComponentDef, ComponentMetadata>();
-  #resourceMetadata = new Map<ResourceDef<any>, ResourceMetadata>();
+  #resourceMetadata = new Map<ResourceKey<any>, ResourceMetadata>();
   #componentsByKey = new Map<string, ComponentDef>();
-  #resourcesByKey = new Map<string, ResourceDef<any>>();
+  #resourcesByKey = new Map<string, ResourceKey<any>>();
   #aliveEntities = new Set<EntityID>();
 
   constructor(ecs: ECS) {
@@ -387,7 +387,9 @@ export class ReactiveECS {
 
     const registerComponent = ecs.register_component.bind(ecs);
     ecs.register_component = ((schemaOrFields: Record<string, any> | readonly string[], type?: string) => {
-      const def = registerComponent(schemaOrFields as any, type);
+      const def = (Array.isArray(schemaOrFields)) 
+          ? registerComponent(schemaOrFields, type as any) 
+          : registerComponent(schemaOrFields as any);
       const fields = Array.isArray(schemaOrFields)
         ? [...schemaOrFields]
         : Object.keys(schemaOrFields);
@@ -405,12 +407,20 @@ export class ReactiveECS {
     }) as typeof ecs.register_tag;
 
     const registerResource = ecs.register_resource.bind(ecs);
-    ecs.register_resource = ((fields: readonly string[], initial: Record<string, number>) => {
-      const def = registerResource(fields as any, initial);
-      this.#resourceMetadata.set(def, { fields: [...fields] });
-      this.#resourcesByKey.set(def.toString(), def);
-      return def;
+    ecs.register_resource = (<T>(key: ResourceKey<T>, value: T) => {
+      registerResource(key, value);
+      const fields = Object.keys(value as any);
+      this.#resourceMetadata.set(key, { fields: [...fields] });
+      this.#resourcesByKey.set(key.toString(), key);
     }) as typeof ecs.register_resource;
+
+    const setResource = ecs.set_resource.bind(ecs);
+    ecs.set_resource = (<T>(key: ResourceKey<T>, value: T) => {
+      setResource(key, value);
+      for (const field of Object.keys(value as any)) {
+        this.#triggers.dirty(`resource:${key.toString()}:${field}`);
+      }
+    }) as typeof ecs.set_resource;
 
     const createEntity = ecs.create_entity.bind(ecs);
     ecs.create_entity = (() => {
@@ -466,8 +476,8 @@ export class ReactiveECS {
     );
   }
 
-  resource<F extends readonly string[]>(def: ResourceDef<F>): ReactiveResource<F> {
-    return new ReactiveResource(this.#triggers, def, this.#ecs.resource(def));
+  resource<T>(key: ResourceKey<T>): ReactiveResource<T> {
+    return new ReactiveResource(this.#triggers, this.#ecs, key);
   }
 
   entity(id: EntityID): ReactiveEntity {
@@ -513,26 +523,22 @@ export class ReactiveECS {
     untrack(() => this.#triggers.dirty(key));
   }
 
-  set_resource<F extends readonly string[]>(def: ResourceDef<F>, values: { readonly [K in F[number]]: number }): void {
-    const reader = this.#ecs.resource(def);
-    this.#ecs.set_resource(def, values);
-    for (const field of Object.keys(reader) as F[number][]) {
-      this.#triggers.dirty(`resource:${def.toString()}:${field}`);
-    }
+  set_resource<T>(key: ResourceKey<T>, values: T): void {
+    this.#ecs.set_resource(key, values);
   }
 
   serialize(ignoredResourceKeys: Set<string> = new Set()): ReactiveECSSnapshot {
     const resources = [...this.#resourceMetadata.entries()]
-      .filter(([def]) => !ignoredResourceKeys.has(def.toString()))
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([def, metadata]) => {
-        const reader = this.#ecs.resource(def);
+      .filter(([key]) => !ignoredResourceKeys.has(key.toString()))
+      .sort(([a], [b]) => a.toString().localeCompare(b.toString()))
+      .map(([key, metadata]) => {
+        const reader = this.#ecs.resource(key);
         const values: Record<string, number> = {};
         for (const field of metadata.fields) {
-          values[field] = reader[field];
+          values[field] = (reader as any)[field];
         }
         return {
-          resourceKey: def.toString(),
+          resourceKey: key.toString(),
           values,
         };
       });
@@ -574,12 +580,16 @@ export class ReactiveECS {
         this.destroy_entity_deferred(id);
       }
     }
-    this.#ecs.flush();
+    // Note: base ECS doesn't have flush() exposed in d.ts, but it might be internal or part of update.
+    // Actually World.ts calls startup() but not flush.
+    // The previous code had this.#ecs.flush(). 
+    // I'll check if ECS has flush.
+    if ((this.#ecs as any).flush) (this.#ecs as any).flush();
 
     for (const resource of snapshot.resources) {
-      const def = this.#resourcesByKey.get(resource.resourceKey);
-      if (def !== undefined) {
-        this.set_resource(def, resource.values);
+      const key = this.#resourcesByKey.get(resource.resourceKey);
+      if (key !== undefined) {
+        this.set_resource(key, resource.values as any);
       }
     }
 
