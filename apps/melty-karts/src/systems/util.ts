@@ -1,10 +1,11 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
-import { BOMB_INITIAL_TIMEOUT_UNTIL_EXPLOSION, Item, RegisteredBanana, RegisteredBomb, RegisteredCarriedItem, RegisteredHasCarriedItems, RegisteredPosition } from "../World";
+import { BOMB_INITIAL_TIMEOUT_UNTIL_EXPLOSION, Item, RegisteredBanana, RegisteredBomb, RegisteredCarriedItem, RegisteredFreeEntity, RegisteredHasCarriedItems, RegisteredPosition } from "../World";
 import { EntityID } from "@oasys/oecs";
 import { EcsCommands } from "../EcsCommands";
+import { getFreeEntityOrCreate } from "../util";
 
 export function addCarriedItem(ecs: ReactiveECS, target: EntityID, item: Item) {
-  let carriedItem = ecs.create_entity();
+  let carriedItem = getFreeEntityOrCreate(ecs);
   let head: EntityID | -1;
   let tail: EntityID | -1;
   let count: number;
@@ -101,6 +102,7 @@ export function dropCarriedItem(ecs: ReactiveECS, target: EntityID) {
       timeoutUntilExplosion: BOMB_INITIAL_TIMEOUT_UNTIL_EXPLOSION,
     });
   } else {
-    ecs.destroy_entity_deferred(tail);
+    ecs.remove_component(tail, RegisteredPosition);
+    ecs.add_component(tail, RegisteredFreeEntity);
   }
 }

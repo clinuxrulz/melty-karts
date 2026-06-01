@@ -1,5 +1,6 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
-import { RegisteredRng } from "./World";
+import { RegisteredFreeEntity, RegisteredRng } from "./World";
+import { EntityID } from "@oasys/oecs";
 
 let _rnd_result: [ number, number, ] = [ 0, 0.0, ];
 export function rng(ecs: ReactiveECS): number {
@@ -19,3 +20,16 @@ export function mulberry32v2(seed: number, out: [ seed: number, value: number, ]
   out[1] = value;
 }
 
+
+export function getFreeEntityOrCreate(ecs: ReactiveECS): EntityID {
+  let query = ecs.ecs.query(RegisteredFreeEntity);
+  for (let i = 0; i < query.archetype_count; ++i) {
+    let arch = query.archetypes[i];
+    for (let j = 0; j < arch.entity_count; ++j) {
+      let entityId = arch.entity_ids[j] as EntityID;
+      ecs.remove_component(entityId, RegisteredFreeEntity);
+      return entityId;
+    }
+  }
+  return ecs.create_entity();
+}

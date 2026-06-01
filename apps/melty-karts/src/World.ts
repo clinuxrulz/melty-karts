@@ -22,6 +22,14 @@ import { allocStringId } from "./StringTable";
 const baseEcs = new ECS();
 const reactiveEcs = new ReactiveECS(baseEcs);
 
+/**
+ * A tag to say an entity is not in use and can be re-used.
+ * This is so we do not delete entities involved in rollback netcode, because
+ * we can not control what `EntityID` gets returned by `create_entity` for the\
+ * case where entities reference other entities to form relations.
+ */
+export const RegisteredFreeEntity = baseEcs.register_tag();
+
 export const enum MasterState {
   INTRO_SCREEN = 0,
   CHARACTER_SELECTION_SCREEN = 1,
