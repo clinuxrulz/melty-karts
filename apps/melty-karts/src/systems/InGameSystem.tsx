@@ -6,7 +6,7 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem, RegisteredBomb, RegisteredExplosion, EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE } from "../World";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem, RegisteredBomb, RegisteredExplosion, EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE, RegisteredFreeEntity } from "../World";
 import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
@@ -812,7 +812,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           timeout -= dt;
           if (timeout <= 0.0) {
             ecs.remove_component(entity_id, RegisteredExplosion);
-            ecs.destroy_entity_deferred(entity_id);
+            ecs.remove_component(entity_id, RegisteredPosition);
+            ecs.add_component(entity_id, RegisteredFreeEntity);
           } else {
             ecs.set_field(entity_id, RegisteredExplosion, "timeoutUntilGone", timeout);
           }
