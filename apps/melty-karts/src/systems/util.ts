@@ -73,15 +73,15 @@ export function hasCarriedItem(ecs: ReactiveECS, target: EntityID): boolean {
   return head !== -1;
 }
 
-export function dropCarriedItem(ecs: ReactiveECS, target: EntityID) {
+export function dropCarriedItem(ecs: ReactiveECS, target: EntityID): EntityID | undefined {
   if (!ecs.ecs.has_component(target, RegisteredHasCarriedItems)) {
-    return;
+    return undefined;
   }
   let head = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "head") as EntityID | -1;
   let tail = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "tail") as EntityID | -1;
   let count = ecs.ecs.get_field(target, RegisteredHasCarriedItems, "count");
   if (head === -1 || tail === -1) {
-    return;
+    return undefined;
   }
   let tailPrev = ecs.ecs.get_field(tail, RegisteredCarriedItem, "prev") as EntityID | -1;
   if (tailPrev !== -1) {
@@ -105,4 +105,5 @@ export function dropCarriedItem(ecs: ReactiveECS, target: EntityID) {
     ecs.remove_component(tail, RegisteredPosition);
     ecs.add_component(tail, RegisteredFreeEntity);
   }
+  return tail;
 }

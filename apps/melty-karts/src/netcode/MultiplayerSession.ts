@@ -23,6 +23,7 @@ import { createAISystem } from "../systems/AISystem";
 import { PeerJsTransport } from "./PeerJsTransport";
 import { makeInviteCode, inviteCodeToId } from "./InviteCode";
 import { placeMysteryBoxesAlongTrack } from "../systems/track-util";
+import { EntityID } from "@oasys/oecs";
 
 type MultiplayerSnapshot = {
   status: "idle" | "hosting" | "joining" | "lobby" | "playing" | "error";
@@ -348,7 +349,7 @@ class MultiplayerSessionController {
 
         const playerIds = this.getOrderedPlayerIds();
         for (let slot = 0; slot < playerIds.length; slot++) {
-          const entityId = slotMap.get(slot);
+          const entityId = slotMap.get(slot) as EntityID;
           if (entityId === undefined) {
             continue;
           }
@@ -359,10 +360,12 @@ class MultiplayerSessionController {
 
           const input = inputs.get(playerIds[slot] as PlayerId);
           const mask = input?.[0] ?? 0;
-          const useItemDown = (mask & 0b10000) !== 0;
+          const useItemDown = (mask & 0b010000) !== 0;
+          const upDown = (mask & 0b100000) !== 0;
 
-          if (ecs.entity(entityId as never).hasComponent(RegisteredInputControlled)) {
-            ecs.set_field(entityId as never, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
+          if (ecs.entity(entityId).hasComponent(RegisteredInputControlled)) {
+            ecs.set_field(entityId, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
+            ecs.set_field(entityId, RegisteredInputControlled, "upDown", upDown ? 1 : 0);
           }
 
           simulateKartStep({

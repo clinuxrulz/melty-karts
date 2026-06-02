@@ -6,8 +6,8 @@ import { createEffect, createMemo, createSignal, getOwner, onCleanup, runWithOwn
 import { JSX } from "@solidjs/web";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
-import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem, RegisteredBomb, RegisteredExplosion, EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE, RegisteredFreeEntity } from "../World";
-import { createStartFinishLine, generateTrack, getGroundHeight, TRACK_WIDTH } from "../models/Track";
+import { RegisteredGameMode, RegisteredJoystickInput, RegisteredKeyboardInput, RegisteredInputControlled, RegisteredNetworkSlot, RegisteredOrbitEnabled, RegisteredOrientation, RegisteredPosition, RegisteredSoundEnabled, RegisteredLocalPlayerConfig, RegisteredPlayerConfig, RegisteredInGameState, ReadySteadyGoStage, RegisteredPreReadySteadyGoDelay, RegisteredPreReadySteadyGoDelayFinished, RegisteredMysteryBox, MYSTERY_BOX_RESPAWN_TIMEOUT, RegisteredSlotMachine, SlotMachinePhase, SLOT_MACHINE_SPIN_TIMEOUT, RegisteredKeyBindings, Item, RegisteredTime, RegisteredCarriedItem, RegisteredBomb, RegisteredExplosion, EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE, RegisteredFreeEntity, Projectile, RegisteredVelocity, RegisteredGlobalGravity } from "../World";
+import { createStartFinishLine, generateTrack, getGroundHeight, getPreciseTrackHeightAtXZ, TRACK_WIDTH } from "../models/Track";
 import { createKart } from "../Kart";
 import { createRenderSystem } from "./RenderSystem";
 import { createKartPhysicsSystem } from "./KartPhysicsSystem";
@@ -152,6 +152,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       let entId = thisDevicePlayerEntityId()!;
       if (ecs.ecs.has_component(entId, RegisteredInputControlled)) {
         ecs.set_field(entId, RegisteredInputControlled, "useItemDown", s.useItemDown);
+        ecs.set_field(entId, RegisteredInputControlled, "upDown", s.upDown);
       }
     }
   };
@@ -731,7 +732,32 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
           if (!useItemWasDown && useItemDown) {
             if (hasCarriedItem(ecs, playerEntityId)) {
-              dropCarriedItem(ecs, playerEntityId);
+              let itemEntityId = dropCarriedItem(ecs, playerEntityId);
+              if (itemEntityId !== undefined) {
+                let upDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "upDown") !== 0;
+                if (upDown) {
+                  let playerVx = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "x");
+                  let playerVy = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "y");
+                  let playerVz = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "z");
+                  let playerQx = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "x");
+                  let playerQy = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "y");
+                  let playerQz = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "z");
+                  let playerQw = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "w");
+                  let playerQ = new THREE.Quaternion(
+                    playerQx,
+                    playerQy,
+                    playerQz,
+                    playerQw,
+                  );
+                  let forward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerQ);
+                  ecs.add_component(itemEntityId, Projectile);
+                  ecs.add_component(itemEntityId, RegisteredVelocity, {
+                    x: playerVx + 10.0 * forward.x + 0.0,
+                    y: playerVy + 10.0 * forward.y + 10.0,
+                    z: playerVz + 10.0 * forward.z + 0.0,
+                  });
+                }
+              }
             } else if (
               ecs.ecs.has_component(playerEntityId, RegisteredSlotMachine) &&
               ecs.ecs.get_field(playerEntityId, RegisteredSlotMachine, "phase") === SlotMachinePhase.DisplayResult
@@ -788,6 +814,38 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           }
         }
       });
+      // Step projectiles
+      ecs.ecs.query(Projectile, RegisteredPosition, RegisteredVelocity).for_each((arch) => {
+        for (let i = 0; i < arch.entity_count; ++i) {
+          let gravity = ecs.ecs.resource(RegisteredGlobalGravity);
+          let entityId = arch.entity_ids[i] as EntityID;
+          let px = ecs.ecs.get_field(entityId, RegisteredPosition, "x");
+          let py = ecs.ecs.get_field(entityId, RegisteredPosition, "y");
+          let pz = ecs.ecs.get_field(entityId, RegisteredPosition, "z");
+          let vx = ecs.ecs.get_field(entityId, RegisteredVelocity, "x");
+          let vy = ecs.ecs.get_field(entityId, RegisteredVelocity, "y");
+          let vz = ecs.ecs.get_field(entityId, RegisteredVelocity, "z");
+          px += vx * dt;
+          py += vy * dt;
+          pz += vz * dt;
+          vx += gravity.x * dt;
+          vy += gravity.y * dt;
+          vz += gravity.z * dt;
+          let height = getPreciseTrackHeightAtXZ(px, pz);
+          if (vy <= 0.0 && height >= py) {
+            py = height;
+            ecs.remove_component(entityId, Projectile);
+            ecs.remove_component(entityId, RegisteredVelocity);
+          } else {
+            ecs.set_field(entityId, RegisteredVelocity, "x", vx);
+            ecs.set_field(entityId, RegisteredVelocity, "y", vy);
+            ecs.set_field(entityId, RegisteredVelocity, "z", vz);
+          }
+          ecs.set_field(entityId, RegisteredPosition, "x", px);
+          ecs.set_field(entityId, RegisteredPosition, "y", py);
+          ecs.set_field(entityId, RegisteredPosition, "z", pz);
+        }
+      });
       // Step bombs
       ecs.ecs.query(RegisteredBomb).for_each((arch) => {
         for (let i = 0; i < arch.entity_count; ++i) {
@@ -796,6 +854,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           timeout -= dt;
           if (timeout <= 0.0) {
             ecs.remove_component(entity_id, RegisteredBomb);
+            if (ecs.ecs.has_component(entity_id, Projectile)) {
+              ecs.remove_component(entity_id, Projectile);
+              ecs.remove_component(entity_id, RegisteredVelocity);
+            }
             ecs.add_component(entity_id, RegisteredExplosion, {
               timeoutUntilGone: EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE,
             });

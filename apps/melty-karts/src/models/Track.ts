@@ -357,7 +357,6 @@ export function getDistanceToTrackCenter(x: number, z: number): number {
   // Using the spaced points for a fast approximation as requested
   // In a full implementation we would use roadMeshes[i].geometry.boundsTree.closestPointToPoint
   let minDistSq = Infinity;
-  const p = new THREE.Vector3(x, 0, z);
   
   // We can optimize this further by only checking points near the last known position
   // but for now, 800 points is still fast compared to 800 * karts
@@ -378,6 +377,29 @@ export function getTrackHeightAt(t: number, curve?: THREE.CatmullRomCurve3): num
   if (!c) return 0;
   const pos = c.getPointAt(t % 1);
   return pos.y;
+}
+
+const _getPreciseTrackHeight_raycaster = new THREE.Raycaster();
+const _getPreciseTrackHeight_intersects: THREE.Intersection[] = [];
+export function getPreciseTrackHeightAtXZ(x: number, z: number): number {
+  const groundH = getGroundHeight(x, z);
+  if (!trackInstance || trackInstance.roadMeshes.length === 0) return groundH;
+
+  _getPreciseTrackHeight_raycaster.ray.origin.set(x, 1000, z);
+  _getPreciseTrackHeight_raycaster.ray.direction.set(0, -1, 0);
+  _getPreciseTrackHeight_raycaster.near = 0;
+  _getPreciseTrackHeight_raycaster.far = 2000;
+  // @ts-ignore
+  _getPreciseTrackHeight_raycaster.firstHitOnly = true;
+  
+  _getPreciseTrackHeight_intersects.length = 0;
+  _getPreciseTrackHeight_raycaster.intersectObjects(trackInstance.roadMeshes, false, _getPreciseTrackHeight_intersects);
+
+  if (_getPreciseTrackHeight_intersects.length > 0) {
+    return Math.max(groundH, _getPreciseTrackHeight_intersects[0].point.y);
+  }
+
+  return groundH;
 }
 
 export function createStartFinishLine(curve: THREE.CatmullRomCurve3, t: number = 0): THREE.Group {

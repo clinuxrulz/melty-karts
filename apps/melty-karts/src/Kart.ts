@@ -29,7 +29,7 @@ export function createKart(params: {
     driftDirection: 0,
     verticalVelocity: 0.0,
   });
-  ecs.add_component(entityId, RegisteredInputControlled, { useItemDown: 0 });
+  ecs.add_component(entityId, RegisteredInputControlled, { useItemDown: 0, upDown: 0, });
   if (params.networkSlot !== undefined) {
     ecs.add_component(entityId, RegisteredNetworkSlot, { slot: params.networkSlot });
   }

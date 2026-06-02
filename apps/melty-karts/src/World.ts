@@ -201,6 +201,8 @@ export const RegisteredExplosion = baseEcs.register_component({
   timeoutUntilGone: "f32",
 });
 
+export const Projectile = baseEcs.register_tag();
+
 let localStorageKeyBindings: object | null = null;
 {
   let _localStorageKeyBindings = window.localStorage.getItem("melty-karts-key-binding");

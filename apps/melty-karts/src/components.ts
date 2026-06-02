@@ -34,8 +34,14 @@ export const PlayerConfig = {
 };
 
 export const InputControlled = {
-    def: { useItemDown: "u8" } as const,
-    schema: { useItemDown: 0 },
+    def: {
+        useItemDown: "u8",
+        upDown: "u8",
+    } as const,
+    schema: {
+        useItemDown: 0,
+        upDown: "u8",
+    },
     name: "InputControlled"
 }
 
