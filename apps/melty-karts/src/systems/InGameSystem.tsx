@@ -276,6 +276,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         joystickX: joyVal.x,
         joystickY: joyVal.y,
       });
+      let upDown = joyVal.y < -0.2;
+      updateKeyboardInput({
+        upDown,
+      });
     },
   );
 

@@ -49,10 +49,10 @@ function readLocalInput(ecs: ReactiveECS): Uint8Array {
 
   const left = keyboard.leftDown !== 0 || joystick.joystickX < -0.2;
   const right = keyboard.rightDown !== 0 || joystick.joystickX > 0.2;
-  const accelerate = keyboard.actionDown !== 0 || keyboard.upDown !== 0 || joystick.joystickY < -0.2;
+  const accelerate = keyboard.actionDown !== 0;
   const drift = keyboard.driftDown !== 0;
   const useItem = keyboard.useItemDown !== 0;
-  const up = keyboard.upDown !== 0 || joystick.joystickY > 0.2;
+  const up = keyboard.upDown !== 0 || joystick.joystickY < -0.2;
 
   const mask =
     (accelerate ? 0b00001 : 0) |
