@@ -1,3 +1,4 @@
+import "./index.css";
 import { render } from "@solidjs/web";
 import App from "./App";
 
