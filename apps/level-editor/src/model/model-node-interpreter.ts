@@ -1,18 +1,27 @@
-import { Accessor, createMemo, createSignal, mapArray, Signal } from "solid-js";
-import { applyLocalLabelsAndTooling, ModelNodeSpec, ResolvedModelNode } from "./model-node";
-import { modelNodeRegistery } from "./nodes/registry";
+import { Accessor, createMemo, createSignal, mapArray, Signal, untrack } from "solid-js";
+import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
+import { ModelNodeRegistry } from "./model-node-registry";
+import { ComponentRegistry } from "./components/registry";
 
 export class ModelNodeInterpreter {
+  readonly componentRegistry: ComponentRegistry;
+  readonly modelNodeRegistry: ModelNodeRegistry;
   readonly lookups: Lookups;
 
-  constructor(lookups: Lookups) {
+  constructor(
+    componentRegistry: ComponentRegistry,
+    modelNodeRegistry: ModelNodeRegistry,
+    lookups: Lookups,
+  ) {
+    this.componentRegistry = componentRegistry;
+    this.modelNodeRegistry = modelNodeRegistry;
     this.lookups = lookups;
   }
 
   interpret(modelNode: ModelNodeSpec, parent: Accessor<ResolvedModelNode | undefined>, altSelf?: Accessor<ResolvedModelNode | undefined>): Accessor<ResolvedModelNode> {
     return createMemo(() => {
-      const nodeType = modelNodeRegistery.findModelNodeTypeForSpec(modelNode);
+      const nodeType = this.modelNodeRegistry.findModelNodeTypeForSpec(modelNode);
       if (nodeType !== undefined) {
         let self: Signal<ResolvedModelNode | undefined> | undefined;
         if (altSelf === undefined) {
@@ -24,26 +33,23 @@ export class ModelNodeInterpreter {
         if (r !== undefined) {
           let resolvedChildren_ = createMemo(mapArray(
             () => r.children?.() ?? [],
-            (childSpec) => this.interpret(childSpec, self === undefined ? altSelf! : self[0]),
+            (childSpec) => this.interpret(untrack(childSpec), self === undefined ? altSelf! : self[0]),
           ));
           let resolvedChildren = createMemo(() =>
             resolvedChildren_().map((x) => x())
           );
-          let r2 = applyLocalLabelsAndTooling(new ResolvedModelNode({
+          let r2 = new ResolvedModelNode({
+            componentRegistry: this.componentRegistry,
+            modelNodeRegistry: this.modelNodeRegistry,
             stableName: r.stableName,
             components: r.components,
             parent,
             children: r.children,
             resolvedChildren,
-            items: r.items,
-            localLabel: r.localLabel,
             render: r.render,
             lines: r.lines,
-            createLocalLabels: r.createLocalLabels,
-            createTooling: r.createTooling,
-            allocLabels: r.allocLabels,
             floatingActionButtons: r.floatingActionButtons,
-          }));
+          });
           if (self !== undefined) {
             self[1](r2);
           }
@@ -51,6 +57,8 @@ export class ModelNodeInterpreter {
         }
       }
       return new ResolvedModelNode({
+        componentRegistry: this.componentRegistry,
+        modelNodeRegistry: this.modelNodeRegistry,
         stableName: modelNode.stableName,
         components: modelNode.components,
         children: createMemo(() => []),

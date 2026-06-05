@@ -1,3 +1,4 @@
+/*
 import { ReactiveMap } from "@solid-primitives/map"
 import { ReactiveSet } from "@solid-primitives/set";
 import { EcsComponentData, EcsComponentPartialData, EcsComponentType, IsEcsComponentData, IsEcsComponentPartialData } from "online-quote-ecs";
@@ -5,8 +6,11 @@ import { Accessor, createMemo, createSignal, mapArray, untrack } from "solid-js"
 import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { ModelNodeInterpreter } from "./model-node-interpreter";
 import { constAccessor } from "../util";
+*/
 
+// TODO
 export class ModelNodeEdits {
+/*
   readonly children = new ReactiveMap<string,ModelNodeEditNode>();
 
   applyEdits(interpreter: ModelNodeInterpreter, modelNode: ModelNodeSpec): Accessor<ResolvedModelNode | undefined> {
@@ -19,9 +23,12 @@ export class ModelNodeEdits {
     });
     return createMemo(() => result()());
   }
+*/
 }
 
+// TODO
 export class ModelNodeEditNode {
+/*
   readonly isNodeDeleted = createSignal<boolean>(false);
   readonly changedComponents = new ReactiveMap<string,IsEcsComponentPartialData>();
   readonly deletedComponents = new ReactiveSet<string>();
@@ -110,4 +117,5 @@ export class ModelNodeEditNode {
       return r;
     });
   }
+*/
 }

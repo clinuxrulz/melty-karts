@@ -1,5 +1,7 @@
 import { ComponentDef, ComponentSchema, FieldValues } from "@oasys/oecs";
 
+export type IsEcsComponentType = ComponentDef<ComponentSchema>;
+
 export interface IsEcsComponentData {
   def: ComponentDef<ComponentSchema>,
   data: FieldValues<ComponentSchema>,

@@ -1,5 +1,5 @@
 import { ECS, EntityID } from "@oasys/oecs";
-import type { Registry } from "./registry";
+import type { ComponentRegistry } from "./registry";
 import { IdGenResource } from "./id-gen-resource";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
@@ -9,7 +9,7 @@ export function mkId(ecs: ECS) {
   });
 }
 
-export function getOrCreateId(registry: Registry, ecs: ReactiveECS, entityId: EntityID): number {
+export function getOrCreateId(registry: ComponentRegistry, ecs: ReactiveECS, entityId: EntityID): number {
   if (ecs.ecs.has_component(entityId, registry.Id)) {
     return ecs.ecs.get_field(entityId, registry.Id, "id");
   }

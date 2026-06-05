@@ -1,12 +1,12 @@
 import { Accessor } from "solid-js";
-import { EcsComponentData, EcsComponentType, IsEcsComponentData, IsEcsComponentType } from "./ecs-component-data";
+import { EcsComponentData, IsEcsComponentData, IsEcsComponentType } from "./ecs-component-data";
 import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
-import { ComponentSchema } from "@oasys/oecs";
+import { ComponentDef, ComponentSchema } from "@oasys/oecs";
 
-export interface ModelNodeType<S extends object = object> {
+export interface ModelNodeType<S extends ComponentSchema> {
   readonly typeName: string;
-  readonly componentType: EcsComponentType<S>;
+  readonly componentType: ComponentDef<S>;
   resolve(params: {
     modelNode: ModelNodeSpec,
     lookups: Lookups,
@@ -17,26 +17,26 @@ export interface ModelNodeType<S extends object = object> {
 
 export class ModelNodeRegistry {
   readonly modelNodeTypes: ModelNodeType<any>[];
-  readonly modelNodeTypeByComponentType: Map<string, ModelNodeType<any>>;
+  readonly modelNodeTypeByComponentType: Map<ComponentDef<ComponentSchema>, ModelNodeType<any>>;
 
   constructor(modelNodeTypes: ModelNodeType<any>[] = []) {
     this.modelNodeTypes = [...modelNodeTypes];
     this.modelNodeTypeByComponentType = new Map(
-      modelNodeTypes.map((nodeType) => [nodeType.componentType.typeName, nodeType]),
+      modelNodeTypes.map((nodeType) => [nodeType.componentType, nodeType]),
     );
   }
 
-  register<S extends object>(modelNodeType: ModelNodeType<S>) {
+  register<S extends ComponentSchema>(modelNodeType: ModelNodeType<S>) {
     let found = false;
     for (let i = 0; i < this.modelNodeTypes.length; ++i) {
-      if (this.modelNodeTypes[i].componentType.typeName === modelNodeType.componentType.typeName) {
+      if (this.modelNodeTypes[i].componentType === modelNodeType.componentType) {
         this.modelNodeTypes[i] = modelNodeType;
         found = true;
         break;
       }
     }
 
-    this.modelNodeTypeByComponentType.set(modelNodeType.componentType.typeName, modelNodeType);
+    this.modelNodeTypeByComponentType.set(modelNodeType.componentType, modelNodeType);
     if (!found) {
       this.modelNodeTypes.push(modelNodeType);
     }
@@ -49,7 +49,7 @@ export class ModelNodeRegistry {
   findModelNodeTypeForSpec(modelNode: ModelNodeSpec): ModelNodeType<any> | undefined {
     const components = modelNode.components?.() ?? [];
     for (let component of components) {
-      const nodeType = this.modelNodeTypeByComponentType.get(component.type.typeName);
+      const nodeType = this.modelNodeTypeByComponentType.get(component.def);
       if (nodeType !== undefined) {
         return nodeType;
       }
@@ -59,7 +59,7 @@ export class ModelNodeRegistry {
 
   findModelNodeTypeForComponentTypes(componentTypes: IsEcsComponentType[]) {
     for (let componentType of componentTypes) {
-      const nodeType = this.modelNodeTypeByComponentType.get(componentType.typeName);
+      const nodeType = this.modelNodeTypeByComponentType.get(componentType);
       if (nodeType !== undefined) {
         return nodeType;
       }
@@ -70,9 +70,9 @@ export class ModelNodeRegistry {
 
 export function findComponentData<S extends ComponentSchema>(
   components: IsEcsComponentData[],
-  componentType: EcsComponentType<S>,
+  componentType: ComponentDef<S>,
 ): EcsComponentData<S> | undefined {
   return components.find(
-    (component): component is EcsComponentData<S> => component.type.typeName === componentType.typeName,
+    (component): component is EcsComponentData<S> => component.def === componentType,
   );
 }

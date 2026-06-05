@@ -19,4 +19,4 @@ export function registerComponents(ecs: ECS) {
   };
 }
 
-export type Registry = ReturnType<typeof registerComponents>;
+export type ComponentRegistry = ReturnType<typeof registerComponents>;

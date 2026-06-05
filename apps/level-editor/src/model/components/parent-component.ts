@@ -1,6 +1,6 @@
 import { ECS, EntityID } from "@oasys/oecs";
 import { ComponentDefGetDataType } from "./util";
-import { Registry } from "./registry";
+import { ComponentRegistry } from "./registry";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export function mkParentComponent(ecs: ECS) {
@@ -13,7 +13,7 @@ export function mkParentComponent(ecs: ECS) {
 
 export type ParentState = ComponentDefGetDataType<ReturnType<typeof mkParentComponent>>;
 
-export function entityAddChild(registry: Registry, ecs: ReactiveECS, entityId: EntityID, childId: EntityID) {
+export function entityAddChild(registry: ComponentRegistry, ecs: ReactiveECS, entityId: EntityID, childId: EntityID) {
   let head: EntityID | -1;
   let tail: EntityID | -1;
   let count: number;

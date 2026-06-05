@@ -1,12 +1,12 @@
 import { Accessor } from "solid-js";
 import * as THREE from "three";
-import { findComponentData, ModelNodeType } from "./ModelNodeRegistry";
-import { transform3DComponentType } from "../components/Transform3DComponent";
-import { Line3D, Transform3D } from "online-quote-math";
-import { modelNodeRegistery } from "./nodes/registry";
+import { findComponentData, ModelNodeRegistry, ModelNodeType } from "./model-node-registry";
 import { Operation } from "./operation";
 import { IsEcsComponentData } from "./ecs-component-data";
 import { createRcMemo } from "./rc-memo";
+import { ComponentRegistry } from "./components/registry";
+import { ComponentSchema } from "@oasys/oecs";
+import { transformGetMatrix } from "./components/transform3d-component";
 
 /**
  * Used for a named path in the model along with the ecs component that make up
@@ -27,29 +27,38 @@ export class ModelNodeSpec {
 }
 
 export class ResolvedModelNode {
+  readonly componentRegistry: ComponentRegistry;
+  readonly modelNodeRegistry: ModelNodeRegistry;
   readonly stableName: string;
   readonly components?: Accessor<IsEcsComponentData[]>;
   readonly parent?: Accessor<ResolvedModelNode | undefined>;
   readonly children?: Accessor<ModelNodeSpec[]>;
   readonly resolvedChildren?: Accessor<ResolvedModelNode[]>;
   readonly render?: Accessor<((params: { rerender: () => void, }) => (THREE.Object3D | undefined)) | undefined>;
-  readonly lines?: Accessor<{ id: string, line: Line3D, }[]>;
+  readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
 
-  readonly modelNodeType: Accessor<ModelNodeType<object> | undefined> = createRcMemo(() => {
-    return modelNodeRegistery.findModelNodeTypeForComponentTypes((this.components?.() ?? []).map((x) => x.type));
+  readonly modelNodeType: Accessor<ModelNodeType<ComponentSchema> | undefined> = createRcMemo(() => {
+    return this.modelNodeRegistry.findModelNodeTypeForComponentTypes((this.components?.() ?? []).map((x) => x.def));
   });
 
-  readonly localTransform: Accessor<Transform3D> = createRcMemo(() => {
-    return findComponentData(this.components?.() ?? [], transform3DComponentType)?.data.transform ?? Transform3D.identity;
+  readonly localTransform: Accessor<THREE.Matrix4> = createRcMemo(() => {
+    let transform = findComponentData(this.components?.() ?? [], this.componentRegistry.Transform3D)?.data;
+    if (transform === undefined) {
+      return new THREE.Matrix4();
+    }
+    return transformGetMatrix(transform, new THREE.Matrix4());
   });
 
-  readonly worldTransform: Accessor<Transform3D> = createRcMemo(() => {
+  readonly worldTransform: Accessor<THREE.Matrix4> = createRcMemo(() => {
     let parentTransform = this.parent?.()?.worldTransform();
     if (parentTransform === undefined) {
       return this.localTransform();
     }
-    return parentTransform.fromThisSpace(this.localTransform());
+    return new THREE.Matrix4().multiplyMatrices(
+      parentTransform,
+      this.localTransform(),
+    );
   });
 
   stablePath(): string {
@@ -61,15 +70,19 @@ export class ResolvedModelNode {
   }
 
   constructor(params: {
+    componentRegistry: ComponentRegistry,
+    modelNodeRegistry: ModelNodeRegistry,
     stableName: string,
     components?: Accessor<IsEcsComponentData[]>,
     parent?: Accessor<ResolvedModelNode | undefined>,
     children?: Accessor<ModelNodeSpec[]>,
     resolvedChildren?: Accessor<ResolvedModelNode[]>,
     render?: Accessor<((params: { rerender: () => void, }) => (THREE.Object3D | undefined)) | undefined>,
-    lines?: Accessor<{ id: string, line: Line3D, }[]>,
+    lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
   }) {
+    this.componentRegistry = params.componentRegistry;
+    this.modelNodeRegistry = params.modelNodeRegistry;
     this.stableName = params.stableName;
     this.components = params.components;
     this.parent = params.parent;
