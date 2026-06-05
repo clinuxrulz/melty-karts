@@ -19,6 +19,9 @@ importers:
 
   apps/level-editor:
     dependencies:
+      '@melty-karts/reactive-ecs':
+        specifier: workspace:*
+        version: link:../../packages/reactive-ecs
       '@oasys/oecs':
         specifier: 0.3.1
         version: 0.3.1

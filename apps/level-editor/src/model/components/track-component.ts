@@ -1,0 +1,16 @@
+import { ECS } from "@oasys/oecs";
+import { ComponentDefGetDataType } from "./util";
+
+/**
+ * Track component, the path of the track is managed by its children which
+ * each have a TrackPathPt component.
+ * @param ecs 
+ * @returns 
+ */
+export function mkTrackComponent(ecs: ECS) {
+  return ecs.register_component({
+    width: "f32",
+  });
+}
+
+export type TrackState = ComponentDefGetDataType<ReturnType<typeof mkTrackComponent>>;
