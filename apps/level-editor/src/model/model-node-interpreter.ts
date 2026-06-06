@@ -3,20 +3,28 @@ import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
 import { ModelNodeRegistry } from "./model-node-registry";
 import { ComponentRegistry } from "./components/registry";
+import { EntityID } from "@oasys/oecs";
+import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export class ModelNodeInterpreter {
   readonly componentRegistry: ComponentRegistry;
   readonly modelNodeRegistry: ModelNodeRegistry;
   readonly lookups: Lookups;
+  readonly lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined;
+  readonly ecs: ReactiveECS;
 
   constructor(
     componentRegistry: ComponentRegistry,
     modelNodeRegistry: ModelNodeRegistry,
     lookups: Lookups,
+    lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined,
+    ecs: ReactiveECS,
   ) {
     this.componentRegistry = componentRegistry;
     this.modelNodeRegistry = modelNodeRegistry;
     this.lookups = lookups;
+    this.lookupNode = lookupNode;
+    this.ecs = ecs;
   }
 
   interpret(modelNode: ModelNodeSpec, parent: Accessor<ResolvedModelNode | undefined>, altSelf?: Accessor<ResolvedModelNode | undefined>): Accessor<ResolvedModelNode> {
@@ -29,7 +37,7 @@ export class ModelNodeInterpreter {
         } else {
           self = undefined;
         }
-        let r = nodeType.resolve({ modelNode, lookups: this.lookups, parent, self: self === undefined ? altSelf! : self[0], })();
+        let r = nodeType.resolve({ modelNode, lookups: this.lookups, parent, self: self === undefined ? altSelf! : self[0], lookupNode: this.lookupNode, ecs: this.ecs, })();
         if (r !== undefined) {
           let resolvedChildren_ = createMemo(mapArray(
             () => r.children?.() ?? [],

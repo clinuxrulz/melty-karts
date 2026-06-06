@@ -1,5 +1,5 @@
 import { ECS } from "@oasys/oecs";
-import { ComponentDefGetDataType } from "./util";
+import { ComponentDefGetDataType, ComponentDefGetSchemaType } from "./util";
 
 /**
  * Track component, the path of the track is managed by its children which
@@ -13,4 +13,5 @@ export function mkTrackComponent(ecs: ECS) {
   });
 }
 
+export type TrackSchema = ComponentDefGetSchemaType<ReturnType<typeof mkTrackComponent>>;
 export type TrackState = ComponentDefGetDataType<ReturnType<typeof mkTrackComponent>>;

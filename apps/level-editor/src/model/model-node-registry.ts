@@ -2,7 +2,8 @@ import { Accessor } from "solid-js";
 import { EcsComponentData, IsEcsComponentData, IsEcsComponentType } from "./ecs-component-data";
 import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
-import { ComponentDef, ComponentSchema } from "@oasys/oecs";
+import { ComponentDef, ComponentSchema, EntityID } from "@oasys/oecs";
+import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export interface ModelNodeType<S extends ComponentSchema> {
   readonly typeName: string;
@@ -12,6 +13,8 @@ export interface ModelNodeType<S extends ComponentSchema> {
     lookups: Lookups,
     parent: Accessor<ResolvedModelNode | undefined>,
     self: Accessor<ResolvedModelNode | undefined>,
+    ecs: ReactiveECS,
+    lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined,
   }): Accessor<ResolvedModelNode | undefined>;
 }
 
