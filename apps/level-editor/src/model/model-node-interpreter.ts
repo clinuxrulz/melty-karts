@@ -1,4 +1,4 @@
-import { Accessor, createMemo, createSignal, mapArray, Signal, untrack } from "solid-js";
+import { Accessor, createMemo, createSignal, mapArray, runWithOwner, Signal, untrack } from "solid-js";
 import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
 import { ModelNodeRegistry } from "./model-node-registry";
@@ -56,7 +56,7 @@ export class ModelNodeInterpreter {
             floatingActionButtons: r.floatingActionButtons,
           });
           if (self !== undefined) {
-            self[1](r2);
+            runWithOwner(null, () => self[1](r2));
           }
           return r2;
         }

@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js";
+import { createMemo, onCleanup } from "solid-js";
 import * as THREE from "three";
 import { ComponentRegistry } from "../components/registry";
 import { TrackSchema } from "../components/track-component";
@@ -7,6 +7,8 @@ import { findComponentData, ModelNodeRegistry, ModelNodeType } from "../model-no
 import { whenAllDefined } from "../../when";
 import { EntityID } from "@oasys/oecs";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
+import { TrackEvaluator } from "../track-evaluator";
+import { T } from "../../t";
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -91,10 +93,53 @@ export function mkTrackNodeType(
               length,
             }
           });
+          let render = createMemo(() => {
+            let curve2 = curve();
+            let trackEval = new TrackEvaluator(
+              curve2.curve,
+              200,
+            );
+            let shape = new THREE.Shape();
+            shape.moveTo(-3.0, -0.3);
+            shape.lineTo(3.0, -0.3);
+            shape.lineTo(3.0, 0.0);
+            shape.lineTo(-3.0, 0.0);
+            shape.closePath();
+            let geometry = new THREE.ExtrudeGeometry(
+              shape,
+              {
+                bevelEnabled: false,
+                depth: curve2.length,
+                steps: 50.0,
+              },
+            );
+            let points = geometry.getAttribute("position");
+            for (let i = 0; i < points.count; ++i) {
+              let x = points.getX(i);
+              let y = points.getY(i);
+              let z = points.getZ(i);
+              let t = Math.max(0.0, Math.min(1.0, z / curve2.length));
+              let frame = trackEval.getFrameAt(t);
+              let px = frame.position.x + frame.right.x * x - frame.up.x * y;
+              let py = frame.position.y + frame.right.y * x - frame.up.y * y;
+              let pz = frame.position.z + frame.right.z * x - frame.up.z * y;
+              points.setXYZ(i, px, py, pz);
+            }
+            points.needsUpdate = true;
+            onCleanup(() => geometry.dispose());
+            return () => (
+              <T.Mesh
+                geometry={geometry}
+              >
+                <T.MeshNormalMaterial/>
+              </T.Mesh>
+            );
+          });
           return new ResolvedModelNode({
             componentRegistry,
             modelNodeRegistry,
             stableName: params.modelNode.stableName,
+            render,
           });
         },
       );

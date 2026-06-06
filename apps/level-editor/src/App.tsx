@@ -1,4 +1,4 @@
-import { Component, createEffect, createMemo, createSignal, mapArray, runWithOwner } from "solid-js";
+import { Component, createEffect, createMemo, createSignal, For, mapArray, runWithOwner, Show } from "solid-js";
 import { Canvas } from "solid-three";
 import * as THREE from "three";
 import { T } from "./t";
@@ -122,6 +122,20 @@ const App: Component = () => {
         }}
       >
         <T.GridHelper/>
+        <For each={modelNodes()}>
+          {(modelNode) => (
+            <Show when={modelNode().render?.()}>
+              {(render) => {
+                let Render = untrack(render);
+                return (
+                  <Render
+                    rerender={() => {}}
+                  />
+                );
+              }}
+            </Show>
+          )}
+        </For>
       </Canvas>
     </div>
   );
