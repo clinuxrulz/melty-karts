@@ -10,26 +10,23 @@ export class ModelNodeInterpreter {
   readonly componentRegistry: ComponentRegistry;
   readonly modelNodeRegistry: ModelNodeRegistry;
   readonly lookups: Lookups;
-  readonly lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined;
   readonly ecs: ReactiveECS;
 
   constructor(
     componentRegistry: ComponentRegistry,
     modelNodeRegistry: ModelNodeRegistry,
     lookups: Lookups,
-    lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined,
     ecs: ReactiveECS,
   ) {
     this.componentRegistry = componentRegistry;
     this.modelNodeRegistry = modelNodeRegistry;
     this.lookups = lookups;
-    this.lookupNode = lookupNode;
     this.ecs = ecs;
   }
 
   interpret(modelNode: ModelNodeSpec, parent: Accessor<ResolvedModelNode | undefined>, altSelf?: Accessor<ResolvedModelNode | undefined>): Accessor<ResolvedModelNode> {
     return createMemo(() => {
-      const nodeType = this.modelNodeRegistry.findModelNodeTypeForSpec(modelNode);
+      const nodeType = this.modelNodeRegistry.findModelNodeTypeForSpec(this.ecs, modelNode);
       if (nodeType !== undefined) {
         let self: Signal<ResolvedModelNode | undefined> | undefined;
         if (altSelf === undefined) {
@@ -37,7 +34,7 @@ export class ModelNodeInterpreter {
         } else {
           self = undefined;
         }
-        let r = nodeType.resolve({ modelNode, lookups: this.lookups, parent, self: self === undefined ? altSelf! : self[0], lookupNode: this.lookupNode, ecs: this.ecs, })();
+        let r = nodeType.resolve({ modelNode, lookups: this.lookups, parent, self: self === undefined ? altSelf! : self[0], ecs: this.ecs, })();
         if (r !== undefined) {
           let resolvedChildren_ = createMemo(mapArray(
             () => r.children?.() ?? [],

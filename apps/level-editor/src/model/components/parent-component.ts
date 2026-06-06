@@ -48,6 +48,10 @@ export function entityAddChild(registry: ComponentRegistry, ecs: ReactiveECS, en
   tail = childId;
   ++count;
   if (ecs.ecs.has_component(entityId, registry.Parent)) {
+    ecs.set_field(entityId, registry.Parent, "head", head);
+    ecs.set_field(entityId, registry.Parent, "tail", tail);
+    ecs.set_field(entityId, registry.Parent, "count", count);
+  } else {
     ecs.add_component(
       entityId,
       registry.Parent,
@@ -57,9 +61,5 @@ export function entityAddChild(registry: ComponentRegistry, ecs: ReactiveECS, en
         count,
       },
     );
-  } else {
-    ecs.set_field(entityId, registry.Parent, "head", head);
-    ecs.set_field(entityId, registry.Parent, "tail", tail);
-    ecs.set_field(entityId, registry.Parent, "count", count);
   }
 }

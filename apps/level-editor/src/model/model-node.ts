@@ -1,12 +1,13 @@
-import { Accessor } from "solid-js";
+import { Accessor, Component } from "solid-js";
 import * as THREE from "three";
 import { findComponentData, ModelNodeRegistry, ModelNodeType } from "./model-node-registry";
 import { Operation } from "./operation";
 import { IsEcsComponentData } from "./ecs-component-data";
 import { createRcMemo } from "./rc-memo";
 import { ComponentRegistry } from "./components/registry";
-import { ComponentSchema } from "@oasys/oecs";
+import { ComponentDef, ComponentSchema, EntityID, FieldValues } from "@oasys/oecs";
 import { transformGetMatrix } from "./components/transform3d-component";
+import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 /**
  * Used for a named path in the model along with the ecs component that make up
@@ -15,14 +16,34 @@ import { transformGetMatrix } from "./components/transform3d-component";
  */
 export class ModelNodeSpec {
   readonly stableName: string;
+  readonly entityId?: EntityID;
   readonly components?: Accessor<IsEcsComponentData[]>;
 
   constructor(params: {
     stableName: string,
+    entityId?: EntityID,
     components?: Accessor<IsEcsComponentData[]>,
   }) {
     this.stableName = params.stableName;
+    this.entityId = params.entityId;
     this.components = params.components;
+  }
+
+  findComponentData<S extends ComponentSchema>(ecs: ReactiveECS, componentDef: ComponentDef<S>): FieldValues<S> | undefined {
+    if (this.entityId !== undefined) {
+      let entity = ecs.entity(this.entityId);
+      if (!entity.hasComponent(componentDef)) {
+        return undefined;
+      }
+      let result: any = {};
+      for (let key in componentDef) {
+        let value = entity.getField(componentDef, key);
+        result[key] = value;
+      }
+      return result as FieldValues<S>;
+    } else {
+      return findComponentData(this.components?.() ?? [], componentDef)?.data;
+    }
   }
 }
 
@@ -34,7 +55,7 @@ export class ResolvedModelNode {
   readonly parent?: Accessor<ResolvedModelNode | undefined>;
   readonly children?: Accessor<ModelNodeSpec[]>;
   readonly resolvedChildren?: Accessor<ResolvedModelNode[]>;
-  readonly render?: Accessor<((params: { rerender: () => void, }) => (THREE.Object3D | undefined)) | undefined>;
+  readonly render?: Accessor<Component<{ rerender: () => void, }> | undefined>;
   readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
 
@@ -77,7 +98,7 @@ export class ResolvedModelNode {
     parent?: Accessor<ResolvedModelNode | undefined>,
     children?: Accessor<ModelNodeSpec[]>,
     resolvedChildren?: Accessor<ResolvedModelNode[]>,
-    render?: Accessor<((params: { rerender: () => void, }) => (THREE.Object3D | undefined)) | undefined>,
+    render?: Accessor<Component<{ rerender: () => void, }> | undefined>,
     lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
   }) {

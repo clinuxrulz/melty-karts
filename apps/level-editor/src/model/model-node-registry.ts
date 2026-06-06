@@ -14,7 +14,6 @@ export interface ModelNodeType<S extends ComponentSchema> {
     parent: Accessor<ResolvedModelNode | undefined>,
     self: Accessor<ResolvedModelNode | undefined>,
     ecs: ReactiveECS,
-    lookupNode: (entityId: EntityID) => ResolvedModelNode | undefined,
   }): Accessor<ResolvedModelNode | undefined>;
 }
 
@@ -49,7 +48,21 @@ export class ModelNodeRegistry {
     return this.modelNodeTypes;
   }
 
-  findModelNodeTypeForSpec(modelNode: ModelNodeSpec): ModelNodeType<any> | undefined {
+  fineModelNodeTypeForEntityId(ecs: ReactiveECS, entityId: EntityID): ModelNodeType<any> | undefined {
+    for (let modelNodeType of this.modelNodeTypes) {
+      let component = modelNodeType.componentType;
+      if (ecs.entity(entityId).hasComponent(component)) {
+        return modelNodeType;
+      }
+    }
+    return undefined;
+  }
+
+  findModelNodeTypeForSpec(ecs: ReactiveECS, modelNode: ModelNodeSpec): ModelNodeType<any> | undefined {
+    let entityId = modelNode.entityId;
+    if (entityId !== undefined) {
+      return this.fineModelNodeTypeForEntityId(ecs, entityId);
+    }
     const components = modelNode.components?.() ?? [];
     for (let component of components) {
       const nodeType = this.modelNodeTypeByComponentType.get(component.def);

@@ -6,6 +6,7 @@ import { ResolvedModelNode } from "../model-node";
 import { findComponentData, ModelNodeRegistry, ModelNodeType } from "../model-node-registry";
 import { whenAllDefined } from "../../when";
 import { EntityID } from "@oasys/oecs";
+import { CatmullRomCurve4 } from "../catmull-rom-curve4";
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -15,9 +16,9 @@ export function mkTrackNodeType(
     typeName: "Track",
     componentType: componentRegistry.Track,
     resolve(params) {
-      let track = createMemo(() => findComponentData(params.modelNode.components?.() ?? [], componentRegistry.Track)?.data);
+      let track = createMemo(() => params.modelNode.findComponentData(params.ecs, componentRegistry.Track));
       let trackPtNodes = createMemo(() => {
-        let parent = findComponentData(params.modelNode.components?.() ?? [], componentRegistry.Parent)?.data;
+        let parent = params.modelNode.findComponentData(params.ecs, componentRegistry.Parent);
         if (parent === undefined) {
           return undefined;
         }
@@ -64,6 +65,32 @@ export function mkTrackNodeType(
           trackPtNodes,
         ],
         ([ track, trackPtNodes, ]) => {
+          let curve = createMemo(() => {
+            let trackPtNodes2 = trackPtNodes();
+            let curve2 = new CatmullRomCurve4(
+              trackPtNodes2.map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist)),
+              true,
+            );
+            let length = 0.0;
+            let v4 = new THREE.Vector4();
+            let lastPt = new THREE.Vector3();
+            let pt = new THREE.Vector3();
+            curve2.getPoint(0, v4);
+            lastPt.set(v4.x, v4.y, v4.z);
+            for (let i = 1; i < 1000; ++i) {
+              let t = i / 999.0;
+              curve2.getPoint(t);
+              pt.set(v4.x, v4.y, v4.z);
+              let dist = lastPt.distanceTo(pt);
+              length += dist;
+              lastPt.set(pt.x, pt.y, pt.z);
+            }
+            console.log("track length", length);
+            return {
+              curve: curve2,
+              length,
+            }
+          });
           return new ResolvedModelNode({
             componentRegistry,
             modelNodeRegistry,

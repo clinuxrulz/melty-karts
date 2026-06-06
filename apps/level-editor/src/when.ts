@@ -1,5 +1,4 @@
-import { Accessor } from "solid-js";
-import { createMemo } from "solid-js/types/server/signals.js";
+import { Accessor, createMemo } from "solid-js";
 
 export function whenDefined<A,B>(
   a: Accessor<A | undefined>,
