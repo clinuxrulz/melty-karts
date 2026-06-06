@@ -79,7 +79,7 @@ export function mkTrackNodeType(
             lastPt.set(v4.x, v4.y, v4.z);
             for (let i = 1; i < 1000; ++i) {
               let t = i / 999.0;
-              curve2.getPoint(t);
+              curve2.getPoint(t, v4);
               pt.set(v4.x, v4.y, v4.z);
               let dist = lastPt.distanceTo(pt);
               length += dist;

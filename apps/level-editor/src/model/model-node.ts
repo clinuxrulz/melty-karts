@@ -35,12 +35,14 @@ export class ModelNodeSpec {
       if (!entity.hasComponent(componentDef)) {
         return undefined;
       }
-      let result: any = {};
-      for (let key in componentDef) {
-        let value = entity.getField(componentDef, key);
-        result[key] = value;
-      }
-      return result as FieldValues<S>;
+      return new Proxy(
+        {},
+        {
+          get(target, p, receiver) {
+            return entity.getField(componentDef, p as any);
+          },
+        },
+      ) as FieldValues<S>;
     } else {
       return findComponentData(this.components?.() ?? [], componentDef)?.data;
     }
