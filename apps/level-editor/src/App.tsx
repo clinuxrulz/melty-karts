@@ -1,4 +1,4 @@
-import { Component, createEffect, createMemo, createSignal, For, mapArray, runWithOwner, Show } from "solid-js";
+import { Component, createEffect, createMemo, createSignal, For, mapArray, onCleanup, onSettled, runWithOwner, Show } from "solid-js";
 import { Canvas } from "solid-three";
 import * as THREE from "three";
 import { T } from "./t";
@@ -13,13 +13,71 @@ import { Lookups } from "./model/lookups";
 import { ModelNodeSpec } from "./model/model-node";
 import { constAccessor, opToArr } from "./util";
 import { entityAddChild } from "./model/components/parent-component";
+import { Mode, ModeParams } from "./model/mode";
+import { createSelectionMode } from "./model/modes/selection-mode";
+import { ThreeJsUserData } from "./model/threejs-user-data";
 
 const App: Component = () => {
+  let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
+  let [ canvasSize, setCanvasSize, ] = createSignal<THREE.Vector2>();
+  let [ scene, setScene, ] = createSignal<THREE.Scene>();
+  let [ camera, setCamera, ] = createSignal<THREE.Camera>();
   let [ orbitControls, setOrbitControls ] = createSignal<OrbitControls>();
+  let [ mousePos, setMousePos, ] = createSignal<THREE.Vector2>();
+  let [ mkMode, setMkMode, ] = createSignal<() => Mode>();
   let baseEcs = new ECS();
   let componentRegistry = registerComponents(baseEcs);
   let modelNodeRegistry = registerModelNodes(componentRegistry);
   let ecs = new ReactiveECS(baseEcs);
+  let screenPtToWorldRay: (pt: THREE.Vector2) => THREE.Ray | undefined;
+  {
+    let coords = new THREE.Vector2();
+    let raycaster = new THREE.Raycaster();
+    screenPtToWorldRay = (pt) => {
+      let camera2 = camera();
+      if (camera2 === undefined) {
+        return undefined;
+      }
+      let canvasSize2 = canvasSize();
+      if (canvasSize2 === undefined) {
+        return undefined;
+      }
+      coords.set(
+        (pt.x / canvasSize2.x) * 2.0 - 1.0,
+        -(pt.y / canvasSize2.y) * 2.0 + 1.0,
+      );
+      raycaster.setFromCamera(coords, camera2);
+      return new THREE.Ray().copy(raycaster.ray);
+    };
+  }
+  let projectWorldPtToScreen: (pt: THREE.Vector3) => THREE.Vector2 | undefined;
+  {
+    let tmpPt = new THREE.Vector3();
+    projectWorldPtToScreen = (pt) => {
+      let camera2 = camera();
+      if (camera2 === undefined) {
+        return undefined;
+      }
+      let canvasSize2 = canvasSize();
+      if (canvasSize2 === undefined) {
+        return undefined;
+      }
+      camera2.updateMatrixWorld();
+      tmpPt.copy(pt);
+      tmpPt.project(camera2);
+      return new THREE.Vector2(
+        (tmpPt.x + 1.0) * canvasSize2.width / 2.0,
+        (-tmpPt.y + 1.0) * canvasSize2.height / 2.0,
+      );
+    };
+  }
+  let mouseRay = createMemo(() => {
+    let mousePos2 = mousePos();
+    if (mousePos2 === undefined) {
+      return undefined;
+    }
+    return screenPtToWorldRay(mousePos2);
+  });
   let entityIds = createMemo(
     () => {
       let result: EntityID[] = [];
@@ -93,12 +151,75 @@ const App: Component = () => {
           px: ptX,
           py: 0.0,
           pz: ptZ,
-          twist: 0.0,
+          twist: i == 0 ? 0.25 * Math.PI : 0.0,
         },
       );
       entityAddChild(componentRegistry, ecs, e, tpe);
     }
   }
+  let modeParams: ModeParams = {
+    threeScene: scene,
+    threeCamera: camera,
+    mousePos,
+    mouseRay,
+    screenPtToWorldRay,
+    projectWorldPtToScreen,
+  };
+  let mode = createMemo(() => {
+    let mkMode2 = mkMode();
+    if (mkMode2 === undefined) {
+      return createSelectionMode(modeParams);
+    } else {
+      return mkMode2();
+    }
+  });
+  let Instructions: Component = () => (
+    <Show when={mode().instructions?.()}>
+      {(instructions) => {
+        let Instructions2 = untrack(instructions);
+        return (<Instructions2/>);
+      }}
+    </Show>
+  );
+  let onPointerDown = (e: PointerEvent) => {
+    let canvas2 = canvas();
+    if (canvas2 === undefined) {
+      return;
+    }
+    let rect = canvas2.getBoundingClientRect();
+    let px = e.clientX - rect.left;
+    let py = e.clientY - rect.top;
+    setMousePos(new THREE.Vector2(px, py));
+    onSettled(() => {
+      mode().onPointerDown?.();
+    });
+  };
+  let onPointerUp = (e: PointerEvent) => {
+    let canvas2 = canvas();
+    if (canvas2 === undefined) {
+      return;
+    }
+    let rect = canvas2.getBoundingClientRect();
+    let px = e.clientX - rect.left;
+    let py = e.clientY - rect.top;
+    setMousePos(new THREE.Vector2(px, py));
+    onSettled(() => {
+      mode().onPointerUp?.();
+    });
+  };
+  let onPointerMove = (e: PointerEvent) => {
+    let canvas2 = canvas();
+    if (canvas2 === undefined) {
+      return;
+    }
+    let rect = canvas2.getBoundingClientRect();
+    let px = e.clientX - rect.left;
+    let py = e.clientY - rect.top;
+    setMousePos(new THREE.Vector2(px, py));
+  };
+  let onPointerLeave = (e: PointerEvent) => {
+    setMousePos(undefined);
+  };
   return (
     <div
       style={{
@@ -113,7 +234,25 @@ const App: Component = () => {
         ref={(ctx) => {
           ctx.camera.lookAt(0.0, 0.0, 0.0);
           let orbitControls2 = new OrbitControls(ctx.camera, ctx.canvas);
-          runWithOwner(null, () => setOrbitControls(orbitControls2));
+          runWithOwner(null, () => {
+            setOrbitControls(orbitControls2);
+            setCanvas(ctx.canvas);
+            setCamera(ctx.camera);
+            setScene(ctx.scene);
+          });
+          ctx.canvas.addEventListener("pointerdown", onPointerDown);
+          ctx.canvas.addEventListener("pointerup", onPointerUp);
+          ctx.canvas.addEventListener("pointermove", onPointerMove);
+          ctx.canvas.addEventListener("pointerleave", onPointerLeave);
+          let resizeObserver = new ResizeObserver(() => {
+            let rect = ctx.canvas.getBoundingClientRect();
+            setCanvasSize(new THREE.Vector2(rect.width, rect.height));
+          });
+          resizeObserver.observe(ctx.canvas);
+          onCleanup(() => {
+            resizeObserver.unobserve(ctx.canvas);
+            resizeObserver.disconnect();
+          });
         }}
         camera={{ position: [ 5.0, 5.0, 5.0, ] }}
         style={{
@@ -121,6 +260,13 @@ const App: Component = () => {
           "height": "100%",
         }}
       >
+        <T.DirectionalLight
+          position={[1, 2, 3]}
+          intensity={5.0}
+        />
+        <T.AmbientLight
+          intensity={2.0}
+        />
         <T.GridHelper/>
         <For each={modelNodes()}>
           {(modelNode) => (
@@ -129,6 +275,12 @@ const App: Component = () => {
                 let Render = untrack(render);
                 return (
                   <Render
+                    ref={(self) => {
+                      self.userData = {
+                        type: "ThreeJsUserData",
+                        modelNodePath: untrack(() => modelNode().stablePath()),
+                      } satisfies ThreeJsUserData;
+                    }}
                     rerender={() => {}}
                   />
                 );
@@ -137,6 +289,31 @@ const App: Component = () => {
           )}
         </For>
       </Canvas>
+      <div
+        style={{
+          "position": "absolute",
+          "left": "0",
+          "top": "0",
+        }}
+      >
+        <div style="margin: 5px; background-color: black; opacity: 0.5">
+          <Show when={canvasSize()}>
+            {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
+          </Show><br/>
+          <Show when={mousePos()}>
+            {(mousePos) => (<>MousePos: {Math.floor(mousePos().x)} x {Math.floor(mousePos().y)}</>)}
+          </Show><br/>
+          <Show when={mouseRay()}>
+            {(mouseRay) => (
+              <>
+                Mouse Ray Origin: ({mouseRay().origin.x.toFixed(3)}, {mouseRay().origin.y.toFixed(3)}, {mouseRay().origin.z.toFixed(3)})<br/>
+                Mouse Ray Direction: ({mouseRay().direction.x.toFixed(3)}, {mouseRay().direction.y.toFixed(3)}, {mouseRay().direction.z.toFixed(3)})
+              </>
+            )}
+          </Show><br/>
+          <Instructions/>
+        </div>
+      </div>
     </div>
   );
 };

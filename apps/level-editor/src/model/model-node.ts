@@ -57,7 +57,7 @@ export class ResolvedModelNode {
   readonly parent?: Accessor<ResolvedModelNode | undefined>;
   readonly children?: Accessor<ModelNodeSpec[]>;
   readonly resolvedChildren?: Accessor<ResolvedModelNode[]>;
-  readonly render?: Accessor<Component<{ rerender: () => void, }> | undefined>;
+  readonly render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>;
   readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
 
@@ -100,7 +100,7 @@ export class ResolvedModelNode {
     parent?: Accessor<ResolvedModelNode | undefined>,
     children?: Accessor<ModelNodeSpec[]>,
     resolvedChildren?: Accessor<ResolvedModelNode[]>,
-    render?: Accessor<Component<{ rerender: () => void, }> | undefined>,
+    render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>,
     lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
   }) {

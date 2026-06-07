@@ -114,24 +114,38 @@ export function mkTrackNodeType(
               },
             );
             let points = geometry.getAttribute("position");
+            let normals = geometry.getAttribute("normal");
             for (let i = 0; i < points.count; ++i) {
               let x = points.getX(i);
               let y = points.getY(i);
               let z = points.getZ(i);
+              let nx = normals.getX(i);
+              let ny = normals.getY(i);
+              let nz = normals.getZ(i);
               let t = Math.max(0.0, Math.min(1.0, z / curve2.length));
+              if (t === 1.0) {
+                t = 0.0;
+              }
               let frame = trackEval.getFrameAt(t);
               let px = frame.position.x + frame.right.x * x - frame.up.x * y;
               let py = frame.position.y + frame.right.y * x - frame.up.y * y;
               let pz = frame.position.z + frame.right.z * x - frame.up.z * y;
+              let nx2 = frame.right.x * nx - frame.up.x * ny + frame.forward.x * nz;
+              let ny2 = frame.right.y * nx - frame.up.y * ny + frame.forward.y * nz;
+              let nz2 = frame.right.z * nx - frame.up.z * ny + frame.forward.z * nz;
               points.setXYZ(i, px, py, pz);
+              normals.setXYZ(i, nx2, ny2, nz2);
             }
             points.needsUpdate = true;
+            normals.needsUpdate = true;
             onCleanup(() => geometry.dispose());
-            return () => (
+            geometry.computeBoundingBox();
+            return (props: { ref: (self: THREE.Object3D) => void, }) => (
               <T.Mesh
                 geometry={geometry}
+                ref={props.ref}
               >
-                <T.MeshNormalMaterial/>
+                <T.MeshStandardMaterial color="#505050"/>
               </T.Mesh>
             );
           });
