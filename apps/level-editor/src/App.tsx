@@ -16,6 +16,7 @@ import { entityAddChild } from "./model/components/parent-component";
 import { Mode, ModeParams } from "./model/mode";
 import { createSelectionMode } from "./model/modes/selection-mode";
 import { ThreeJsUserData } from "./model/threejs-user-data";
+import { Accessor } from "@solidjs/signals";
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -25,6 +26,8 @@ const App: Component = () => {
   let [ orbitControls, setOrbitControls ] = createSignal<OrbitControls>();
   let [ mousePos, setMousePos, ] = createSignal<THREE.Vector2>();
   let [ mkMode, setMkMode, ] = createSignal<() => Mode>();
+  let [ selectedNodesByIdSetAccessor, setSelectedNodesByIdSetAccessor, ] = createSignal<Accessor<Set<string>>>();
+  let selectedNodesBiIdSet = createMemo(() => selectedNodesByIdSetAccessor()?.() ?? new Set<string>);
   let baseEcs = new ECS();
   let componentRegistry = registerComponents(baseEcs);
   let modelNodeRegistry = registerModelNodes(componentRegistry);
@@ -110,6 +113,7 @@ const App: Component = () => {
     modelNodeRegistry,
     {} satisfies Lookups,
     ecs,
+    selectedNodesBiIdSet,
   );
   let modelNodes_ = createMemo(mapArray(
     entityIds,
@@ -131,6 +135,7 @@ const App: Component = () => {
     },
   ));
   let modelNodes = createMemo(() => modelNodes_().flatMap((x) => opToArr(x()?.())));
+  let idToModelNodeMap = createMemo(() => new Map(modelNodes().map((x) => [ x.stablePath(), x ] as const)));
   createMemo(() => {
     console.log(modelNodes());
   });
@@ -164,6 +169,7 @@ const App: Component = () => {
     mouseRay,
     screenPtToWorldRay,
     projectWorldPtToScreen,
+    idToModelNodeMap,
   };
   let mode = createMemo(() => {
     let mkMode2 = mkMode();
@@ -181,6 +187,11 @@ const App: Component = () => {
       }}
     </Show>
   );
+  let sideForm: Accessor<Component | undefined> = createMemo(() => mode().sideForm?.());
+  {
+    let selectedNodesByIdSet_ = createMemo(() => mode().selectedObjectsByIdSet?.() ?? new Set<string>());
+    runWithOwner(null, () => setSelectedNodesByIdSetAccessor(() => selectedNodesByIdSet_));
+  }
   let onPointerDown = (e: PointerEvent) => {
     let canvas2 = canvas();
     if (canvas2 === undefined) {
@@ -290,28 +301,59 @@ const App: Component = () => {
         </For>
       </Canvas>
       <div
+        class="flex flex-col md:flex-row"
         style={{
           "position": "absolute",
           "left": "0",
           "top": "0",
+          "right": "0",
+          "bottom": "0",
+          "pointer-events": "none",
         }}
       >
-        <div style="margin: 5px; background-color: black; opacity: 0.5">
-          <Show when={canvasSize()}>
-            {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
-          </Show><br/>
-          <Show when={mousePos()}>
-            {(mousePos) => (<>MousePos: {Math.floor(mousePos().x)} x {Math.floor(mousePos().y)}</>)}
-          </Show><br/>
-          <Show when={mouseRay()}>
-            {(mouseRay) => (
-              <>
-                Mouse Ray Origin: ({mouseRay().origin.x.toFixed(3)}, {mouseRay().origin.y.toFixed(3)}, {mouseRay().origin.z.toFixed(3)})<br/>
-                Mouse Ray Direction: ({mouseRay().direction.x.toFixed(3)}, {mouseRay().direction.y.toFixed(3)}, {mouseRay().direction.z.toFixed(3)})
-              </>
-            )}
-          </Show><br/>
-          <Instructions/>
+        <Show when={sideForm()}>
+          {(sideForm) => {
+            let SideForm = untrack(sideForm);
+            return (
+              <div
+                class="h-[30%] md:h-auto md:w-1/4"
+                style={{
+                  "pointer-events": "auto",
+                  "background-color": "black",
+                  "opacity": 0.5,
+                }}
+              >
+                <SideForm/>
+              </div>
+            );
+          }}
+        </Show>
+        <div style="flex-grow: 1; position: relative;">
+                    <div
+            style={{
+              "position": "absolute",
+              "left": "0",
+              "top": "0",
+            }}
+          >
+            <div style="margin: 5px; background-color: black; opacity: 0.5">
+              <Show when={canvasSize()}>
+                {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
+              </Show><br/>
+              <Show when={mousePos()}>
+                {(mousePos) => (<>MousePos: {Math.floor(mousePos().x)} x {Math.floor(mousePos().y)}</>)}
+              </Show><br/>
+              <Show when={mouseRay()}>
+                {(mouseRay) => (
+                  <>
+                    Mouse Ray Origin: ({mouseRay().origin.x.toFixed(3)}, {mouseRay().origin.y.toFixed(3)}, {mouseRay().origin.z.toFixed(3)})<br/>
+                    Mouse Ray Direction: ({mouseRay().direction.x.toFixed(3)}, {mouseRay().direction.y.toFixed(3)}, {mouseRay().direction.z.toFixed(3)})
+                  </>
+                )}
+              </Show><br/>
+              <Instructions/>
+            </div>
+          </div>
         </div>
       </div>
     </div>

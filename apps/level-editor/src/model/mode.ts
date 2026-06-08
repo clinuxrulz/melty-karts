@@ -1,5 +1,6 @@
 import { Accessor, Component } from "solid-js";
 import * as THREE from "three";
+import { ResolvedModelNode } from "./model-node";
 
 export interface ModeParams {
   threeScene: Accessor<THREE.Scene | undefined>,
@@ -8,6 +9,7 @@ export interface ModeParams {
   mouseRay: Accessor<THREE.Ray | undefined>,
   screenPtToWorldRay: (pt: THREE.Vector2) => THREE.Ray | undefined;
   projectWorldPtToScreen: (pt: THREE.Vector3) => THREE.Vector2 | undefined;
+  idToModelNodeMap: Accessor<Map<string,ResolvedModelNode>>;
 }
 
 export interface Mode {

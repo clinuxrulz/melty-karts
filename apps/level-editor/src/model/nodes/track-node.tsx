@@ -9,6 +9,7 @@ import { EntityID } from "@oasys/oecs";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
 import { TrackEvaluator } from "../track-evaluator";
 import { T } from "../../t";
+import { constAccessor } from "../../util";
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -145,8 +146,21 @@ export function mkTrackNodeType(
                 geometry={geometry}
                 ref={props.ref}
               >
-                <T.MeshStandardMaterial color="#505050"/>
+                <T.MeshStandardMaterial
+                  color={params.isSelected() ? "#00FF00" : "#505050"}
+                />
               </T.Mesh>
+            );
+          });
+          let propertiesForm = constAccessor(() => {
+            return (
+              <div>
+                <label>
+                  <span style="width: 5px;">Width:</span>
+                  <input type="text"/>
+                </label><br/>
+                <button class="btn btn-primary">Edit Nodes</button>
+              </div>
             );
           });
           return new ResolvedModelNode({
@@ -154,6 +168,7 @@ export function mkTrackNodeType(
             modelNodeRegistry,
             stableName: params.modelNode.stableName,
             render,
+            propertiesForm,
           });
         },
       );

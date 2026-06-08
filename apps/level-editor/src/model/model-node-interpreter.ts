@@ -3,7 +3,6 @@ import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
 import { ModelNodeRegistry } from "./model-node-registry";
 import { ComponentRegistry } from "./components/registry";
-import { EntityID } from "@oasys/oecs";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export class ModelNodeInterpreter {
@@ -11,17 +10,20 @@ export class ModelNodeInterpreter {
   readonly modelNodeRegistry: ModelNodeRegistry;
   readonly lookups: Lookups;
   readonly ecs: ReactiveECS;
+  readonly selectedNodesByIdSet: Accessor<Set<string>>;
 
   constructor(
     componentRegistry: ComponentRegistry,
     modelNodeRegistry: ModelNodeRegistry,
     lookups: Lookups,
     ecs: ReactiveECS,
+    selectedNodesByIdSet: Accessor<Set<string>>,
   ) {
     this.componentRegistry = componentRegistry;
     this.modelNodeRegistry = modelNodeRegistry;
     this.lookups = lookups;
     this.ecs = ecs;
+    this.selectedNodesByIdSet = selectedNodesByIdSet;
   }
 
   interpret(modelNode: ModelNodeSpec, parent: Accessor<ResolvedModelNode | undefined>, altSelf?: Accessor<ResolvedModelNode | undefined>): Accessor<ResolvedModelNode> {
@@ -34,7 +36,20 @@ export class ModelNodeInterpreter {
         } else {
           self = undefined;
         }
-        let r = nodeType.resolve({ modelNode, lookups: this.lookups, parent, self: self === undefined ? altSelf! : self[0], ecs: this.ecs, })();
+        let r = nodeType.resolve({
+          modelNode,
+          lookups: this.lookups,
+          parent,
+          self: self === undefined ? altSelf! : self[0],
+          ecs: this.ecs,
+          isSelected: createMemo(() => {
+            let self2 = self?.[0]?.();
+            if (self2 === undefined) {
+              return false;
+            }
+            return this.selectedNodesByIdSet().has(self2.stablePath());
+          }),
+        })();
         if (r !== undefined) {
           let resolvedChildren_ = createMemo(mapArray(
             () => r.children?.() ?? [],
@@ -54,6 +69,7 @@ export class ModelNodeInterpreter {
             render: r.render,
             lines: r.lines,
             floatingActionButtons: r.floatingActionButtons,
+            propertiesForm: r.propertiesForm,
           });
           if (self !== undefined) {
             runWithOwner(null, () => self[1](r2));

@@ -60,6 +60,7 @@ export class ResolvedModelNode {
   readonly render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>;
   readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
+  readonly propertiesForm?: Accessor<Component | undefined>;
 
   readonly modelNodeType: Accessor<ModelNodeType<ComponentSchema> | undefined> = createRcMemo(() => {
     return this.modelNodeRegistry.findModelNodeTypeForComponentTypes((this.components?.() ?? []).map((x) => x.def));
@@ -103,6 +104,7 @@ export class ResolvedModelNode {
     render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>,
     lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
+    propertiesForm?: Accessor<Component | undefined>,
   }) {
     this.componentRegistry = params.componentRegistry;
     this.modelNodeRegistry = params.modelNodeRegistry;
@@ -114,5 +116,6 @@ export class ResolvedModelNode {
     this.render = params.render;
     this.lines = params.lines;
     this.floatingActionButtons = params.floatingActionButtons;
+    this.propertiesForm = params.propertiesForm;
   }
 }

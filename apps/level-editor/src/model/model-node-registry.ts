@@ -14,6 +14,7 @@ export interface ModelNodeType<S extends ComponentSchema> {
     parent: Accessor<ResolvedModelNode | undefined>,
     self: Accessor<ResolvedModelNode | undefined>,
     ecs: ReactiveECS,
+    isSelected: Accessor<boolean>,
   }): Accessor<ResolvedModelNode | undefined>;
 }
 
