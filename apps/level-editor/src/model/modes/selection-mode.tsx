@@ -60,7 +60,11 @@ export function createSelectionMode(modeParams: ModeParams): Mode {
     if (modelNodes.length !== 1) {
       return undefined;
     }
-    return modelNodes[0].propertiesForm?.();
+    let Form = modelNodes[0].propertiesForm?.();
+    if (Form === undefined) {
+      return undefined;
+    }
+    return () => <Form doCommand={modeParams.doCommand}/>;
   });
   let onPointerDown = () => {
     let objectId = objectUnderMouseById();

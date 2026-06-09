@@ -1,4 +1,4 @@
-import { createMemo, onCleanup } from "solid-js";
+import { createMemo, createStore, onCleanup, untrack } from "solid-js";
 import * as THREE from "three";
 import { ComponentRegistry } from "../components/registry";
 import { TrackSchema } from "../components/track-component";
@@ -10,6 +10,7 @@ import { CatmullRomCurve4 } from "../catmull-rom-curve4";
 import { TrackEvaluator } from "../track-evaluator";
 import { T } from "../../t";
 import { constAccessor } from "../../util";
+import { Command } from "../commands";
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -101,10 +102,10 @@ export function mkTrackNodeType(
               200,
             );
             let shape = new THREE.Shape();
-            shape.moveTo(-3.0, -0.3);
-            shape.lineTo(3.0, -0.3);
-            shape.lineTo(3.0, 0.0);
-            shape.lineTo(-3.0, 0.0);
+            shape.moveTo(-0.5 * track().width, -0.3);
+            shape.lineTo(0.5 * track().width, -0.3);
+            shape.lineTo(0.5 * track().width, 0.0);
+            shape.lineTo(-0.5 * track().width, 0.0);
             shape.closePath();
             let geometry = new THREE.ExtrudeGeometry(
               shape,
@@ -152,13 +153,60 @@ export function mkTrackNodeType(
               </T.Mesh>
             );
           });
-          let propertiesForm = constAccessor(() => {
+          let propertiesForm = constAccessor((formProps: { doCommand: (command: Command, addUndo?: boolean, undoDescription?: string) => void, }) => {
+            let [ formState, setFormState, ] = createStore<{
+              width: number,
+              changed: boolean,
+            }>({
+              width: untrack(() => track().width),
+              changed: false,
+            });
             return (
               <div>
                 <label>
                   <span style="width: 5px;">Width:</span>
-                  <input type="text"/>
+                  <input
+                    class="input"
+                    type="text"
+                    value={untrack(() => formState.width)}
+                    onInput={(e) => {
+                      let value = Number.parseFloat(e.currentTarget.value.trim());
+                      if (Number.isNaN(value)) {
+                        return;
+                      }
+                      setFormState((s) => {
+                        s.width = value;
+                        s.changed = true;
+                      });
+                    }}
+                  />
                 </label><br/>
+                <button
+                  class="btn btn-primary"
+                  onClick={() => {
+                    let self = params.self();
+                    if (self === undefined) {
+                      return;
+                    }
+                    let entityId = Number.parseInt(self.stableName) as EntityID;
+                    if (Number.isNaN(entityId)) {
+                      return;
+                    }
+                    formProps.doCommand(
+                      Command.setField(
+                        entityId,
+                        componentRegistry.Track,
+                        "width",
+                        formState.width,
+                      ),
+                      true,
+                      "Edit Track",
+                    );
+                  }}
+                >
+                  Apply
+                </button>
+                <hr/>
                 <button class="btn btn-primary">Edit Nodes</button>
               </div>
             );

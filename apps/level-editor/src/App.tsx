@@ -17,6 +17,8 @@ import { Mode, ModeParams } from "./model/mode";
 import { createSelectionMode } from "./model/modes/selection-mode";
 import { ThreeJsUserData } from "./model/threejs-user-data";
 import { Accessor } from "@solidjs/signals";
+import { CommandExecutor } from "./model/command-executor";
+import { UndoRedoManager } from "./model/undo-redo";
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -32,6 +34,8 @@ const App: Component = () => {
   let componentRegistry = registerComponents(baseEcs);
   let modelNodeRegistry = registerModelNodes(componentRegistry);
   let ecs = new ReactiveECS(baseEcs);
+  let commandExecutor = new CommandExecutor(ecs);
+  let undoRedoManager = new UndoRedoManager((command) => commandExecutor.performCommand(command));
   let screenPtToWorldRay: (pt: THREE.Vector2) => THREE.Ray | undefined;
   {
     let coords = new THREE.Vector2();
@@ -141,7 +145,7 @@ const App: Component = () => {
   });
   {
     let e = ecs.create_entity();
-    ecs.add_component(e, componentRegistry.Track, { width: 3.0, });
+    ecs.add_component(e, componentRegistry.Track, { width: 6.0, });
     for (let i = 0; i < 5; ++i) {
       let a = i * 2.0 * Math.PI / 5;
       let ca = Math.cos(a);
@@ -170,6 +174,14 @@ const App: Component = () => {
     screenPtToWorldRay,
     projectWorldPtToScreen,
     idToModelNodeMap,
+    doCommand(command, addToUndoStack, undoDescription) {
+      if (addToUndoStack) {
+        undoRedoManager.pushUndo({ command: commandExecutor.performCommand(command), description: undoDescription ?? "", });
+        undoRedoManager.clearRedo();
+      } else {
+        commandExecutor.performCommand(command);
+      }
+    },
   };
   let mode = createMemo(() => {
     let mkMode2 = mkMode();
@@ -283,18 +295,20 @@ const App: Component = () => {
           {(modelNode) => (
             <Show when={modelNode().render?.()}>
               {(render) => {
-                let Render = untrack(render);
-                return (
-                  <Render
-                    ref={(self) => {
-                      self.userData = {
-                        type: "ThreeJsUserData",
-                        modelNodePath: untrack(() => modelNode().stablePath()),
-                      } satisfies ThreeJsUserData;
-                    }}
-                    rerender={() => {}}
-                  />
-                );
+                return (<>{(() => {
+                  let Render = render();
+                  return untrack(() => (
+                    <Render
+                      ref={(self) => {
+                        self.userData = {
+                          type: "ThreeJsUserData",
+                          modelNodePath: untrack(() => modelNode().stablePath()),
+                        } satisfies ThreeJsUserData;
+                      }}
+                      rerender={() => {}}
+                    />
+                  ));
+                })()}</>);
               }}
             </Show>
           )}
@@ -329,7 +343,7 @@ const App: Component = () => {
           }}
         </Show>
         <div style="flex-grow: 1; position: relative;">
-                    <div
+          <div
             style={{
               "position": "absolute",
               "left": "0",
@@ -352,6 +366,39 @@ const App: Component = () => {
                 )}
               </Show><br/>
               <Instructions/>
+            </div>
+          </div>
+          <div
+            style={{
+              "position": "absolute",
+              "top": "5px",
+              "right": "5px",
+              "pointer-events": "auto",
+            }}
+          >
+            <div
+              class="tooltip"
+              data-tip={`Undo ${undoRedoManager.undoDescription() ?? ""}`}
+            >
+              <button
+                class="btn btn-primary"
+                disabled={!undoRedoManager.hasUndo()}
+                onClick={() => undoRedoManager.undo()}
+              >
+                Undo
+              </button>
+            </div>
+            <div
+              class="tooltip"
+              data-tip={`Redo ${undoRedoManager.redoDescription() ?? ""}`}
+            >
+              <button
+                class="btn btn-primary ml-1"
+                disabled={!undoRedoManager.hasRedo()}
+                onClick={() => undoRedoManager.redo()}
+              >
+                Redo
+              </button>
             </div>
           </div>
         </div>

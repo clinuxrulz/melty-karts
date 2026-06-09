@@ -8,6 +8,7 @@ import { ComponentRegistry } from "./components/registry";
 import { ComponentDef, ComponentSchema, EntityID, FieldValues } from "@oasys/oecs";
 import { transformGetMatrix } from "./components/transform3d-component";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
+import { Command } from "./commands";
 
 /**
  * Used for a named path in the model along with the ecs component that make up
@@ -60,7 +61,7 @@ export class ResolvedModelNode {
   readonly render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>;
   readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
-  readonly propertiesForm?: Accessor<Component | undefined>;
+  readonly propertiesForm?: Accessor<Component<{ doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>;
 
   readonly modelNodeType: Accessor<ModelNodeType<ComponentSchema> | undefined> = createRcMemo(() => {
     return this.modelNodeRegistry.findModelNodeTypeForComponentTypes((this.components?.() ?? []).map((x) => x.def));
@@ -104,7 +105,7 @@ export class ResolvedModelNode {
     render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>,
     lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
-    propertiesForm?: Accessor<Component | undefined>,
+    propertiesForm?: Accessor<Component<{ doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>,
   }) {
     this.componentRegistry = params.componentRegistry;
     this.modelNodeRegistry = params.modelNodeRegistry;
