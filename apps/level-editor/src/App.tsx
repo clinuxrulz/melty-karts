@@ -1,4 +1,4 @@
-import { Component, createEffect, createMemo, createSignal, For, mapArray, onCleanup, onSettled, runWithOwner, Show } from "solid-js";
+import { Component, createEffect, createMemo, createRenderEffect, createSignal, For, mapArray, onCleanup, onSettled, runWithOwner, Show } from "solid-js";
 import { Canvas } from "solid-three";
 import * as THREE from "three";
 import { T } from "./t";
@@ -19,6 +19,8 @@ import { ThreeJsUserData } from "./model/threejs-user-data";
 import { Accessor } from "@solidjs/signals";
 import { CommandExecutor } from "./model/command-executor";
 import { UndoRedoManager } from "./model/undo-redo";
+import { Operation } from "./model/operation";
+import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mode";
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -166,7 +168,27 @@ const App: Component = () => {
       entityAddChild(componentRegistry, ecs, e, tpe);
     }
   }
+  let setMode = (mkMode: () => Mode) => {
+    setMkMode(() => mkMode);
+  };
+  let doOperation = (operation: Operation) => {
+    switch (operation.type) {
+      case "editTrackNodes": {
+        setMode(() => createEditTrackPtNodesMode({
+          modeParams,
+          trackId: operation.trackId,
+        }))
+        break;
+      }
+      default:
+        let x: never = operation.type;
+        throw new Error(`Unreachable ${x}`);
+    }
+  };
   let modeParams: ModeParams = {
+    ecs,
+    componentRegistry,
+    canvas,
     threeScene: scene,
     threeCamera: camera,
     mousePos,
@@ -174,6 +196,7 @@ const App: Component = () => {
     screenPtToWorldRay,
     projectWorldPtToScreen,
     idToModelNodeMap,
+    doOperation,
     doCommand(command, addToUndoStack, undoDescription) {
       if (addToUndoStack) {
         undoRedoManager.pushUndo({ command: commandExecutor.performCommand(command), description: undoDescription ?? "", });
@@ -204,6 +227,31 @@ const App: Component = () => {
     let selectedNodesByIdSet_ = createMemo(() => mode().selectedObjectsByIdSet?.() ?? new Set<string>());
     runWithOwner(null, () => setSelectedNodesByIdSetAccessor(() => selectedNodesByIdSet_));
   }
+  let Overlay3d: Component = () => (
+    <Show when={mode().overlay3d?.()}>
+      {(overlay3d) => (<>{(() => {
+        let Overlay3d = overlay3d();
+        return untrack(() => <Overlay3d/>);
+      })()}</>)}
+    </Show>
+  );
+  let orbitControlsEnabled = createMemo(() => {
+    let x = mode().orbitControlsEnabled;
+    if (x === undefined) {
+      return true;
+    }
+    return x();
+  });
+  createRenderEffect(
+    orbitControlsEnabled,
+    (x) => {
+      let orbitControls2 = orbitControls();
+      if (orbitControls2 === undefined) {
+        return;
+      }
+      orbitControls2.enabled = x;
+    },
+  );
   let onPointerDown = (e: PointerEvent) => {
     let canvas2 = canvas();
     if (canvas2 === undefined) {
@@ -313,6 +361,7 @@ const App: Component = () => {
             </Show>
           )}
         </For>
+        <Overlay3d/>
       </Canvas>
       <div
         class="flex flex-col md:flex-row"

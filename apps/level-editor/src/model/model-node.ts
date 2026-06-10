@@ -54,6 +54,7 @@ export class ResolvedModelNode {
   readonly componentRegistry: ComponentRegistry;
   readonly modelNodeRegistry: ModelNodeRegistry;
   readonly stableName: string;
+  readonly entityId?: EntityID;
   readonly components?: Accessor<IsEcsComponentData[]>;
   readonly parent?: Accessor<ResolvedModelNode | undefined>;
   readonly children?: Accessor<ModelNodeSpec[]>;
@@ -61,7 +62,7 @@ export class ResolvedModelNode {
   readonly render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>;
   readonly lines?: Accessor<{ id: string, line: THREE.Line3, }[]>;
   readonly floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>;
-  readonly propertiesForm?: Accessor<Component<{ doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>;
+  readonly propertiesForm?: Accessor<Component<{ doOperation: (operation: Operation) => void, doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>;
 
   readonly modelNodeType: Accessor<ModelNodeType<ComponentSchema> | undefined> = createRcMemo(() => {
     return this.modelNodeRegistry.findModelNodeTypeForComponentTypes((this.components?.() ?? []).map((x) => x.def));
@@ -98,6 +99,7 @@ export class ResolvedModelNode {
     componentRegistry: ComponentRegistry,
     modelNodeRegistry: ModelNodeRegistry,
     stableName: string,
+    entityId?: EntityID,
     components?: Accessor<IsEcsComponentData[]>,
     parent?: Accessor<ResolvedModelNode | undefined>,
     children?: Accessor<ModelNodeSpec[]>,
@@ -105,11 +107,12 @@ export class ResolvedModelNode {
     render?: Accessor<Component<{ ref: (self: THREE.Object3D) => void, rerender: () => void, }> | undefined>,
     lines?: Accessor<{ id: string, line: THREE.Line3, }[]>,
     floatingActionButtons?: Accessor<{ text: Accessor<string>, operation: Accessor<Operation>, }[]>,
-    propertiesForm?: Accessor<Component<{ doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>,
+    propertiesForm?: Accessor<Component<{ doOperation: (operation: Operation) => void, doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void, }> | undefined>,
   }) {
     this.componentRegistry = params.componentRegistry;
     this.modelNodeRegistry = params.modelNodeRegistry;
     this.stableName = params.stableName;
+    this.entityId = params.entityId;
     this.components = params.components;
     this.parent = params.parent;
     this.children = params.children;
@@ -118,5 +121,24 @@ export class ResolvedModelNode {
     this.lines = params.lines;
     this.floatingActionButtons = params.floatingActionButtons;
     this.propertiesForm = params.propertiesForm;
+  }
+
+  findComponentData<S extends ComponentSchema>(ecs: ReactiveECS, componentDef: ComponentDef<S>): FieldValues<S> | undefined {
+    if (this.entityId !== undefined) {
+      let entity = ecs.entity(this.entityId);
+      if (!entity.hasComponent(componentDef)) {
+        return undefined;
+      }
+      return new Proxy(
+        {},
+        {
+          get(target, p, receiver) {
+            return entity.getField(componentDef, p as any);
+          },
+        },
+      ) as FieldValues<S>;
+    } else {
+      return findComponentData(this.components?.() ?? [], componentDef)?.data;
+    }
   }
 }

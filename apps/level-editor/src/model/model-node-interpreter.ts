@@ -62,6 +62,7 @@ export class ModelNodeInterpreter {
             componentRegistry: this.componentRegistry,
             modelNodeRegistry: this.modelNodeRegistry,
             stableName: r.stableName,
+            entityId: modelNode.entityId,
             components: r.components,
             parent,
             children: r.children,

@@ -64,7 +64,7 @@ export function createSelectionMode(modeParams: ModeParams): Mode {
     if (Form === undefined) {
       return undefined;
     }
-    return () => <Form doCommand={modeParams.doCommand}/>;
+    return () => <Form doOperation={modeParams.doOperation} doCommand={modeParams.doCommand}/>;
   });
   let onPointerDown = () => {
     let objectId = objectUnderMouseById();

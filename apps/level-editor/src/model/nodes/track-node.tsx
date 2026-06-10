@@ -11,6 +11,7 @@ import { TrackEvaluator } from "../track-evaluator";
 import { T } from "../../t";
 import { constAccessor } from "../../util";
 import { Command } from "../commands";
+import { Operation } from "../operation";
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -153,7 +154,7 @@ export function mkTrackNodeType(
               </T.Mesh>
             );
           });
-          let propertiesForm = constAccessor((formProps: { doCommand: (command: Command, addUndo?: boolean, undoDescription?: string) => void, }) => {
+          let propertiesForm = constAccessor((formProps: { doOperation: (operation: Operation) => void, doCommand: (command: Command, addUndo?: boolean, undoDescription?: string) => void, }) => {
             let [ formState, setFormState, ] = createStore<{
               width: number,
               changed: boolean,
@@ -207,7 +208,20 @@ export function mkTrackNodeType(
                   Apply
                 </button>
                 <hr/>
-                <button class="btn btn-primary">Edit Nodes</button>
+                <button
+                  class="btn btn-primary"
+                  onClick={() => {
+                    let self = params.self();
+                    if (self === undefined) {
+                      return;
+                    }
+                    formProps.doOperation(
+                      Operation.editTrackNodes(self.stablePath())
+                    );
+                  }}
+                >
+                  Edit Nodes
+                </button>
               </div>
             );
           });
