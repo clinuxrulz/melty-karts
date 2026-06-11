@@ -162,7 +162,7 @@ const App: Component = () => {
           px: ptX,
           py: 0.0,
           pz: ptZ,
-          twist: i == 0 ? 0.25 * Math.PI : 0.0,
+          twist: 0.0,
         },
       );
       entityAddChild(componentRegistry, ecs, e, tpe);
@@ -382,8 +382,7 @@ const App: Component = () => {
                 class="h-[30%] md:h-auto md:w-1/4"
                 style={{
                   "pointer-events": "auto",
-                  "background-color": "black",
-                  "opacity": 0.5,
+                  "background-color": "rgba(0,0,0,0.5)",
                 }}
               >
                 <SideForm/>

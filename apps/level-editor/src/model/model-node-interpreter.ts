@@ -27,16 +27,17 @@ export class ModelNodeInterpreter {
   }
 
   interpret(modelNode: ModelNodeSpec, parent: Accessor<ResolvedModelNode | undefined>, altSelf?: Accessor<ResolvedModelNode | undefined>): Accessor<ResolvedModelNode> {
+    let nodeType = createMemo(() => this.modelNodeRegistry.findModelNodeTypeForSpec(this.ecs, modelNode));
     return createMemo(() => {
-      const nodeType = this.modelNodeRegistry.findModelNodeTypeForSpec(this.ecs, modelNode);
-      if (nodeType !== undefined) {
+      const nodeType2 = nodeType();
+      if (nodeType2 !== undefined) {
         let self: Signal<ResolvedModelNode | undefined> | undefined;
         if (altSelf === undefined) {
           self = createSignal<ResolvedModelNode>();
         } else {
           self = undefined;
         }
-        let r = nodeType.resolve({
+        let r = nodeType2.resolve({
           modelNode,
           lookups: this.lookups,
           parent,

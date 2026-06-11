@@ -62,6 +62,7 @@ export function createEditTrackPtNodesMode(params: {
     }
     return result;
   });
+  
   let [ orbitControlsEnabled, setOrbitControlsEnabled, ] = createSignal(true);
   let overlay3d = constAccessor(() => (
     <Show when={modeParams.threeCamera()}>
