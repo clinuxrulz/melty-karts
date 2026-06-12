@@ -1,4 +1,4 @@
-import { Accessor, createMemo, createRenderEffect, createSignal, For, Show, untrack } from "solid-js";
+import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, onCleanup, onSettled, Show, untrack } from "solid-js";
 import * as THREE from "three";
 import { Mode, ModeParams } from "../mode";
 import { EntityID } from "@oasys/oecs";
@@ -7,11 +7,18 @@ import { TransformControls } from "three/examples/jsm/Addons.js";
 import { Entity } from "solid-three";
 import { T } from "../../t";
 import { Command } from "../commands";
+import { whenDefined } from "../../when";
+import { ValueSlider } from "three/examples/jsm/inspector/ui/Values.js";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,
   trackId: string,
 }): Mode {
+  let [ state, setState, ] = createStore<{
+    selectedTrackPtNodeById: EntityID | undefined,
+  }>({
+    selectedTrackPtNodeById: undefined,
+  });
   let modeParams = params.modeParams;
   let componentRegistry = modeParams.componentRegistry;
   let trackId = params.trackId;
@@ -19,6 +26,42 @@ export function createEditTrackPtNodesMode(params: {
   if (trackModelNode === undefined) {
     return {};
   }
+
+  type TrackPtNodeUserData = {
+    type: "TrackPtNodeUserData",
+    trackPtNodeById: EntityID,
+  };
+
+  let raycaster = new THREE.Raycaster();
+  let trackPtNodeUnderMouseById = createMemo(() => {
+    let camera = modeParams.threeCamera();
+    if (camera === undefined) {
+      return;
+    }
+    let scene = modeParams.threeScene();
+    if (scene === undefined) {
+      return;
+    }
+    let mouseRay = modeParams.mouseRay();
+    if (mouseRay === undefined) {
+      return;
+    }
+    raycaster.camera = camera;
+    raycaster.ray.copy(mouseRay);
+    let intersections = raycaster.intersectObject(scene, true);
+    for (let intersection of intersections) {
+      if (intersection.face === null || intersection.face === undefined) {
+        continue;
+      }
+      let object = intersection.object;
+      if (object.userData.type === "TrackPtNodeUserData" satisfies TrackPtNodeUserData["type"]) {
+        let userData = object.userData as TrackPtNodeUserData;
+        return userData.trackPtNodeById;
+      }
+    }
+    return undefined;
+  });
+
   let trackPtNodes = createMemo(() => {
     let parent = trackModelNode.findComponentData(modeParams.ecs, componentRegistry.Parent);
     if (parent === undefined) {
@@ -62,76 +105,261 @@ export function createEditTrackPtNodesMode(params: {
     }
     return result;
   });
-  
+
   let [ orbitControlsEnabled, setOrbitControlsEnabled, ] = createSignal(true);
+
+  let transformControls = createMemo(() => {
+    let camera = modeParams.threeCamera();
+    if (camera === undefined) {
+      return;
+    }
+    let canvas = modeParams.canvas();
+    if (canvas === undefined) {
+      return;
+    }
+    let transformControls = new TransformControls(
+      camera,
+      canvas,
+    );
+    transformControls.addEventListener("dragging-changed", (e) => setOrbitControlsEnabled(!e.value));
+    transformControls.addEventListener("change", () => {
+      let target = transformControls.object;
+      if (target === undefined) {
+        return;
+      }
+      let entityId = state.selectedTrackPtNodeById;
+      if (entityId === undefined) {
+        return;
+      }
+      modeParams.doCommand(
+        Command.seq([
+          Command.setField(
+            entityId,
+            componentRegistry.TrackPathPt,
+            "px",
+            target.position.x,
+          ),
+          Command.setField(
+            entityId,
+            componentRegistry.TrackPathPt,
+            "py",
+            target.position.y,
+          ),
+          Command.setField(
+            entityId,
+            componentRegistry.TrackPathPt,
+            "pz",
+            target.position.z,
+          ),
+        ]),
+      );
+    });
+    onCleanup(() => {
+      transformControls.detach();
+    });
+    return transformControls;
+  });
+
+  let selectedTrackPtNode = createMemo(() => (trackPtNodes() ?? []).find((x) => x.entityId === state.selectedTrackPtNodeById));
+
+  let bidirectionalBind = (params: {
+    input: HTMLInputElement,
+    value: Accessor<number>,
+    setValue: (x: number) => void,
+  }) => {
+    let selfSetting = false;
+    let listener = () => {
+      let value = Number.parseFloat(params.input.value.trim());
+      if (Number.isNaN(value)) {
+        return;
+      }
+      selfSetting = true;
+      params.setValue(value);
+    };
+    createRenderEffect(
+      params.value,
+      (value) => {
+        if (selfSetting) {
+          selfSetting = false;
+          return;
+        }
+        params.input.value = value.toFixed(3);
+      },
+    );
+    params.input.addEventListener("input", listener);
+    onCleanup(() => {
+      params.input.removeEventListener("input", listener);
+    });
+  };
+
+  let sideForm = whenDefined(
+    selectedTrackPtNode,
+    (trackPtNode) => () => (
+      <div>
+        <table>
+          <thead/>
+          <tbody>
+            <tr>
+              <td><label>Position X:</label></td>
+              <td>
+                <input
+                  ref={(input) =>
+                    bidirectionalBind({
+                      input,
+                      value: () => trackPtNode().pt().x,
+                      setValue: (x) => {
+                        params.modeParams.doCommand(
+                          Command.setField(
+                            trackPtNode().entityId,
+                            componentRegistry.TrackPathPt,
+                            "px",
+                            x,
+                          )
+                        );
+                      },
+                    })
+                  }
+                  type="text"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td><label>Position Y:</label></td>
+              <td>
+                <input
+                  ref={(input) =>
+                    bidirectionalBind({
+                      input,
+                      value: () => trackPtNode().pt().y,
+                      setValue: (x) => {
+                        params.modeParams.doCommand(
+                          Command.setField(
+                            trackPtNode().entityId,
+                            componentRegistry.TrackPathPt,
+                            "py",
+                            x,
+                          )
+                        );
+                      },
+                    })
+                  }
+                  type="text"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td><label>Position Z:</label></td>
+              <td>
+                <input
+                  ref={(input) =>
+                    bidirectionalBind({
+                      input,
+                      value: () => trackPtNode().pt().z,
+                      setValue: (x) => {
+                        params.modeParams.doCommand(
+                          Command.setField(
+                            trackPtNode().entityId,
+                            componentRegistry.TrackPathPt,
+                            "pz",
+                            x,
+                          )
+                        );
+                      },
+                    })
+                  }
+                  type="text"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td><label>Twist:</label></td>
+              <td>
+                <input
+                  ref={(input) =>
+                    bidirectionalBind({
+                      input,
+                      value: () => trackPtNode().twist() * 180.0 / Math.PI,
+                      setValue: (x) => {
+                        params.modeParams.doCommand(
+                          Command.setField(
+                            trackPtNode().entityId,
+                            componentRegistry.TrackPathPt,
+                            "twist",
+                            x * Math.PI / 180.0,
+                          )
+                        );
+                      },
+                    })
+                  }
+                  type="text"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    ),
+  );
+
   let overlay3d = constAccessor(() => (
-    <Show when={modeParams.threeCamera()}>
-      {(camera) => (
-        <For each={trackPtNodes()}>
-          {(trackPtNode) => {
-            let [ target, setTarget, ] = createSignal<THREE.Group>();
-            let transformControls = new TransformControls(
-              camera(),
-              modeParams.canvas(),
-            );
-            transformControls.addEventListener("dragging-changed", (e) => setOrbitControlsEnabled(!e.value));
-            transformControls.addEventListener("change", () => {
-              let target2 = target();
-              if (target2 === undefined) {
+    <>
+      {(() => {
+        let controls = transformControls();
+        if (controls === undefined) {
+          return undefined;
+        }
+        return controls.getHelper();
+      })()}
+      <For each={trackPtNodes()}>
+        {(trackPtNode) => {
+          let [ object, setObject, ] = createSignal<THREE.Object3D>();
+          let trackPtNode2 = untrack(trackPtNode);
+          let highlighted = createMemo(() => trackPtNodeUnderMouseById() === trackPtNode2.entityId);
+          let selected = createMemo(() => state.selectedTrackPtNodeById === trackPtNode2.entityId);
+          createRenderEffect(
+            selected,
+            (selected) => {
+              if (!selected) {
                 return;
               }
-              let entityId = trackPtNode().entityId;
-              modeParams.doCommand(
-                Command.seq([
-                  Command.setField(
-                    entityId,
-                    componentRegistry.TrackPathPt,
-                    "px",
-                    target2.position.x,
-                  ),
-                  Command.setField(
-                    entityId,
-                    componentRegistry.TrackPathPt,
-                    "py",
-                    target2.position.y,
-                  ),
-                  Command.setField(
-                    entityId,
-                    componentRegistry.TrackPathPt,
-                    "pz",
-                    target2.position.z,
-                  ),
-                ]),
-              );
-            });
-            createRenderEffect(
-              target,
-              (target) => {
-                if (target === undefined) {
-                  return;
-                }
-                transformControls.attach(target);
-                return () => {
-                  transformControls.detach();
-                };
+              let object2 = object();
+              if (object2 === undefined) {
+                return;
               }
-            );
-            return (
-              <>
-                <T.Group
-                  ref={setTarget}
-                  position={trackPtNode().pt()}
-                />
-                <Entity from={transformControls.getHelper()}/>
-              </>
-            );
-          }}
-        </For>
-      )}
-    </Show>
+              transformControls()?.attach(object2);
+            },
+          )
+          return (
+            <T.Mesh
+              ref={setObject}
+              position={trackPtNode2.pt()}
+              userData={{
+                type: "TrackPtNodeUserData",
+                trackPtNodeById: trackPtNode2.entityId,
+              } satisfies TrackPtNodeUserData}
+            >
+              <T.SphereGeometry args={[1.0]}/>
+              <T.MeshBasicMaterial
+                color={highlighted() || selected() ? "#00FF00" : "#0000FF"}
+                transparent
+                opacity={0.5}
+              />
+            </T.Mesh>
+          );
+        }}
+      </For>
+    </>
   ));
+  let onPointerDown = () => {
+    let trackPtNodeById = trackPtNodeUnderMouseById();
+    if (trackPtNodeById !== undefined) {
+      setState((s) => { s.selectedTrackPtNodeById = trackPtNodeById; });
+    }
+  };
   return {
+    sideForm,
     overlay3d,
     orbitControlsEnabled,
+    onPointerDown,
   };
 }
