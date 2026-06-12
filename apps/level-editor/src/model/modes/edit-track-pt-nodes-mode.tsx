@@ -9,6 +9,7 @@ import { T } from "../../t";
 import { Command } from "../commands";
 import { whenDefined } from "../../when";
 import { ValueSlider } from "three/examples/jsm/inspector/ui/Values.js";
+import { CatmullRomCurve4 } from "../catmull-rom-curve4";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,
@@ -32,8 +33,18 @@ export function createEditTrackPtNodesMode(params: {
     trackPtNodeById: EntityID,
   };
 
+  type AddTrackPtNodeUserData = {
+    type: "AddTrackPtNodeUserData",
+    insertAtIndex: number,
+    tValue: number,
+  };
+
   let raycaster = new THREE.Raycaster();
-  let trackPtNodeUnderMouseById = createMemo(() => {
+  let selectableUnderMouse = createMemo<
+    | { type: "TrackPtNode", entityId: EntityID, }
+    | { type: "AddTrackPtNode", insertAtIndex: number, tValue: number, }
+    | undefined
+  >(() => {
     let camera = modeParams.threeCamera();
     if (camera === undefined) {
       return;
@@ -56,11 +67,53 @@ export function createEditTrackPtNodesMode(params: {
       let object = intersection.object;
       if (object.userData.type === "TrackPtNodeUserData" satisfies TrackPtNodeUserData["type"]) {
         let userData = object.userData as TrackPtNodeUserData;
-        return userData.trackPtNodeById;
+        return {
+          type: "TrackPtNode",
+          entityId: userData.trackPtNodeById,
+        };
+      } else if (object.userData.type === "AddTrackPtNodeUserData" satisfies AddTrackPtNodeUserData["type"]) {
+        let userData = object.userData as AddTrackPtNodeUserData;
+        return {
+          type: "AddTrackPtNode",
+          insertAtIndex: userData.insertAtIndex,
+          tValue: userData.tValue,
+        };
       }
     }
     return undefined;
   });
+
+  let trackPtNodeUnderMouseById = createMemo(() => {
+    let selectableUnderMouse2 = selectableUnderMouse();
+    if (selectableUnderMouse2?.type !== "TrackPtNode") {
+      return undefined;
+    }
+    return selectableUnderMouse2.entityId;
+  });
+
+  let addTrackPtNodeUnderMouse = createMemo(
+    () => {
+      let selectableUnderMouse2 = selectableUnderMouse();
+      if (selectableUnderMouse2?.type !== "AddTrackPtNode") {
+        return undefined;
+      }
+      return {
+        insertAtIndex: selectableUnderMouse2.insertAtIndex,
+        tValue: selectableUnderMouse2.tValue,
+      };
+    },
+    {
+      equals(prev, next) {
+        if (next === undefined) {
+          return prev === undefined;
+        } else if (prev === undefined) {
+          return false;
+        } else {
+          return next.insertAtIndex === prev.insertAtIndex && next.tValue === prev.tValue;
+        }
+      },
+    }
+  );
 
   let trackPtNodes = createMemo(() => {
     let parent = trackModelNode.findComponentData(modeParams.ecs, componentRegistry.Parent);
@@ -102,6 +155,59 @@ export function createEditTrackPtNodesMode(params: {
     }
     if (result.length === 0) {
       return undefined;
+    }
+    return result;
+  });
+
+  let curve = createMemo(() => {
+    let trackPtNodes2 = trackPtNodes();
+    if (trackPtNodes2 === undefined) {
+      return undefined;
+    }
+    let curve2 = new CatmullRomCurve4(
+      trackPtNodes2.map(({ pt, twist }) => new THREE.Vector4(pt().x, pt().y, pt().z, twist())),
+      true,
+    );
+    let length = 0.0;
+    let v4 = new THREE.Vector4();
+    let lastPt = new THREE.Vector3();
+    let pt = new THREE.Vector3();
+    curve2.getPoint(0, v4);
+    lastPt.set(v4.x, v4.y, v4.z);
+    for (let i = 1; i < 1000; ++i) {
+      let t = i / 999.0;
+      curve2.getPoint(t, v4);
+      pt.set(v4.x, v4.y, v4.z);
+      let dist = lastPt.distanceTo(pt);
+      length += dist;
+      lastPt.set(pt.x, pt.y, pt.z);
+    }
+    console.log("track length", length);
+    return {
+      curve: curve2,
+      length,
+    }
+  });
+
+  let trackPtNodeTValues = createMemo(() => {
+    let trackPtNodes2 = trackPtNodes();
+    if (trackPtNodes2 === undefined) {
+      return undefined;
+    }
+    let result: number[] = new Array(trackPtNodes2.length);
+    result[0] = 0.0;
+    let atDist = 0.0;
+    let firstPt = trackPtNodes2[0].pt();
+    let lastPt = trackPtNodes2[0].pt();
+    for (let i = 1; i < trackPtNodes2.length; ++i) {
+      let pt = trackPtNodes2[i].pt();
+      atDist += lastPt.distanceTo(pt);
+      result[i] = atDist;
+      lastPt = pt;
+    }
+    atDist += lastPt.distanceTo(firstPt);
+    for (let i = 0; i < result.length; ++i) {
+      result[i] /= atDist;
     }
     return result;
   });
@@ -160,7 +266,17 @@ export function createEditTrackPtNodesMode(params: {
     return transformControls;
   });
 
-  let selectedTrackPtNode = createMemo(() => (trackPtNodes() ?? []).find((x) => x.entityId === state.selectedTrackPtNodeById));
+  let selectedTrackPtNode = createMemo(() => {
+    let trackPtNodes2 = trackPtNodes();
+    if (trackPtNodes2 === undefined) {
+      return undefined;
+    }
+    let idx = trackPtNodes2.findIndex((x) => x.entityId === state.selectedTrackPtNodeById);
+    if (idx === -1) {
+      return undefined;
+    }
+    return { trackPtNode: trackPtNodes2[idx], index: idx, };
+  });
 
   let bidirectionalBind = (params: {
     input: HTMLInputElement,
@@ -199,18 +315,26 @@ export function createEditTrackPtNodesMode(params: {
         <table>
           <thead/>
           <tbody>
+            <Show when={trackPtNodeTValues()}>
+              {(trackPtNodeTValues) => (
+                <tr>
+                  <td>T Value</td>
+                  <td>{trackPtNodeTValues()[trackPtNode().index].toFixed(3)}</td>
+                </tr>
+              )}
+            </Show>
             <tr>
-              <td><label>Position X:</label></td>
+              <td><label style={{ "text-wrap": "nowrap", }}>Position X:</label></td>
               <td>
                 <input
                   ref={(input) =>
                     bidirectionalBind({
                       input,
-                      value: () => trackPtNode().pt().x,
+                      value: () => trackPtNode().trackPtNode.pt().x,
                       setValue: (x) => {
                         params.modeParams.doCommand(
                           Command.setField(
-                            trackPtNode().entityId,
+                            trackPtNode().trackPtNode.entityId,
                             componentRegistry.TrackPathPt,
                             "px",
                             x,
@@ -224,17 +348,17 @@ export function createEditTrackPtNodesMode(params: {
               </td>
             </tr>
             <tr>
-              <td><label>Position Y:</label></td>
+              <td><label style={{ "text-wrap": "nowrap", }}>Position Y:</label></td>
               <td>
                 <input
                   ref={(input) =>
                     bidirectionalBind({
                       input,
-                      value: () => trackPtNode().pt().y,
+                      value: () => trackPtNode().trackPtNode.pt().y,
                       setValue: (x) => {
                         params.modeParams.doCommand(
                           Command.setField(
-                            trackPtNode().entityId,
+                            trackPtNode().trackPtNode.entityId,
                             componentRegistry.TrackPathPt,
                             "py",
                             x,
@@ -248,17 +372,17 @@ export function createEditTrackPtNodesMode(params: {
               </td>
             </tr>
             <tr>
-              <td><label>Position Z:</label></td>
+              <td><label style={{ "text-wrap": "nowrap", }}>Position Z:</label></td>
               <td>
                 <input
                   ref={(input) =>
                     bidirectionalBind({
                       input,
-                      value: () => trackPtNode().pt().z,
+                      value: () => trackPtNode().trackPtNode.pt().z,
                       setValue: (x) => {
                         params.modeParams.doCommand(
                           Command.setField(
-                            trackPtNode().entityId,
+                            trackPtNode().trackPtNode.entityId,
                             componentRegistry.TrackPathPt,
                             "pz",
                             x,
@@ -278,11 +402,11 @@ export function createEditTrackPtNodesMode(params: {
                   ref={(input) =>
                     bidirectionalBind({
                       input,
-                      value: () => trackPtNode().twist() * 180.0 / Math.PI,
+                      value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
                       setValue: (x) => {
                         params.modeParams.doCommand(
                           Command.setField(
-                            trackPtNode().entityId,
+                            trackPtNode().trackPtNode.entityId,
                             componentRegistry.TrackPathPt,
                             "twist",
                             x * Math.PI / 180.0,
@@ -295,11 +419,66 @@ export function createEditTrackPtNodesMode(params: {
                 />
               </td>
             </tr>
+            <tr>
+              <td colspan={2}>
+                <input
+                  type="range"
+                  min={-180}
+                  max={180}
+                  step={5}
+                  value={trackPtNode().trackPtNode.twist() * 180.0 / Math.PI}
+                  onInput={(e) => {
+                    let value = Number.parseFloat(e.currentTarget.value);
+                    if (Number.isNaN(value)) {
+                      return;
+                    }
+                    params.modeParams.doCommand(
+                      Command.setField(
+                        trackPtNode().trackPtNode.entityId,
+                        componentRegistry.TrackPathPt,
+                        "twist",
+                        value * Math.PI / 180.0,
+                      )
+                    );
+                  }}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td colspan={2}>
+                <button class="btn btn-primary">
+                  Delete Node (TODO)
+                </button>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
     ),
   );
+
+  let plusMaterial = createMemo(() => {
+    let canvas = new OffscreenCanvas(32, 32);
+    let ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      return undefined;
+    }
+    ctx.fillStyle = "white";
+    ctx.font = "bold 24px serif";
+    ctx.fillText("+", 9, 24);
+    let texture = new THREE.CanvasTexture(canvas);
+    let material = new THREE.PointsMaterial({
+      map: texture,
+      size: 4,
+      depthTest: false,
+      transparent: true,
+    });
+    onCleanup(() => {
+      texture.dispose();
+      material.dispose();
+    });
+    return material;
+  });
 
   let overlay3d = constAccessor(() => (
     <>
@@ -348,6 +527,78 @@ export function createEditTrackPtNodesMode(params: {
           );
         }}
       </For>
+      <Show when={curve()}>
+        {(curve) => (
+          <Show when={trackPtNodeTValues()}>
+            {(trackPtNodeTValues) => (
+              <Show when={(() => {
+                let trackPtNodeTValues2 = trackPtNodeTValues();
+                if (trackPtNodeTValues2.length < 3) {
+                  return undefined;
+                }
+                return selectedTrackPtNode();
+              })()}>
+                {(trackPtNode) => {
+                  let lastInsertPtTValue = createMemo(() => {
+                    let idx = trackPtNode().index;
+                    let prevTValue = trackPtNodeTValues()[(idx - 1 + trackPtNodeTValues().length) % trackPtNodeTValues().length];
+                    let atTValue = trackPtNodeTValues()[idx];
+                    if (atTValue < prevTValue) {
+                      atTValue += 1.0;
+                    }
+                    let tValue = (0.5 * (prevTValue + atTValue)) % 1.0;
+                    return { tValue, insertAtIdx: idx, };
+                  });
+                  let nextInsertPtTValue = createMemo(() => {
+                    let idx = trackPtNode().index;
+                    let atTValue = trackPtNodeTValues()[idx];
+                    let nextTValue = trackPtNodeTValues()[(idx + 1) % trackPtNodeTValues().length];
+                    if (nextTValue < atTValue) {
+                      nextTValue += 1.0;
+                    }
+                    let tValue = (0.5 * (atTValue + nextTValue)) % 1.0;
+                    return { tValue, insertAtIdx: (idx + 1) % trackPtNodeTValues().length, };
+                  });
+                  return (
+                    <For each={[ lastInsertPtTValue(), nextInsertPtTValue(), ]}>
+                      {(tValue) => {
+                        let pt = createMemo(() => curve().curve.getPoint(tValue().tValue));
+                        let highlighted = createMemo(() => addTrackPtNodeUnderMouse()?.insertAtIndex === tValue().insertAtIdx);
+                        return (
+                          <>
+                            <T.Mesh
+                              position={new THREE.Vector3().copy(pt())}
+                              renderOrder={1}
+                              userData={{
+                                type: "AddTrackPtNodeUserData",
+                                insertAtIndex: tValue().insertAtIdx,
+                                tValue: tValue().tValue,
+                              } satisfies AddTrackPtNodeUserData}
+                            >
+                              <T.SphereGeometry args={[ 0.8, ]}/>
+                              <T.MeshBasicMaterial color={highlighted() ? "green" : "red"} transparent opacity={0.5} depthTest={false}/>
+                            </T.Mesh>
+                            <T.Points
+                              material={plusMaterial()}
+                              renderOrder={2}
+                            >
+                              <T.BufferGeometry
+                                ref={(geometry) => {
+                                  geometry.setFromPoints([new THREE.Vector3().copy(pt())]);
+                                }}
+                              />
+                            </T.Points>
+                          </>
+                        );
+                      }}
+                    </For>
+                  );
+                }}
+              </Show>
+            )}
+          </Show>
+        )}
+      </Show>
     </>
   ));
   let onPointerDown = () => {

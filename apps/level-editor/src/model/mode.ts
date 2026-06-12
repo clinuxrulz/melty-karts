@@ -25,6 +25,7 @@ export interface Mode {
   instructions?: Accessor<Component | undefined>;
   sideForm?: Accessor<Component | undefined>;
   overlay3d?: Accessor<Component | undefined>;
+  overlayHtml?: Accessor<Component | undefined>;
   selectedObjectsByIdSet?: Accessor<Set<string>>;
   onPointerDown?: () => void;
   onPointerUp?: () => void;
