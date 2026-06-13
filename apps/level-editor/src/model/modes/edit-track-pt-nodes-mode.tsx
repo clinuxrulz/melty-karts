@@ -435,7 +435,7 @@ export function createEditTrackPtNodesMode(params: {
               <tr>
                 <td colspan={2}>
                   {untrack(() => {
-                    let initValue = untrack(() => trackPtNode().trackPtNode.twist());
+                    let initValue = untrack(() => trackPtNode().trackPtNode.twist()) * Math.PI / 180.0;
                     return (
                       <input
                         type="range"
@@ -471,7 +471,7 @@ export function createEditTrackPtNodesMode(params: {
                             ),
                             description: "Twist Track Point Node",
                           });
-                          initValue = value;
+                          initValue = value * Math.PI / 180.0;
                         }}
                       />
                     );
