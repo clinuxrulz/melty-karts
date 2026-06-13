@@ -333,7 +333,9 @@ export function createEditTrackPtNodesMode(params: {
                                 componentRegistry.TrackPathPt,
                                 "px",
                                 x,
-                              )
+                              ),
+                              true,
+                              "Move Track Point Node",
                             );
                           },
                         }),
@@ -360,7 +362,9 @@ export function createEditTrackPtNodesMode(params: {
                                 componentRegistry.TrackPathPt,
                                 "py",
                                 x,
-                              )
+                              ),
+                              true,
+                              "Move Track Point Node",
                             );
                           },
                         }),
@@ -387,7 +391,9 @@ export function createEditTrackPtNodesMode(params: {
                                 componentRegistry.TrackPathPt,
                                 "pz",
                                 x,
-                              )
+                              ),
+                              true,
+                              "Move Track Point Node",
                             );
                           },
                         }),
@@ -414,7 +420,9 @@ export function createEditTrackPtNodesMode(params: {
                                 componentRegistry.TrackPathPt,
                                 "twist",
                                 x * Math.PI / 180.0,
-                              )
+                              ),
+                              true,
+                              "Twist Track Point Node",
                             );
                           },
                         }),
@@ -426,27 +434,48 @@ export function createEditTrackPtNodesMode(params: {
               </tr>
               <tr>
                 <td colspan={2}>
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    step={5}
-                    value={trackPtNode().trackPtNode.twist() * 180.0 / Math.PI}
-                    onInput={(e) => {
-                      let value = Number.parseFloat(e.currentTarget.value);
-                      if (Number.isNaN(value)) {
-                        return;
-                      }
-                      params.modeParams.doCommand(
-                        Command.setField(
-                          trackPtNode().trackPtNode.entityId,
-                          componentRegistry.TrackPathPt,
-                          "twist",
-                          value * Math.PI / 180.0,
-                        )
-                      );
-                    }}
-                  />
+                  {untrack(() => {
+                    let initValue = untrack(() => trackPtNode().trackPtNode.twist());
+                    return (
+                      <input
+                        type="range"
+                        min={-180}
+                        max={180}
+                        step={5}
+                        value={trackPtNode().trackPtNode.twist() * 180.0 / Math.PI}
+                        onInput={(e) => {
+                          let value = Number.parseFloat(e.currentTarget.value);
+                          if (Number.isNaN(value)) {
+                            return;
+                          }
+                          params.modeParams.doCommand(
+                            Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "twist",
+                              value * Math.PI / 180.0,
+                            )
+                          );
+                        }}
+                        onChange={(e) => {
+                          let value = Number.parseFloat(e.currentTarget.value);
+                          if (Number.isNaN(value)) {
+                            return;
+                          }
+                          modeParams.undoManager.pushUndo({
+                            command: Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "twist",
+                              initValue,
+                            ),
+                            description: "Twist Track Point Node",
+                          });
+                          initValue = value;
+                        }}
+                      />
+                    );
+                  })}
                 </td>
               </tr>
               <tr>
