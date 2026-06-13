@@ -302,161 +302,170 @@ export function createEditTrackPtNodesMode(params: {
   let sideForm = whenDefined(
     selectedTrackPtNode,
     (trackPtNode) => () => (
-      <div>
-        <table>
-          <thead/>
-          <tbody>
-            <Show when={trackPtNodeTValues()}>
-              {(trackPtNodeTValues) => (
-                <tr>
-                  <td>T Value</td>
-                  <td>{trackPtNodeTValues()[trackPtNode().index].toFixed(3)}</td>
-                </tr>
-              )}
-            </Show>
-            <tr>
-              <td><label style={{ "text-wrap": "nowrap", }}>Position X:</label></td>
-              <td>
-                <input
-                  ref={(input) =>
-                    bidirectionalBind({
-                      input,
-                      value: () => trackPtNode().trackPtNode.pt().x,
-                      setValue: (x) => {
-                        params.modeParams.doCommand(
-                          Command.setField(
-                            trackPtNode().trackPtNode.entityId,
-                            componentRegistry.TrackPathPt,
-                            "px",
-                            x,
-                          )
-                        );
-                      },
-                    })
-                  }
-                  type="text"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label style={{ "text-wrap": "nowrap", }}>Position Y:</label></td>
-              <td>
-                <input
-                  ref={(input) =>
-                    bidirectionalBind({
-                      input,
-                      value: () => trackPtNode().trackPtNode.pt().y,
-                      setValue: (x) => {
-                        params.modeParams.doCommand(
-                          Command.setField(
-                            trackPtNode().trackPtNode.entityId,
-                            componentRegistry.TrackPathPt,
-                            "py",
-                            x,
-                          )
-                        );
-                      },
-                    })
-                  }
-                  type="text"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label style={{ "text-wrap": "nowrap", }}>Position Z:</label></td>
-              <td>
-                <input
-                  ref={(input) =>
-                    bidirectionalBind({
-                      input,
-                      value: () => trackPtNode().trackPtNode.pt().z,
-                      setValue: (x) => {
-                        params.modeParams.doCommand(
-                          Command.setField(
-                            trackPtNode().trackPtNode.entityId,
-                            componentRegistry.TrackPathPt,
-                            "pz",
-                            x,
-                          )
-                        );
-                      },
-                    })
-                  }
-                  type="text"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td><label>Twist:</label></td>
-              <td>
-                <input
-                  ref={(input) =>
-                    bidirectionalBind({
-                      input,
-                      value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
-                      setValue: (x) => {
-                        params.modeParams.doCommand(
-                          Command.setField(
-                            trackPtNode().trackPtNode.entityId,
-                            componentRegistry.TrackPathPt,
-                            "twist",
-                            x * Math.PI / 180.0,
-                          )
-                        );
-                      },
-                    })
-                  }
-                  type="text"
-                />
-              </td>
-            </tr>
-            <tr>
-              <td colspan={2}>
-                <input
-                  type="range"
-                  min={-180}
-                  max={180}
-                  step={5}
-                  value={trackPtNode().trackPtNode.twist() * 180.0 / Math.PI}
-                  onInput={(e) => {
-                    let value = Number.parseFloat(e.currentTarget.value);
-                    if (Number.isNaN(value)) {
-                      return;
+      <Show when={trackPtNode()}>
+        {(trackPtNode) => (
+        <div>
+          <table>
+            <thead/>
+            <tbody>
+              <Show when={trackPtNodeTValues()}>
+                {(trackPtNodeTValues) => (
+                  <tr>
+                    <td>T Value</td>
+                    <td>{trackPtNodeTValues()[trackPtNode().index].toFixed(3)}</td>
+                  </tr>
+                )}
+              </Show>
+              <tr>
+                <td><label style={{ "text-wrap": "nowrap", }}>Position X:</label></td>
+                <td>
+                  <input
+                    ref={(input) =>
+                      bidirectionalBind({
+                        input,
+                        value: () => trackPtNode().trackPtNode.pt().x,
+                        setValue: (x) => {
+                          params.modeParams.doCommand(
+                            Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "px",
+                              x,
+                            )
+                          );
+                        },
+                      })
                     }
-                    params.modeParams.doCommand(
-                      Command.setField(
+                    type="text"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td><label style={{ "text-wrap": "nowrap", }}>Position Y:</label></td>
+                <td>
+                  <input
+                    ref={(input) =>
+                      bidirectionalBind({
+                        input,
+                        value: () => trackPtNode().trackPtNode.pt().y,
+                        setValue: (x) => {
+                          params.modeParams.doCommand(
+                            Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "py",
+                              x,
+                            )
+                          );
+                        },
+                      })
+                    }
+                    type="text"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td><label style={{ "text-wrap": "nowrap", }}>Position Z:</label></td>
+                <td>
+                  <input
+                    ref={(input) =>
+                      bidirectionalBind({
+                        input,
+                        value: () => trackPtNode().trackPtNode.pt().z,
+                        setValue: (x) => {
+                          params.modeParams.doCommand(
+                            Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "pz",
+                              x,
+                            )
+                          );
+                        },
+                      })
+                    }
+                    type="text"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td><label>Twist:</label></td>
+                <td>
+                  <input
+                    ref={(input) =>
+                      bidirectionalBind({
+                        input,
+                        value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
+                        setValue: (x) => {
+                          params.modeParams.doCommand(
+                            Command.setField(
+                              trackPtNode().trackPtNode.entityId,
+                              componentRegistry.TrackPathPt,
+                              "twist",
+                              x * Math.PI / 180.0,
+                            )
+                          );
+                        },
+                      })
+                    }
+                    type="text"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td colspan={2}>
+                  <input
+                    type="range"
+                    min={-180}
+                    max={180}
+                    step={5}
+                    value={trackPtNode().trackPtNode.twist() * 180.0 / Math.PI}
+                    onInput={(e) => {
+                      let value = Number.parseFloat(e.currentTarget.value);
+                      if (Number.isNaN(value)) {
+                        return;
+                      }
+                      params.modeParams.doCommand(
+                        Command.setField(
+                          trackPtNode().trackPtNode.entityId,
+                          componentRegistry.TrackPathPt,
+                          "twist",
+                          value * Math.PI / 180.0,
+                        )
+                      );
+                    }}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td colspan={2}>
+                  <button
+                    class="btn btn-primary"
+                    disabled={(() => {
+                      let trackPtNodes2 = trackPtNodes();
+                      if (trackPtNodes2 == undefined) {
+                        return true;
+                      }
+                      return trackPtNodes2.length <= 3;
+                    })()}
+                    onClick={() => {
+                      //alert("TODO");
+                      entityRemoveChild(
+                        componentRegistry,
+                        modeParams.ecs,
                         trackPtNode().trackPtNode.entityId,
-                        componentRegistry.TrackPathPt,
-                        "twist",
-                        value * Math.PI / 180.0,
-                      )
-                    );
-                  }}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td colspan={2}>
-                <button
-                  class="btn btn-primary"
-                  disabled={(() => {
-                    let trackPtNodes2 = trackPtNodes();
-                    if (trackPtNodes2 == undefined) {
-                      return true;
-                    }
-                    return trackPtNodes2.length <= 3;
-                  })()}
-                  onClick={() => {
-                    alert("TODO");
-                  }}
-                >
-                  Delete Node
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                      );
+                    }}
+                  >
+                    Delete Node
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        )}
+      </Show>
     ),
   );
 
