@@ -5,8 +5,10 @@ import { Command } from "./commands";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { ComponentRegistry } from "./components/registry";
 import { Operation } from "./operation";
+import { UndoRedoManager } from "./undo-redo";
 
 export interface ModeParams {
+  undoManager: UndoRedoManager,
   ecs: ReactiveECS,
   componentRegistry: ComponentRegistry,
   canvas: Accessor<HTMLCanvasElement | undefined>,

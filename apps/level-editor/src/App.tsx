@@ -199,6 +199,7 @@ const App: Component = () => {
     }
   };
   let modeParams: ModeParams = {
+    undoManager: undoRedoManager,
     ecs,
     componentRegistry,
     canvas,

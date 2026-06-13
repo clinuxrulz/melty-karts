@@ -536,7 +536,43 @@ export function createEditTrackPtNodesMode(params: {
               if (!selected || object === undefined || transformControls === undefined) {
                 return;
               }
+              let initPos = untrack(() => trackPtNode().pt());
               transformControls.attach(object);
+              let listener = (e: {
+                  value: unknown;
+              } & THREE.Event<"dragging-changed", TransformControls>) => {
+                if (e.value) {
+                  return;
+                }
+                modeParams.undoManager.pushUndo({
+                  command: Command.seq([
+                    Command.setField(
+                      trackPtNode().entityId,
+                      componentRegistry.TrackPathPt,
+                      "px",
+                      initPos.x,
+                    ),
+                    Command.setField(
+                      trackPtNode().entityId,
+                      componentRegistry.TrackPathPt,
+                      "py",
+                      initPos.y,
+                    ),
+                    Command.setField(
+                      trackPtNode().entityId,
+                      componentRegistry.TrackPathPt,
+                      "pz",
+                      initPos.z,
+                    ),
+                  ]),
+                  description: "Move Track Point Node",
+                });
+                initPos = untrack(() => trackPtNode().pt());
+              };
+              transformControls.addEventListener("dragging-changed", listener);
+              return () => {
+                transformControls.removeEventListener("dragging-changed", listener);
+              };
             },
           )
           return (
