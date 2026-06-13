@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "pnpm --filter @melty-karts/melty-karts dev",
     "build": "pnpm --filter @melty-karts/melty-karts build",
-    "serve": "pnpm --filter @melty-karts/melty-karts serve"
+    "serve": "pnpm --filter @melty-karts/melty-karts serve",
+    "dev:level-editor": "pnpm --filter @melty-karts/level-editor dev"
   },
   "dependencies": {
   },

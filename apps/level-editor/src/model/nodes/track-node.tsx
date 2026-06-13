@@ -1,4 +1,4 @@
-import { createMemo, createStore, onCleanup, untrack } from "solid-js";
+import { createMemo, getOwner, onCleanup, runWithOwner } from "solid-js";
 import * as THREE from "three";
 import { ComponentRegistry } from "../components/registry";
 import { TrackSchema } from "../components/track-component";
@@ -9,7 +9,7 @@ import { EntityID } from "@oasys/oecs";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
 import { TrackEvaluator } from "../track-evaluator";
 import { T } from "../../t";
-import { constAccessor } from "../../util";
+import { bidirectionalBindForInputNumber, constAccessor } from "../../util";
 import { Command } from "../commands";
 import { Operation } from "../operation";
 
@@ -155,58 +155,45 @@ export function mkTrackNodeType(
             );
           });
           let propertiesForm = constAccessor((formProps: { doOperation: (operation: Operation) => void, doCommand: (command: Command, addUndo?: boolean, undoDescription?: string) => void, }) => {
-            let [ formState, setFormState, ] = createStore<{
-              width: number,
-              changed: boolean,
-            }>({
-              width: untrack(() => track().width),
-              changed: false,
-            });
+            let owner = getOwner();
             return (
               <div>
                 <label>
                   <span style="width: 5px;">Width:</span>
                   <input
+                    ref={(input) =>
+                      runWithOwner(
+                        owner,
+                        () => bidirectionalBindForInputNumber({
+                          input,
+                          value: createMemo(() => track().width),
+                          setValue: (value) => {
+                            let self = params.self();
+                            if (self === undefined) {
+                              return;
+                            }
+                            let entityId = Number.parseInt(self.stableName) as EntityID;
+                            if (Number.isNaN(entityId)) {
+                              return;
+                            }
+                            formProps.doCommand(
+                              Command.setField(
+                                entityId,
+                                componentRegistry.Track,
+                                "width",
+                                value,
+                              ),
+                              true,
+                              "Edit Track",
+                            );
+                          },
+                        })
+                      )
+                    }
                     class="input"
                     type="text"
-                    value={untrack(() => formState.width)}
-                    onInput={(e) => {
-                      let value = Number.parseFloat(e.currentTarget.value.trim());
-                      if (Number.isNaN(value)) {
-                        return;
-                      }
-                      setFormState((s) => {
-                        s.width = value;
-                        s.changed = true;
-                      });
-                    }}
                   />
-                </label><br/>
-                <button
-                  class="btn btn-primary"
-                  onClick={() => {
-                    let self = params.self();
-                    if (self === undefined) {
-                      return;
-                    }
-                    let entityId = Number.parseInt(self.stableName) as EntityID;
-                    if (Number.isNaN(entityId)) {
-                      return;
-                    }
-                    formProps.doCommand(
-                      Command.setField(
-                        entityId,
-                        componentRegistry.Track,
-                        "width",
-                        formState.width,
-                      ),
-                      true,
-                      "Edit Track",
-                    );
-                  }}
-                >
-                  Apply
-                </button>
+                </label>
                 <hr/>
                 <button
                   class="btn btn-primary"

@@ -21,6 +21,7 @@ export interface ModeParams {
   idToModelNodeMap: Accessor<Map<string,ResolvedModelNode>>,
   doOperation: (operation: Operation) => void,
   doCommand: (command: Command, addToUndoStack?: boolean, undoDescription?: string) => void,
+  endMode: () => void,
 }
 
 export interface Mode {

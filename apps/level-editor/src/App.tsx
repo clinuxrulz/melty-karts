@@ -219,6 +219,9 @@ const App: Component = () => {
         commandExecutor.performCommand(command);
       }
     },
+    endMode: () => {
+      setMkMode(undefined);
+    },
   };
   let mode = createMemo(() => {
     let mkMode2 = mkMode();
@@ -230,10 +233,10 @@ const App: Component = () => {
   });
   let Instructions: Component = () => (
     <Show when={mode().instructions?.()}>
-      {(instructions) => {
-        let Instructions2 = untrack(instructions);
-        return (<Instructions2/>);
-      }}
+      {(instructions) => (<>{(() => {
+        let Instructions = instructions();
+        return untrack(() => <Instructions/>);
+      })()}</>)}
     </Show>
   );
   let sideForm: Accessor<Component | undefined> = createMemo(() => mode().sideForm?.());
@@ -321,6 +324,7 @@ const App: Component = () => {
         "top": "0",
         "right": "0",
         "bottom": "0",
+        "overflow": "hidden",
       }}
     >
       <Canvas
@@ -394,6 +398,7 @@ const App: Component = () => {
           "right": "0",
           "bottom": "0",
           "pointer-events": "none",
+          "overflow": "hidden",
         }}
       >
         <Show when={sideForm()}>
@@ -403,11 +408,13 @@ const App: Component = () => {
               <div
                 class="h-[30%] md:h-auto md:w-1/4"
                 style={{
-                  "pointer-events": "auto",
                   "background-color": "rgba(0,0,0,0.5)",
+                  "overflow": "hidden",
                 }}
               >
-                <SideForm/>
+                <div style="pointer-events: auto; display: inline-block; overflow: auto;">
+                  <SideForm/>
+                </div>
               </div>
             );
           }}
@@ -420,7 +427,7 @@ const App: Component = () => {
               "top": "0",
             }}
           >
-            <div style="margin: 5px; background-color: black; opacity: 0.5">
+            <div style="margin: 5px; background-color: rgba(0, 0, 0, 0.5);">
               <Show when={canvasSize()}>
                 {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
               </Show><br/>
@@ -435,7 +442,9 @@ const App: Component = () => {
                   </>
                 )}
               </Show><br/>
-              <Instructions/>
+              <div style={{ "pointer-events": "auto", }}>
+                <Instructions/>
+              </div>
             </div>
           </div>
           <div

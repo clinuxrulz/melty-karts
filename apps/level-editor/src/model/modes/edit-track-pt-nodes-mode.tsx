@@ -1,16 +1,13 @@
-import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, getOwner, onCleanup, onSettled, runWithOwner, Show, untrack } from "solid-js";
+import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, getOwner, onCleanup, runWithOwner, Show, untrack } from "solid-js";
 import * as THREE from "three";
 import { Mode, ModeParams } from "../mode";
 import { EntityID } from "@oasys/oecs";
-import { constAccessor } from "../../util";
+import { bidirectionalBindForInputNumber, constAccessor } from "../../util";
 import { TransformControls } from "three/examples/jsm/Addons.js";
-import { Entity } from "solid-three";
 import { T } from "../../t";
 import { Command } from "../commands";
 import { whenDefined } from "../../when";
-import { ValueSlider } from "three/examples/jsm/inspector/ui/Values.js";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
-import { entityAddChildBeforeChild, entityRemoveChild } from "../components/parent-component";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,
@@ -269,35 +266,20 @@ export function createEditTrackPtNodesMode(params: {
     return { trackPtNode: trackPtNodes2[idx], index: idx, };
   });
 
-  let bidirectionalBind = (params: {
-    input: HTMLInputElement,
-    value: Accessor<number>,
-    setValue: (x: number) => void,
-  }) => {
-    let selfSetting = false;
-    let listener = () => {
-      let value = Number.parseFloat(params.input.value.trim());
-      if (Number.isNaN(value)) {
-        return;
-      }
-      selfSetting = true;
-      params.setValue(value);
-    };
-    createRenderEffect(
-      params.value,
-      (value) => {
-        if (selfSetting) {
-          selfSetting = false;
-          return;
-        }
-        params.input.value = value.toFixed(3);
-      },
+  let instructions = constAccessor(() => {
+    return (
+      <>
+        <button
+          class="btn btn-primary"
+          onClick={() => {
+            modeParams.endMode();
+          }}
+        >
+          End Mode
+        </button>
+      </>
     );
-    params.input.addEventListener("input", listener);
-    onCleanup(() => {
-      params.input.removeEventListener("input", listener);
-    });
-  };
+  });
 
   let sideForm = whenDefined(
     selectedTrackPtNode,
@@ -323,7 +305,7 @@ export function createEditTrackPtNodesMode(params: {
                     ref={(input) =>
                       runWithOwner(
                         owner,
-                        () => bidirectionalBind({
+                        () => bidirectionalBindForInputNumber({
                           input,
                           value: () => trackPtNode().trackPtNode.pt().x,
                           setValue: (x) => {
@@ -352,7 +334,7 @@ export function createEditTrackPtNodesMode(params: {
                     ref={(input) =>
                       runWithOwner(
                         owner,
-                        () => bidirectionalBind({
+                        () => bidirectionalBindForInputNumber({
                           input,
                           value: () => trackPtNode().trackPtNode.pt().y,
                           setValue: (x) => {
@@ -381,7 +363,7 @@ export function createEditTrackPtNodesMode(params: {
                     ref={(input) =>
                       runWithOwner(
                         owner,
-                        () => bidirectionalBind({
+                        () => bidirectionalBindForInputNumber({
                           input,
                           value: () => trackPtNode().trackPtNode.pt().z,
                           setValue: (x) => {
@@ -410,7 +392,7 @@ export function createEditTrackPtNodesMode(params: {
                     ref={(input) =>
                       runWithOwner(
                         owner,
-                        () => bidirectionalBind({
+                        () => bidirectionalBindForInputNumber({
                           input,
                           value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
                           setValue: (x) => {
@@ -760,6 +742,7 @@ export function createEditTrackPtNodesMode(params: {
     }
   };
   return {
+    instructions,
     sideForm,
     overlay3d,
     orbitControlsEnabled,
