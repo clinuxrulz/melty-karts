@@ -209,9 +209,9 @@ const App: Component = () => {
   let mode = createMemo(() => {
     let mkMode2 = mkMode();
     if (mkMode2 === undefined) {
-      return createSelectionMode(modeParams);
+      return untrack(() => createSelectionMode(modeParams));
     } else {
-      return mkMode2();
+      return untrack(() => mkMode2());
     }
   });
   let Instructions: Component = () => (

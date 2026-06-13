@@ -10,6 +10,7 @@ import { Command } from "../commands";
 import { whenDefined } from "../../when";
 import { ValueSlider } from "three/examples/jsm/inspector/ui/Values.js";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
+import { entityAddChildBeforeChild, entityRemoveChild } from "../components/parent-component";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,
@@ -194,20 +195,10 @@ export function createEditTrackPtNodesMode(params: {
     if (trackPtNodes2 === undefined) {
       return undefined;
     }
-    let result: number[] = new Array(trackPtNodes2.length);
-    result[0] = 0.0;
-    let atDist = 0.0;
-    let firstPt = trackPtNodes2[0].pt();
-    let lastPt = trackPtNodes2[0].pt();
-    for (let i = 1; i < trackPtNodes2.length; ++i) {
-      let pt = trackPtNodes2[i].pt();
-      atDist += lastPt.distanceTo(pt);
-      result[i] = atDist;
-      lastPt = pt;
-    }
-    atDist += lastPt.distanceTo(firstPt);
-    for (let i = 0; i < result.length; ++i) {
-      result[i] /= atDist;
+    let n = trackPtNodes2.length;
+    let result: number[] = new Array(n);
+    for (let i = 0; i < n; ++i) {
+      result[i] = i / n;
     }
     return result;
   });
@@ -446,8 +437,20 @@ export function createEditTrackPtNodesMode(params: {
             </tr>
             <tr>
               <td colspan={2}>
-                <button class="btn btn-primary">
-                  Delete Node (TODO)
+                <button
+                  class="btn btn-primary"
+                  disabled={(() => {
+                    let trackPtNodes2 = trackPtNodes();
+                    if (trackPtNodes2 == undefined) {
+                      return true;
+                    }
+                    return trackPtNodes2.length <= 3;
+                  })()}
+                  onClick={() => {
+                    alert("TODO");
+                  }}
+                >
+                  Delete Node
                 </button>
               </td>
             </tr>
@@ -496,16 +499,15 @@ export function createEditTrackPtNodesMode(params: {
           let highlighted = createMemo(() => trackPtNodeUnderMouseById() === trackPtNode2.entityId);
           let selected = createMemo(() => state.selectedTrackPtNodeById === trackPtNode2.entityId);
           createRenderEffect(
-            selected,
-            (selected) => {
-              if (!selected) {
+            () => [
+              selected(),
+              object(),
+            ] as const,
+            ([ selected, object ]) => {
+              if (!selected || object === undefined) {
                 return;
               }
-              let object2 = object();
-              if (object2 === undefined) {
-                return;
-              }
-              transformControls()?.attach(object2);
+              transformControls()?.attach(object);
             },
           )
           return (
@@ -581,10 +583,11 @@ export function createEditTrackPtNodesMode(params: {
                             <T.Points
                               material={plusMaterial()}
                               renderOrder={2}
+                              position={new THREE.Vector3().copy(pt())}
                             >
                               <T.BufferGeometry
                                 ref={(geometry) => {
-                                  geometry.setFromPoints([new THREE.Vector3().copy(pt())]);
+                                  geometry.setFromPoints([new THREE.Vector3()]);
                                 }}
                               />
                             </T.Points>
@@ -602,9 +605,55 @@ export function createEditTrackPtNodesMode(params: {
     </>
   ));
   let onPointerDown = () => {
-    let trackPtNodeById = trackPtNodeUnderMouseById();
-    if (trackPtNodeById !== undefined) {
-      setState((s) => { s.selectedTrackPtNodeById = trackPtNodeById; });
+    {
+      let trackPtNodeById = trackPtNodeUnderMouseById();
+      if (trackPtNodeById !== undefined) {
+        setState((s) => { s.selectedTrackPtNodeById = trackPtNodeById; });
+        return;
+      }
+    }
+    {
+      let addTrackPtNode = addTrackPtNodeUnderMouse();
+      if (addTrackPtNode !== undefined) {
+        let curve2 = curve();
+        if (curve2 === undefined) {
+          return;
+        }
+        let trackPtNodes2 = trackPtNodes();
+        if (trackPtNodes2 === undefined) {
+          return;
+        }
+        let idx = addTrackPtNode.insertAtIndex;
+        let beforeEntityId = trackPtNodes2[idx].entityId;
+        let parentEntityId = modeParams.ecs.ecs.get_field(
+          beforeEntityId,
+          componentRegistry.Child,
+          "parent",
+        ) as EntityID;
+        let entityId = modeParams.ecs.create_entity();
+        let pt = curve2.curve.getPoint(addTrackPtNode.tValue);
+        modeParams.ecs.add_component(
+          entityId,
+          componentRegistry.TrackPathPt,
+          {
+            px: pt.x,
+            py: pt.y,
+            pz: pt.z,
+            twist: pt.w,
+          },
+        );
+        entityAddChildBeforeChild(
+          componentRegistry,
+          modeParams.ecs,
+          parentEntityId,
+          entityId,
+          beforeEntityId,
+        );
+        setState((s) => {
+          s.selectedTrackPtNodeById = entityId;
+        });
+        return;
+      }
     }
   };
   return {
