@@ -517,6 +517,9 @@ export function createEditTrackPtNodesMode(params: {
                 return;
               }
               transformControls()?.attach(object);
+              return () => {
+                transformControls()?.detach();
+              };
             },
           )
           return (
