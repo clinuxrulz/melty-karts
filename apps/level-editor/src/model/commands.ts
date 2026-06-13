@@ -8,7 +8,10 @@ export type Command =
   | { type: "undestroyEntity", entityId: EntityID }
   | { type: "addComponent", entityId: EntityID, componentType: ComponentDef<ComponentSchema>, component: FieldValues<ComponentSchema>, }
   | { type: "removeComponent", entityId: EntityID, componentType: ComponentDef<ComponentSchema>, }
-  | { type: "setField", entityId: EntityID, componentType: ComponentDef<ComponentSchema>, field: string, value: number, };
+  | { type: "setField", entityId: EntityID, componentType: ComponentDef<ComponentSchema>, field: string, value: number, }
+  | { type: "addChild", entityId: EntityID, childEntityId: EntityID, }
+  | { type: "addChildBeforeChild", entityId: EntityID, childEntityId: EntityID, beforeChildEntityId: EntityID, }
+  | { type: "removeChild", childEntityId: EntityID, };
 
 export namespace Command {
   export function noOperation(): Command {
@@ -41,5 +44,17 @@ export namespace Command {
 
   export function setField<S extends ComponentSchema>(entityId: EntityID, componentType: ComponentDef<S>, field: keyof S, value: number): Command {
     return { type: "setField", entityId, componentType, field: field as string, value, };
+  }
+
+  export function addChild(entityId: EntityID, childEntityId: EntityID): Command {
+    return { type: "addChild", entityId, childEntityId, };
+  }
+  
+  export function addChildBeforeChild(entityId: EntityID, childEntityId: EntityID, beforeChildEntityId: EntityID): Command {
+    return { type: "addChildBeforeChild", entityId, childEntityId, beforeChildEntityId, };
+  }
+
+  export function removeChild(childEntityId: EntityID): Command {
+    return { type: "removeChild", childEntityId, };
   }
 }

@@ -21,6 +21,7 @@ import { CommandExecutor } from "./model/command-executor";
 import { UndoRedoManager } from "./model/undo-redo";
 import { Operation } from "./model/operation";
 import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mode";
+import { Command } from "./model/commands";
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -36,7 +37,7 @@ const App: Component = () => {
   let componentRegistry = registerComponents(baseEcs);
   let modelNodeRegistry = registerModelNodes(componentRegistry);
   let ecs = new ReactiveECS(baseEcs);
-  let commandExecutor = new CommandExecutor(ecs);
+  let commandExecutor = new CommandExecutor(componentRegistry, ecs);
   let undoRedoManager = new UndoRedoManager((command) => commandExecutor.performCommand(command));
   let screenPtToWorldRay: (pt: THREE.Vector2) => THREE.Ray | undefined;
   {
@@ -146,27 +147,39 @@ const App: Component = () => {
     console.log(modelNodes());
   });
   {
-    let e = ecs.create_entity();
-    ecs.add_component(e, componentRegistry.Track, { width: 6.0, });
-    for (let i = 0; i < 5; ++i) {
-      let a = i * 2.0 * Math.PI / 5;
-      let ca = Math.cos(a);
-      let sa = Math.sin(a);
-      let ptX = 10 * ca;
-      let ptZ = 10 * sa;
-      let tpe = ecs.create_entity();
-      ecs.add_component(
-        tpe,
-        componentRegistry.TrackPathPt,
-        {
-          px: ptX,
-          py: 0.0,
-          pz: ptZ,
-          twist: 0.0,
-        },
+    let initCommand =
+      Command.createEntity(
+        (e) => Command.seq([
+          Command.addComponent(
+            e,
+            componentRegistry.Track,
+            { width: 6.0, },
+          ),
+          ...Array(5).fill(undefined).map((_, i) => {
+            let a = i * 2.0 * Math.PI / 5;
+            let ca = Math.cos(a);
+            let sa = Math.sin(a);
+            let ptX = 10 * ca;
+            let ptZ = 10 * sa;
+            return Command.createEntity((tpe) =>
+              Command.seq([
+                Command.addComponent(
+                  tpe,
+                  componentRegistry.TrackPathPt,
+                  {
+                    px: ptX,
+                    py: 0.0,
+                    pz: ptZ,
+                    twist: 0.0,
+                  },
+                ),
+                Command.addChild(e, tpe),
+              ])
+            );
+          })
+        ]),
       );
-      entityAddChild(componentRegistry, ecs, e, tpe);
-    }
+    commandExecutor.performCommand(initCommand);
   }
   let setMode = (mkMode: () => Mode) => {
     setMkMode(() => mkMode);

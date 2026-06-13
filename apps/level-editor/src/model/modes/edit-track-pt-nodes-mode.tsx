@@ -1,4 +1,4 @@
-import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, onCleanup, onSettled, Show, untrack } from "solid-js";
+import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, getOwner, onCleanup, onSettled, runWithOwner, Show, untrack } from "solid-js";
 import * as THREE from "three";
 import { Mode, ModeParams } from "../mode";
 import { EntityID } from "@oasys/oecs";
@@ -301,9 +301,9 @@ export function createEditTrackPtNodesMode(params: {
 
   let sideForm = whenDefined(
     selectedTrackPtNode,
-    (trackPtNode) => () => (
-      <Show when={trackPtNode()}>
-        {(trackPtNode) => (
+    (trackPtNode) => () => {
+      let owner = getOwner();
+      return (
         <div>
           <table>
             <thead/>
@@ -321,20 +321,23 @@ export function createEditTrackPtNodesMode(params: {
                 <td>
                   <input
                     ref={(input) =>
-                      bidirectionalBind({
-                        input,
-                        value: () => trackPtNode().trackPtNode.pt().x,
-                        setValue: (x) => {
-                          params.modeParams.doCommand(
-                            Command.setField(
-                              trackPtNode().trackPtNode.entityId,
-                              componentRegistry.TrackPathPt,
-                              "px",
-                              x,
-                            )
-                          );
-                        },
-                      })
+                      runWithOwner(
+                        owner,
+                        () => bidirectionalBind({
+                          input,
+                          value: () => trackPtNode().trackPtNode.pt().x,
+                          setValue: (x) => {
+                            params.modeParams.doCommand(
+                              Command.setField(
+                                trackPtNode().trackPtNode.entityId,
+                                componentRegistry.TrackPathPt,
+                                "px",
+                                x,
+                              )
+                            );
+                          },
+                        }),
+                      )
                     }
                     type="text"
                   />
@@ -345,20 +348,23 @@ export function createEditTrackPtNodesMode(params: {
                 <td>
                   <input
                     ref={(input) =>
-                      bidirectionalBind({
-                        input,
-                        value: () => trackPtNode().trackPtNode.pt().y,
-                        setValue: (x) => {
-                          params.modeParams.doCommand(
-                            Command.setField(
-                              trackPtNode().trackPtNode.entityId,
-                              componentRegistry.TrackPathPt,
-                              "py",
-                              x,
-                            )
-                          );
-                        },
-                      })
+                      runWithOwner(
+                        owner,
+                        () => bidirectionalBind({
+                          input,
+                          value: () => trackPtNode().trackPtNode.pt().y,
+                          setValue: (x) => {
+                            params.modeParams.doCommand(
+                              Command.setField(
+                                trackPtNode().trackPtNode.entityId,
+                                componentRegistry.TrackPathPt,
+                                "py",
+                                x,
+                              )
+                            );
+                          },
+                        }),
+                      )
                     }
                     type="text"
                   />
@@ -369,20 +375,23 @@ export function createEditTrackPtNodesMode(params: {
                 <td>
                   <input
                     ref={(input) =>
-                      bidirectionalBind({
-                        input,
-                        value: () => trackPtNode().trackPtNode.pt().z,
-                        setValue: (x) => {
-                          params.modeParams.doCommand(
-                            Command.setField(
-                              trackPtNode().trackPtNode.entityId,
-                              componentRegistry.TrackPathPt,
-                              "pz",
-                              x,
-                            )
-                          );
-                        },
-                      })
+                      runWithOwner(
+                        owner,
+                        () => bidirectionalBind({
+                          input,
+                          value: () => trackPtNode().trackPtNode.pt().z,
+                          setValue: (x) => {
+                            params.modeParams.doCommand(
+                              Command.setField(
+                                trackPtNode().trackPtNode.entityId,
+                                componentRegistry.TrackPathPt,
+                                "pz",
+                                x,
+                              )
+                            );
+                          },
+                        }),
+                      )
                     }
                     type="text"
                   />
@@ -393,20 +402,23 @@ export function createEditTrackPtNodesMode(params: {
                 <td>
                   <input
                     ref={(input) =>
-                      bidirectionalBind({
-                        input,
-                        value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
-                        setValue: (x) => {
-                          params.modeParams.doCommand(
-                            Command.setField(
-                              trackPtNode().trackPtNode.entityId,
-                              componentRegistry.TrackPathPt,
-                              "twist",
-                              x * Math.PI / 180.0,
-                            )
-                          );
-                        },
-                      })
+                      runWithOwner(
+                        owner,
+                        () => bidirectionalBind({
+                          input,
+                          value: () => trackPtNode().trackPtNode.twist() * 180.0 / Math.PI,
+                          setValue: (x) => {
+                            params.modeParams.doCommand(
+                              Command.setField(
+                                trackPtNode().trackPtNode.entityId,
+                                componentRegistry.TrackPathPt,
+                                "twist",
+                                x * Math.PI / 180.0,
+                              )
+                            );
+                          },
+                        }),
+                      )
                     }
                     type="text"
                   />
@@ -449,11 +461,19 @@ export function createEditTrackPtNodesMode(params: {
                       return trackPtNodes2.length <= 3;
                     })()}
                     onClick={() => {
-                      //alert("TODO");
-                      entityRemoveChild(
-                        componentRegistry,
-                        modeParams.ecs,
-                        trackPtNode().trackPtNode.entityId,
+                      transformControls()?.detach();
+                      let entityId = trackPtNode().trackPtNode.entityId;
+                      modeParams.doCommand(
+                        Command.seq([
+                          Command.removeComponent(
+                            entityId,
+                            componentRegistry.TrackPathPt
+                          ),
+                          Command.removeChild(entityId),
+                          Command.destroyEntity(entityId),
+                        ]),
+                        true,
+                        "Remove Track Point Node",
                       );
                     }}
                   >
@@ -464,9 +484,8 @@ export function createEditTrackPtNodesMode(params: {
             </tbody>
           </table>
         </div>
-        )}
-      </Show>
-    ),
+      );
+    },
   );
 
   let plusMaterial = createMemo(() => {
@@ -511,15 +530,13 @@ export function createEditTrackPtNodesMode(params: {
             () => [
               selected(),
               object(),
+              transformControls(),
             ] as const,
-            ([ selected, object ]) => {
-              if (!selected || object === undefined) {
+            ([ selected, object, transformControls ]) => {
+              if (!selected || object === undefined || transformControls === undefined) {
                 return;
               }
-              transformControls()?.attach(object);
-              return () => {
-                transformControls()?.detach();
-              };
+              transformControls.attach(object);
             },
           )
           return (
@@ -642,27 +659,36 @@ export function createEditTrackPtNodesMode(params: {
           componentRegistry.Child,
           "parent",
         ) as EntityID;
-        let entityId = modeParams.ecs.create_entity();
         let pt = curve2.curve.getPoint(addTrackPtNode.tValue);
-        modeParams.ecs.add_component(
-          entityId,
-          componentRegistry.TrackPathPt,
-          {
-            px: pt.x,
-            py: pt.y,
-            pz: pt.z,
-            twist: pt.w,
-          },
-        );
-        entityAddChildBeforeChild(
-          componentRegistry,
-          modeParams.ecs,
-          parentEntityId,
-          entityId,
-          beforeEntityId,
+        let newEntityId: EntityID | undefined;
+        modeParams.doCommand(
+          Command.createEntity(
+            (entityId) => {
+              newEntityId = entityId;
+              return Command.seq([
+                Command.addComponent(
+                  entityId,
+                  componentRegistry.TrackPathPt,
+                  {
+                    px: pt.x,
+                    py: pt.y,
+                    pz: pt.z,
+                    twist: pt.w,
+                  },
+                ),
+                Command.addChildBeforeChild(
+                  parentEntityId,
+                  entityId,
+                  beforeEntityId,
+                ),
+              ]);
+            }
+          ),
+          true,
+          "Add Track Point Node",
         );
         setState((s) => {
-          s.selectedTrackPtNodeById = entityId;
+          s.selectedTrackPtNodeById = newEntityId;
         });
         return;
       }

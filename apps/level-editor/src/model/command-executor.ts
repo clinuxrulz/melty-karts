@@ -1,13 +1,20 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { Command } from "./commands";
 import { ComponentDef, ComponentSchema, EntityID } from "@oasys/oecs";
+import { entityAddChild, entityAddChildBeforeChild, entityRemoveChild } from "./components/parent-component";
+import { ComponentRegistry } from "./components/registry";
 
 export class CommandExecutor {
+  private componentRegistry: ComponentRegistry;
   private ecs: ReactiveECS;
   private freeEntityIdSet = new Set<EntityID>();
   private componentDefToFieldsMap = new Map<ComponentDef<ComponentSchema>,string[]>();
 
-  constructor(ecs: ReactiveECS) {
+  constructor(
+    componentRegistry: ComponentRegistry,
+    ecs: ReactiveECS,
+  ) {
+    this.componentRegistry = componentRegistry;
     this.ecs = ecs;
   }
 
@@ -72,6 +79,50 @@ export class CommandExecutor {
         let oldValue = this.ecs.ecs.get_field(command.entityId, command.componentType, command.field);
         this.ecs.set_field(command.entityId, command.componentType, command.field, command.value);
         return Command.setField(command.entityId, command.componentType, command.field, oldValue);
+      }
+      case "addChild": {
+        entityAddChild(
+          this.componentRegistry,
+          this.ecs,
+          command.entityId,
+          command.childEntityId,
+        );
+        return Command.removeChild(command.childEntityId);
+      }
+      case "addChildBeforeChild": {
+        entityAddChildBeforeChild(
+          this.componentRegistry,
+          this.ecs,
+          command.entityId,
+          command.childEntityId,
+          command.beforeChildEntityId,
+        );
+        return Command.removeChild(command.childEntityId);
+      }
+      case "removeChild": {
+        let beforeChildEntityId = this.ecs.ecs.get_field(
+          command.childEntityId,
+          this.componentRegistry.Child,
+          "next"
+        ) as EntityID | -1;
+        let parentEntityId = this.ecs.ecs.get_field(
+          command.childEntityId,
+          this.componentRegistry.Child,
+          "parent"
+        ) as EntityID;
+        entityRemoveChild(this.componentRegistry, this.ecs, command.childEntityId);
+        if (beforeChildEntityId === -1) {
+          return Command.addChild(
+            parentEntityId,
+            command.childEntityId,
+          );
+        } else {
+          return Command.addChildBeforeChild(
+            parentEntityId,
+            command.childEntityId,
+            beforeChildEntityId,
+          );
+        }
       }
       default:
         let x: never = command;
