@@ -19,10 +19,15 @@ export class CommandExecutor {
   }
 
   private getFreeEntityId(): EntityID | undefined {
+    let result: EntityID | undefined = undefined;
     for (let e of this.freeEntityIdSet) {
-      return e;
+      result = e;
+      break;
     }
-    return undefined;
+    if (result !== undefined) {
+      this.freeEntityIdSet.delete(result);
+    }
+    return result;
   }
 
   performCommand(command: Command): Command {
