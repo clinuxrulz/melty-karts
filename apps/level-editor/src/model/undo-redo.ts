@@ -30,6 +30,15 @@ export class UndoRedoManager {
     this._performCommand = performCommand;
   }
 
+  clear() {
+    this._undoStack.length = 0;
+    this._redoStack.length = 0;
+    this._hasUndo[1](false);
+    this._hasRedo[1](false);
+    this._undoDescription[1](undefined);
+    this._redoDescription[1](undefined);
+  }
+
   clearRedo() {
     this._redoStack.splice(0, this._redoStack.length);
     this._hasRedo[1](false);

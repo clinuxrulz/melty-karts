@@ -1,7 +1,7 @@
 import { ECS } from "@oasys/oecs";
-import { ComponentDefGetDataType } from "./util";
+import { ComponentDefGetDataType, ComponentDefGetSchemaType } from "./util";
 
-export function mkTrachPathPtComponent(ecs: ECS) {
+export function mkTrackPathPtComponent(ecs: ECS) {
   return ecs.register_component({
     px: "f32",
     py: "f32",
@@ -11,4 +11,5 @@ export function mkTrachPathPtComponent(ecs: ECS) {
   });
 }
 
-export type TrackState = ComponentDefGetDataType<ReturnType<typeof mkTrachPathPtComponent>>;
+export type TrackPathPtSchema = ComponentDefGetSchemaType<ReturnType<typeof mkTrackPathPtComponent>>;
+export type TrackPathPtState = ComponentDefGetDataType<ReturnType<typeof mkTrackPathPtComponent>>;

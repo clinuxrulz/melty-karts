@@ -22,6 +22,8 @@ import { UndoRedoManager } from "./model/undo-redo";
 import { Operation } from "./model/operation";
 import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mode";
 import { Command } from "./model/commands";
+import { loadEcsFromXml, saveEcsToXml } from "./model/load-save";
+import * as FileSaver from "file-saver";
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -479,6 +481,63 @@ const App: Component = () => {
                 Redo
               </button>
             </div>
+            <button
+              class="btn btn-primary ml-2"
+              onClick={() => {
+                let xmlData = saveEcsToXml(
+                  componentRegistry,
+                  modelNodeRegistry,
+                  ecs,
+                );
+                let blob = new Blob([ xmlData ], { type: "application/xml", });
+                FileSaver.saveAs(
+                  blob,
+                  "level.melty-karts-level",
+                );
+              }}
+            >
+              Save
+            </button>
+            {untrack(() => {
+              let [ inputElement, setInputElement, ] = createSignal<HTMLInputElement>();
+              return (
+                <>
+                  <button
+                    class="btn btn-primary ml-1"
+                    onClick={() => {
+                      inputElement()?.click();
+                    }}
+                  >
+                    Load
+                  </button>
+                  <input
+                    ref={setInputElement}
+                    type="file"
+                    hidden
+                    onInput={async (e) => {
+                      if (e.currentTarget.files?.length !== 1) {
+                        return;
+                      }
+                      let file = e.currentTarget.files[0];
+                      let xmlData = await file.text();
+                      try {
+                        loadEcsFromXml(
+                          componentRegistry,
+                          modelNodeRegistry,
+                          ecs,
+                          xmlData,
+                        );
+                        undoRedoManager.clear();
+                      } catch (e) {
+                        console.error(e);
+                        alert("Failed to load file.");
+                      }
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </>
+              );
+            })}
           </div>
           <OverlayHtml/>
         </div>

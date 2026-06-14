@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@types/file-saver": "^2.0.7",
     "@types/three": "^0.183.1",
     "typescript": "^5.7.2",
     "vite": "^7.1.4",
@@ -25,6 +26,7 @@
     "@solidjs/web": "2.0.0-beta.10",
     "@tailwindcss/vite": "^4.3.0",
     "daisyui": "^5.5.20",
+    "file-saver": "^2.0.5",
     "solid-js": "2.0.0-beta.10",
     "solid-three": "https://pkg.pr.new/solid-three@99a428a",
     "tailwindcss": "^4.3.0",
