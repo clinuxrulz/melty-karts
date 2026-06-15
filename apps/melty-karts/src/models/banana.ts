@@ -9,14 +9,29 @@ export interface BananaParams {
     insideColor: number;
 }
 
-export function createBanana() {
+// Shared template created once at module init
+const _templateBanana = (() => {
     let group = new THREE.Group();
     let r = createProceduralBanana();
     r.scale.set(0.05, 0.05, 0.05);
     r.translateY(0.0125);
-    r.rotateX(Math.PI); // Flip the entire model
+    r.rotateX(Math.PI);
     group.add(r);
     return group;
+})();
+
+export function createBanana() {
+    const clone = _templateBanana.clone(true);
+    // Clone materials per-instance so clip outputNode doesn't affect other instances
+    clone.traverse(child => {
+        if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.material = Array.isArray(mesh.material)
+                ? mesh.material.map(m => m.clone())
+                : mesh.material.clone();
+        }
+    });
+    return clone;
 }
 
 function createProceduralBanana(params?: Partial<BananaParams>): THREE.Group {

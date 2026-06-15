@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { MasterState, RegisteredGameMode, RegisteredMasterState, RegisteredLocalPlayerConfig } from "../World";
+import { WebGPURenderer } from "three/webgpu";
 import { Canvas, Entity, useFrame } from "solid-three";
 
 import { T } from "../t";
@@ -142,6 +143,7 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
           }}
         >
           <Canvas
+            gl={(canvas) => new WebGPURenderer({ canvas }) as any}
             ref={(ctx) => {
               useFrame((ctx, dt) => {
                 setRotationAngle((a) => (a + dt) % 360.0);

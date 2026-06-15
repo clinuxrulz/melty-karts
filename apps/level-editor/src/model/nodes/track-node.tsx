@@ -12,6 +12,8 @@ import { T } from "../../t";
 import { bidirectionalBindForInputNumber, constAccessor } from "../../util";
 import { Command } from "../commands";
 import { Operation } from "../operation";
+import { TSL, MeshBasicNodeMaterial } from "three/webgpu";
+const { uniform, attribute, Fn, vec3, vec4, fract, abs, mix, clamp, div } = TSL;
 
 export function mkTrackNodeType(
   componentRegistry: ComponentRegistry,
@@ -192,74 +194,43 @@ export function mkTrackNodeType(
             );
             onCleanup(() => geometry.dispose());
             geometry.computeBoundingBox();
+            const repeatInterval = uniform(10.0);
+            const selectedUniform = uniform(params.isSelected() ? 1.0 : 0.0);
+
+            const hsv2rgb = Fn(([c]: [any], builder: any) => {
+              const K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+              const p = c.xxx.add(K.xyz).fract().mul(6.0).sub(K.www).abs();
+              const clamped = p.sub(K.xxx).clamp(0.0, 1.0);
+              return c.z.mul(mix(K.xxx, clamped, c.y));
+            });
+
+            const origZ = attribute<"float">("aOriginalZ", "float");
+            const hue = fract(div(origZ, repeatInterval));
+            const trackColor = hsv2rgb(vec3(hue, 0.9, 0.7));
+            const finalColor = selectedUniform.greaterThan(0.5).select(
+              vec3(0.0, 1.0, 0.0),
+              trackColor,
+            );
+
+            const material = new MeshBasicNodeMaterial({
+              transparent: true,
+            });
+            material.fragmentNode = vec4(finalColor, 0.8);
+            onCleanup(() => material.dispose());
+
             return (props: { ref: (self: THREE.Object3D) => void, }) => {
-              let matRef: THREE.MeshBasicMaterial | undefined;
               createRenderEffect(
                 () => params.isSelected(),
                 (isSelected) => {
-                  let shaderData = matRef?.userData?.shaderData as
-                    | { uniforms: Record<string, { value: unknown }> }
-                    | undefined;
-                  if (shaderData?.uniforms?.uSelected) {
-                    shaderData.uniforms.uSelected.value = isSelected ? 1.0 : 0.0;
-                  }
+                  selectedUniform.value = isSelected ? 1.0 : 0.0;
                 },
               );
               return (
                 <T.Mesh
                   geometry={geometry}
                   ref={props.ref}
-                >
-                  <T.MeshBasicMaterial
-                    ref={(mat) => { matRef = mat; }}
-                    color="#505050"
-                    transparent
-                    opacity={0.8}
-                    onBeforeCompile={(shader: THREE.WebGLProgramParametersWithUniforms) => {
-                      shader.vertexShader = shader.vertexShader
-                        .replace(
-                          "#include <common>",
-                          `#include <common>
-                          attribute float aOriginalZ;
-                          varying float vOriginalZ;`,
-                        )
-                        .replace(
-                          "#include <begin_vertex>",
-                          `#include <begin_vertex>
-                          vOriginalZ = aOriginalZ;`,
-                        );
-
-                      shader.fragmentShader = shader.fragmentShader
-                        .replace(
-                          "#include <common>",
-                          `#include <common>
-                          uniform float uRepeatInterval;
-                          uniform float uSelected;
-                          varying float vOriginalZ;
-
-                          vec3 hsv2rgb(vec3 c) {
-                            vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-                            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-                            return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-                          }`,
-                        )
-                        .replace(
-                          "#include <opaque_fragment>",
-                          `if (uSelected > 0.5) {
-                            outgoingLight = vec3(0.0, 1.0, 0.0);
-                          } else {
-                            float hue = fract(vOriginalZ / uRepeatInterval);
-                            outgoingLight = hsv2rgb(vec3(hue, 0.9, 0.7));
-                          }
-                          #include <opaque_fragment>`,
-                        );
-
-                      shader.uniforms.uRepeatInterval = { value: 10.0 };
-                      shader.uniforms.uSelected = { value: params.isSelected() ? 1.0 : 0.0 };
-                      matRef!.userData.shaderData = shader;
-                    }}
-                  />
-                </T.Mesh>
+                  material={material}
+                />
               );
             };
           });

@@ -1,45 +1,42 @@
-import { Component, createRenderEffect, createMemo, For, Match, onCleanup, Switch } from "solid-js";
+import { Component, createRenderEffect, createMemo, For, Match, Switch } from "solid-js";
 import { T } from "../t";
 import Bomb from "./Bomb";
 import Lightning from "./Lightning";
 import { createBanana } from "./banana";
 import { Entity } from "solid-three";
-import { useFrame } from "solid-three";
 import * as THREE from "three";
+import { TSL } from "three/webgpu";
+const { uniform, positionWorld, vec4, output, Fn, Discard } = TSL;
 
-function applyClippingPlanesToObject(object: THREE.Object3D | undefined, clippingPlanes: THREE.Plane[]) {
-  if (object === undefined) {
-    return;
+// Shared resources created once at module init
+const _sharedClipGeometry = (() => {
+  let geometry = new THREE.BoxGeometry().toNonIndexed();
+  const posAttr = geometry.getAttribute("position");
+  const filteredPositions = [];
+  for (let i = 0; i < posAttr.count; i += 3) {
+    if (!(posAttr.getZ(i) > -0.4 && posAttr.getZ(i + 1) > -0.4 && posAttr.getZ(i + 2) > -0.4)) {
+      for (let j = 0; j < 3; j++) {
+        filteredPositions.push(posAttr.getX(i+j), posAttr.getY(i+j), posAttr.getZ(i+j));
+      }
+    }
   }
-  object.traverse((child) => {
-    const child2 = child as THREE.Mesh | THREE.Points;
-    const material = child2.material;
-    if (material === undefined) {
-      return;
-    }
-    const materials = Array.isArray(material) ? material : [ material ];
-    for (const material2 of materials) {
-      let needsUpdate = false;
-      if (material2.clippingPlanes !== clippingPlanes) {
-        material2.clippingPlanes = clippingPlanes;
-        needsUpdate = true;
-      }
-      if (material2.clipShadows !== true) {
-        material2.clipShadows = true;
-        needsUpdate = true;
-      }
-      if (material2 instanceof THREE.ShaderMaterial) {
-        if (material2.clipping !== true) {
-          material2.clipping = true;
-          needsUpdate = true;
-        }
-      }
-      if (needsUpdate) {
-        material2.needsUpdate = true;
-      }
-    }
-  });
-}
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(filteredPositions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+})();
+
+const _sharedSlotInverseMatrix = uniform(new THREE.Matrix4());
+const _sharedSlotClipResult = Fn(() => {
+  const localPos = _sharedSlotInverseMatrix.mul(vec4(positionWorld, 1.0)).xyz;
+  const outside = localPos.x.lessThan(-0.5)
+    .or(localPos.x.greaterThan(0.5))
+    .or(localPos.y.lessThan(0.0))
+    .or(localPos.y.greaterThan(1.0))
+    .or(localPos.z.lessThan(-0.5))
+    .or(localPos.z.greaterThan(0.5));
+  Discard(outside);
+  return output;
+})();
 
 const SlotMachine: Component<{
   time: number,
@@ -52,48 +49,53 @@ const SlotMachine: Component<{
   let slotGroup: THREE.Group | undefined;
   const clippedSymbolGroups: Array<THREE.Object3D | undefined> = [];
   let yPos = createMemo(() => 6.0 - (props.wheelRotation * 2.0 % 5.0));
-  let geometry = new THREE.BoxGeometry().toNonIndexed(); // Convert to non-indexed
-  const posAttr = geometry.getAttribute("position");
-  const filteredPositions = [];
-  for (let i = 0; i < posAttr.count; i += 3) {
-    const z1 = posAttr.getZ(i);
-    const z2 = posAttr.getZ(i + 1);
-    const z3 = posAttr.getZ(i + 2);
-    if (!(z1 > -0.4 && z2 > -0.4 && z3 > -0.4)) {
-      for (let j = 0; j < 3; j++) {
-        filteredPositions.push(posAttr.getX(i+j), posAttr.getY(i+j), posAttr.getZ(i+j));
+  let clipInitialized = false;
+
+  // Apply clip to pre-existing banana materials immediately
+  for (const bg of bananas) {
+    bg.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const m of materials) {
+            (m as any).outputNode = _sharedSlotClipResult;
+            m.needsUpdate = true;
+          }
+        }
       }
-    }
+    });
   }
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(filteredPositions, 3));
-  geometry.computeVertexNormals();
-  const clipTemplatePlanes = [
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(1.0, 0.0, 0.0), new THREE.Vector3(-0.5, 0.0, 0.0)),
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(-1.0, 0.0, 0.0), new THREE.Vector3(0.5, 0.0, 0.0)),
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0.0, 1.0, 0.0), new THREE.Vector3(0.0, 0.0, 0.0)),
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0.0, -1.0, 0.0), new THREE.Vector3(0.0, 1.0, 0.0)),
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0.0, 0.0, 1.0), new THREE.Vector3(0.0, 0.0, -0.5)),
-    new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0.0, 0.0, -1.0), new THREE.Vector3(0.0, 0.0, 0.5)),
-  ];
-  const clippingPlanes = clipTemplatePlanes.map((plane) => plane.clone());
-  applyClippingPlanesToObject(bananas[0], clippingPlanes);
+
   createRenderEffect(
     () => props.time,
     () => {
-      if (slotGroup === undefined) {
-        return;
+      if (slotGroup === undefined) return;
+
+      // On first frame, apply clip to JSX-rendered materials (Bomb, Lightning)
+      if (!clipInitialized) {
+        slotGroup.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              for (const m of materials) {
+                if (!(m as any).outputNode) {
+                  (m as any).outputNode = _sharedSlotClipResult;
+                  m.needsUpdate = true;
+                }
+              }
+            }
+          }
+        });
+        clipInitialized = true;
       }
+
+      // Update inverse matrix every frame
       slotGroup.updateWorldMatrix(true, false);
-      const normalMatrix = new THREE.Matrix3().getNormalMatrix(slotGroup.matrixWorld);
-      for (let i = 0; i < clippingPlanes.length; ++i) {
-        clippingPlanes[i].copy(clipTemplatePlanes[i]).applyMatrix4(slotGroup.matrixWorld, normalMatrix);
-      }
-      for (const group of clippedSymbolGroups) {
-        applyClippingPlanesToObject(group, clippingPlanes);
-      }
+      _sharedSlotInverseMatrix.value.copy(slotGroup.matrixWorld).invert();
     },
   );
-  onCleanup(() => geometry.dispose());
   return (
     <T.Group
       ref={(group) => {
@@ -102,7 +104,7 @@ const SlotMachine: Component<{
     >
       <T.Mesh
         position={[ 0.0, 0.5, 0.0, ]}
-        geometry={geometry}
+        geometry={_sharedClipGeometry}
       >
         <T.MeshStandardMaterial
           side={THREE.DoubleSide}

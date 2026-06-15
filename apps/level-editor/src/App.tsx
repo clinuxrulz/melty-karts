@@ -1,6 +1,7 @@
 import { Component, createEffect, createMemo, createRenderEffect, createSignal, For, mapArray, onCleanup, onSettled, runWithOwner, Show } from "solid-js";
 import { Canvas } from "solid-three";
 import * as THREE from "three";
+import { WebGPURenderer } from "three/webgpu";
 import { T } from "./t";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
@@ -330,6 +331,7 @@ const App: Component = () => {
       }}
     >
       <Canvas
+        gl={(canvas) => new WebGPURenderer({ canvas })}
         ref={(ctx) => {
           ctx.camera.lookAt(0.0, 0.0, 0.0);
           let orbitControls2 = new OrbitControls(ctx.camera, ctx.canvas);

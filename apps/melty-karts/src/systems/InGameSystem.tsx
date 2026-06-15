@@ -20,7 +20,9 @@ import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
 import { RegisteredAIControlled, RegisteredRaceStats, RegisteredLocalPlayerPosition, RegisteredRaceRankings, RegisteredRaceResults, MasterState, RegisteredMasterState, MAX_LAPS } from "../World";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
-import { ClearPass, EffectComposer, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { WebGPURenderer, RenderPipeline, TSL, RenderTarget, HalfFloatType } from "three/webgpu";
+import { bloom } from "../BloomNode";
+const { texture } = TSL;
 import { Canvas } from "solid-three";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { raceMusic } from "../Music";
@@ -342,9 +344,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       }}
     >
       <Canvas
+        gl={(canvas) => new WebGPURenderer({ canvas }) as any}
         ref={(ctx) => {
           let owner = getOwner();
-          queueMicrotask(() => {
+          queueMicrotask(async () => {
             let canvasDiv2 = canvasDiv();
             if (canvasDiv2 === undefined) {
               return;
@@ -353,13 +356,13 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               thisDevicePlayerEntityId: thisDevicePlayerEntityId2,
               dispose,
               renderSystem,
-            } = runWithOwner(owner, () => initScene(
+            } = await runWithOwner(owner, () => initScene(
               ecs,
               canvasDiv2,
               ctx.scene,
               ctx.canvas,
               ctx.camera as THREE.PerspectiveCamera,
-              ctx.gl,
+              ctx.gl as any,
             ));
             runWithOwner(owner, () => {
               onCleanup(() => dispose());
@@ -914,7 +917,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   };
 }
 
-function initScene(
+async function initScene(
   ecs: ReactiveECS,
   canvasDiv: HTMLDivElement,
   scene: THREE.Scene,
@@ -922,6 +925,7 @@ function initScene(
   camera: THREE.PerspectiveCamera,
   renderer: THREE.WebGLRenderer,
 ) {
+  await (renderer as any).init();
   const isMultiplayer = ecs.resource(RegisteredGameMode).get("mode") === 1 && multiplayerSession.isActive;
   let joystickValue = createMemo(() =>
     new THREE.Vector2(
@@ -1110,43 +1114,35 @@ function initScene(
   //const renderer = new THREE.WebGLRenderer({ antialias: true, canvas, });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.localClippingEnabled = true;
 
-  const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight), 
-    1.5,  // strength
-    0.4,  // radius
-    0.4,  // threshold
-  );
-  const composer = new EffectComposer(renderer);
-  const renderScene = new RenderPass(scene, camera);
-  const renderHud = new RenderPass(hudScene, hudCamera);
-  renderHud.clear = false;
-  renderHud.needsSwap = true;
-  composer.addPass(renderScene);
-  composer.addPass(renderHud);
-  composer.addPass(bloomPass);
+  // Manual RT + TSL bloom pipeline (avoids PassNode nesting)
+  const rt = new RenderTarget(1, 1, { type: HalfFloatType, depthBuffer: true });
+  rt.texture.name = "scene_rt";
+  const sceneTextureNode = texture(rt.texture);
+  const bloomPass = bloom(sceneTextureNode, 1.5, 0.4, 0.4);
+  const pipeline = new RenderPipeline(renderer as any);
+  pipeline.outputNode = sceneTextureNode.add(bloomPass as any);
 
-  /*
-  const hudBloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight), 
-    1.5,  // strength
-    0.4,  // radius
-    0.4,  // threshold
-  );
-  const hudComposer = new EffectComposer(renderer);
-  //const hudRenderScene = new RenderPass(hudScene, hudCamera);
-  //hudComposer.addPass(hudRenderScene);
-  hudComposer.addPass(hudBloomPass);
-*/
+  const getSize = () => {
+    const s = new THREE.Vector2();
+    renderer.getSize(s);
+    return s;
+  };
 
-  renderer.autoClear = false;
+  renderer.autoClear = true;
   let render = () => {
-    renderer.clear();
-    composer.render();
-    //renderer.clearDepth();
-    //hudComposer.render();
-    //renderer.render(hudScene, hudCamera);
+    // 1. Render scene to RT
+    const { x: w, y: h } = getSize();
+    // 1. Composite scene + HUD to RT
+    rt.setSize(w, h);
+    (renderer as any).setRenderTarget(rt);
+    renderer.render(scene, camera);
+    renderer.autoClear = false;
+    renderer.render(hudScene, hudCamera);
+    renderer.autoClear = true;
+    // 2. Bloom composite to screen
+    (renderer as any).setRenderTarget(null);
+    pipeline.render();
   };
 
   let orbitYaw = 0;
@@ -1240,7 +1236,6 @@ function initScene(
     let rect = canvasDiv.getBoundingClientRect();
     setCanvasSize(new THREE.Vector2(rect.width, rect.height));
     renderer.setSize(rect.width, rect.height);
-    composer.setSize(rect.width, rect.height);
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
     hudCamera.position.set(0, 0, 10);

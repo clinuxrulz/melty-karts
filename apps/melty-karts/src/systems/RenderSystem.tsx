@@ -348,41 +348,30 @@ export function createRenderSystem(
             </Show>
             {/* 2D HUD */}
             <Portal element={hudScene}>
-              <Show when={(() => {
-                let entityId = ownPlayerEntityId();
-                if (entityId === undefined) {
-                  return undefined;
-                }
-                let entity = ecs.entity(entityId as EntityID);
-                if (!entity.hasComponent(RegisteredSlotMachine)) {
-                  return undefined;
-                }
-                let time = SLOT_MACHINE_SPIN_TIMEOUT - entity.getField(RegisteredSlotMachine, "phaseTimeout");
-                return {
-                  time: time,
-                  spinningOffset: entity.getField(RegisteredSlotMachine, "spinningOffset"),
-                };
-              })()}>
-                {(timeAndSpinningOffset) => {
-                  let time = () => timeAndSpinningOffset().time;
-                  let spinningOffset = () => timeAndSpinningOffset().spinningOffset;
-                  return (
-                    <T.Group
-                      position={[
-                        canvasSize().x - 150.0,
-                        canvasSize().y - 150.0,
-                        -300
-                      ]}
-                      scale={100}
-                    >
-                      <SlotMachine
-                        time={time()}
-                        wheelRotation={spinningOffset()}
-                      />
-                    </T.Group>
-                  );
-                }}
-              </Show>
+              {(() => {
+                let slotMachineData = createMemo(() => {
+                  let entityId = ownPlayerEntityId();
+                  if (entityId === undefined) return null;
+                  let entity = ecs.entity(entityId as EntityID);
+                  if (!entity.hasComponent(RegisteredSlotMachine)) return null;
+                  return {
+                    time: SLOT_MACHINE_SPIN_TIMEOUT - entity.getField(RegisteredSlotMachine, "phaseTimeout"),
+                    spinningOffset: entity.getField(RegisteredSlotMachine, "spinningOffset"),
+                  };
+                });
+                return (
+                  <T.Group
+                    visible={slotMachineData() !== null}
+                    position={[canvasSize().x - 150.0, canvasSize().y - 150.0, -300]}
+                    scale={100}
+                  >
+                    <SlotMachine
+                      time={slotMachineData()?.time ?? 0}
+                      wheelRotation={slotMachineData()?.spinningOffset ?? 0}
+                    />
+                  </T.Group>
+                );
+              })()}
             </Portal>
           </>
         );

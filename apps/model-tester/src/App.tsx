@@ -1,6 +1,8 @@
 import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanup, onSettled, type Component, Show, untrack, Switch, Match } from "solid-js";
 import * as THREE from "three";
-import { EffectComposer, OrbitControls, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { WebGPURenderer, RenderPipeline, TSL } from "three/webgpu";
+import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { bloom } from "./BloomNode";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createMysteryBoxHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useFrame, useThree } from "solid-three";
@@ -19,8 +21,7 @@ const App: Component = () => {
   });
   let [ canvasDiv, setCanvasDiv, ] = createSignal<HTMLDivElement>();
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
-  let [ renderer, setRenderer, ] = createSignal<THREE.WebGLRenderer>();
-  let [ composer, setComposer, ] = createSignal<EffectComposer>();
+  let [ render, setRender, ] = createSignal<() => void>();
   let [ camera, setCamera, ] = createSignal<THREE.PerspectiveCamera>();
   let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
   /*
@@ -46,20 +47,17 @@ const App: Component = () => {
   */
   let rerender = (() => {
     let aboutToRender = false;
-    let render = () => {
+    let doRender = () => {
       aboutToRender = false;
-      let composer2 = composer();
-      if (composer2 == undefined) {
-        return;
-      }
-      composer2.render();
+      let renderFn = render();
+      renderFn?.();
     };
     return () => {
       if (aboutToRender) {
         return;
       }
       aboutToRender = true;
-      requestAnimationFrame(render);
+      requestAnimationFrame(doRender);
     };
   })();
   /*
@@ -142,8 +140,8 @@ const App: Component = () => {
       let again = true;
       let update = (t: number) => {
         setTime(t / 1000.0);
-        let composer2 = composer();
-        composer2?.render(1.0 / 60.0);
+        let renderFn = render();
+        renderFn?.();
         if (again) {
           requestAnimationFrame(update);
         }
@@ -163,40 +161,47 @@ const App: Component = () => {
       }}
     >
       <Canvas
+        gl={(canvas) => new WebGPURenderer({ canvas })}
         ref={(ctx) => {
+          const localScene = ctx.scene;
+          const localCamera = ctx.camera;
           onSettled(() => {
-            ctx.camera.lookAt(0.0, 0.0, 0.0);
+            localCamera.lookAt(0.0, 0.0, 0.0);
             let canvasDiv2 = canvasDiv();
             if (canvasDiv2 == undefined) {
               return;
             }
-            let rect = canvasDiv2.getBoundingClientRect();
             setCanvas(ctx.canvas);
-            ctx.gl.localClippingEnabled = true;
-            // Resolution, strength, radius, threshold
-            const bloomPass = new UnrealBloomPass(
-              new THREE.Vector2(rect.width, rect.height), 
-              1.5,  // strength
-              0.4,  // radius
-              0.4,  // threshold
-            );
-            const composer2 = new EffectComposer(ctx.gl as unknown as THREE.WebGLRenderer);
-            const renderScene = new RenderPass(ctx.scene as unknown as THREE.Scene, ctx.camera as unknown as THREE.PerspectiveCamera);
-            composer2.addPass(renderScene);
-            composer2.addPass(bloomPass);
-            composer2.setSize(rect.width, rect.height);
-            setComposer(composer2);
-            composer2.render();
+            const gl = ctx.gl as any;
+            gl.localClippingEnabled = true;
             //
-            let orbitControls2 = new OrbitControls(ctx.camera, canvasDiv2);
+            let pipeline: RenderPipeline | undefined;
+            try {
+              const scenePass = TSL.pass(localScene, localCamera);
+              const scenePassColor = scenePass.getTextureNode("output");
+              const bloomPass = bloom(scenePassColor, 1.5, 0.4, 0.4);
+              const pipeline2 = new RenderPipeline(gl);
+              pipeline2.outputNode = scenePassColor.add(bloomPass as any);
+              pipeline = pipeline2;
+              setRender(() => () => pipeline2.render());
+            } catch (e) {
+              setRender(() => () => gl.render(localScene, localCamera));
+            }
+            setCamera(localCamera as unknown as THREE.PerspectiveCamera);
+            //
+            let orbitControls2 = new OrbitControls(localCamera, canvasDiv2);
             orbitControls2.addEventListener("change", () => rerender());
             setOrbitControls(orbitControls2);
             rerender();
-            let resizeObserver = new ResizeObserver(() => {});
+            let resizeObserver = new ResizeObserver(() => {
+              let rect = canvasDiv2.getBoundingClientRect();
+              gl.setSize(rect.width, rect.height);
+            });
             resizeObserver.observe(canvasDiv2);
             return () => {
               resizeObserver.unobserve(canvasDiv2);
               resizeObserver.disconnect();
+              pipeline?.dispose();
             };
           });
         }}
