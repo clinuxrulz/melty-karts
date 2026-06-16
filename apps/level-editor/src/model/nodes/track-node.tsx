@@ -127,17 +127,22 @@ export function mkTrackNodeType(
               }
             }
             let remapTValueViaWeights = (x: number): number => {
-              for (let i = 1; i < arcWeights.length; ++i) {
-                if (arcWeights[i] >= x) {
-                  let a = arcWeights[i-1];
-                  let b = arcWeights[i];
-                  let t = (x - a) / (b - a);
-                  let c = (i - 1) / (arcWeights.length-1);
-                  let d = i / (arcWeights.length-1);
-                  return c + t * (d - c);
+              let lo = 0;
+              let hi = arcWeights.length - 1;
+              while (lo < hi - 1) {
+                let mid = (lo + hi) >> 1;
+                if (arcWeights[mid] < x) {
+                  lo = mid;
+                } else {
+                  hi = mid;
                 }
               }
-              return 1.0;
+              let a = arcWeights[lo];
+              let b = arcWeights[hi];
+              let t = (x - a) / (b - a);
+              let c = lo / (arcWeights.length - 1);
+              let d = hi / (arcWeights.length - 1);
+              return c + t * (d - c);
             };
             let trackEval = new TrackEvaluator(
               curve2.curve,
@@ -177,9 +182,9 @@ export function mkTrackNodeType(
               }
               t = remapTValueViaWeights(t);
               let frame = trackEval.getFrameAt(t);
-              let px = frame.position.x + frame.right.x * x - frame.up.x * y;
-              let py = frame.position.y + frame.right.y * x - frame.up.y * y;
-              let pz = frame.position.z + frame.right.z * x - frame.up.z * y;
+              let px = frame.position.x + frame.right.x * x + frame.up.x * y;
+              let py = frame.position.y + frame.right.y * x + frame.up.y * y;
+              let pz = frame.position.z + frame.right.z * x + frame.up.z * y;
               let nx2 = frame.right.x * nx - frame.up.x * ny + frame.forward.x * nz;
               let ny2 = frame.right.y * nx - frame.up.y * ny + frame.forward.y * nz;
               let nz2 = frame.right.z * nx - frame.up.z * ny + frame.forward.z * nz;
@@ -218,6 +223,170 @@ export function mkTrackNodeType(
             material.fragmentNode = vec4(finalColor, 0.8);
             onCleanup(() => material.dispose());
 
+            // Star
+            let starShape = new THREE.Shape();
+            {
+              let stepA = 2.0 * Math.PI / 10.0;
+              let innerRadiusScale: number;
+              {
+                let i1 = -2;
+                let i2 = 2;
+                let j1 = 4;
+                let j2 = 0;
+                let l11x = Math.cos(stepA * i1);
+                let l11y = Math.sin(stepA * i1);
+                let l12x = Math.cos(stepA * i2);
+                let l12y = Math.sin(stepA * i2);
+                let l21x = Math.cos(stepA * j1);
+                let l21y = Math.sin(stepA * j1);
+                let l22x = Math.cos(stepA * j2);
+                let l22y = Math.sin(stepA * j2);
+                let rox = l11x;
+                let roy = l11y;
+                let rdx = l12x - l11x;
+                let rdy = l12y - l11y;
+                let dx = l22x - l21x;
+                let dy = l22y - l21y;
+                let nx = -dy;
+                let ny = dx;
+                let d = -nx * l21x - ny * l21y;
+                // n.(ro + rd.t) + d = 0
+                // n.ro + n.rd.t = -d
+                // n.rd.t = -(d + n.ro)
+                // t = -(d + n.ro) / (n.rd)
+                let t = -(d + nx * rox + ny * roy) / (nx * rdx + ny * rdy);
+                let px = rox + rdx * t;
+                let py = roy + rdy * t;
+                let r = Math.sqrt(px * px + py * py);
+                innerRadiusScale = r;
+              }
+              let a = 0.5 * Math.PI;
+              let radius = 0.5;
+              for (let i = 0; i < 10; ++i) {
+                let ca = Math.cos(a);
+                let sa = Math.sin(a);
+                let r = (i & 1) == 0 ? radius : innerRadiusScale * radius;
+                let x = r * ca;
+                let y = r * sa;
+                if (i == 0) {
+                  starShape.moveTo(x, y);
+                } else {
+                  starShape.lineTo(x, y);
+                }
+                a += stepA;
+              }
+              starShape.closePath();
+              let holeShape = new THREE.Path();
+              a = 0.5 * Math.PI;
+              radius = 0.3;
+              for (let i = 0; i < 10; ++i) {
+                let ca = Math.cos(a);
+                let sa = Math.sin(a);
+                let r = (i & 1) == 0 ? radius : innerRadiusScale * radius;
+                let x = r * ca;
+                let y = r * sa;
+                if (i == 0) {
+                  holeShape.moveTo(x, y);
+                } else {
+                  holeShape.lineTo(x, y);
+                }
+                a += stepA;
+              }
+              holeShape.closePath();
+              starShape.holes.push(holeShape);
+            }
+            let starGeometry = new THREE.ExtrudeGeometry(
+              starShape,
+              {
+                depth: 0.1,
+                bevelEnabled: false,
+              },
+            );
+            starGeometry.rotateY(0.5 * Math.PI);
+            let starRailGeometry = new THREE.BufferGeometry();
+            {
+              let starPositions = starGeometry.getAttribute("position");
+              let starNormals = starGeometry.getAttribute("normal")!;
+              let numStars = Math.ceil(curve2.length / 0.9);
+              let numPointsPerStar = starPositions.count;
+              let numVerts = 2 * numStars * numPointsPerStar;
+              let positions = new Float32Array(numVerts * 3);
+              let normalsArray = new Float32Array(numVerts * 3);
+
+              let starPX = new Float32Array(numPointsPerStar);
+              let starPY = new Float32Array(numPointsPerStar);
+              let starPZ = new Float32Array(numPointsPerStar);
+              let starNX = new Float32Array(numPointsPerStar);
+              let starNY = new Float32Array(numPointsPerStar);
+              let starNZ = new Float32Array(numPointsPerStar);
+              for (let j = 0; j < numPointsPerStar; ++j) {
+                starPX[j] = starPositions.getX(j);
+                starPY[j] = starPositions.getY(j);
+                starPZ[j] = starPositions.getZ(j);
+                starNX[j] = starNormals.getX(j);
+                starNY[j] = starNormals.getY(j);
+                starNZ[j] = starNormals.getZ(j);
+              }
+
+              let halfWidth = 0.5 * track().width;
+              let at3 = 0;
+              for (let i = 0; i < numStars; ++i) {
+                let zBase = i * 0.9;
+                for (let j = 0; j < numPointsPerStar; ++j) {
+                  positions[at3] = starPX[j] - halfWidth;
+                  positions[at3 + 1] = starPY[j] + 0.4;
+                  positions[at3 + 2] = starPZ[j] + zBase;
+                  normalsArray[at3] = starNX[j];
+                  normalsArray[at3 + 1] = starNY[j];
+                  normalsArray[at3 + 2] = starNZ[j];
+                  at3 += 3;
+                }
+                for (let j = 0; j < numPointsPerStar; ++j) {
+                  positions[at3] = starPX[j] + halfWidth;
+                  positions[at3 + 1] = starPY[j] + 0.4;
+                  positions[at3 + 2] = starPZ[j] + zBase;
+                  normalsArray[at3] = starNX[j];
+                  normalsArray[at3 + 1] = starNY[j];
+                  normalsArray[at3 + 2] = starNZ[j];
+                  at3 += 3;
+                }
+              }
+              starRailGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+              starRailGeometry.setAttribute("normal", new THREE.BufferAttribute(normalsArray, 3));
+            }
+            {
+              let points = starRailGeometry.getAttribute("position");
+              let normals = starRailGeometry.getAttribute("normal");
+              for (let i = 0; i < points.count; ++i) {
+                let x = points.getX(i);
+                let y = points.getY(i);
+                let z = points.getZ(i);
+                let nx = normals.getX(i);
+                let ny = normals.getY(i);
+                let nz = normals.getZ(i);
+                let t = Math.max(0.0, Math.min(1.0, z / curve2.length));
+                if (t === 1.0) {
+                  t = 0.0;
+                }
+                t = remapTValueViaWeights(t);
+                let frame = trackEval.getFrameAt(t);
+                let px = frame.position.x + frame.right.x * x + frame.up.x * y;
+                let py = frame.position.y + frame.right.y * x + frame.up.y * y;
+                let pz = frame.position.z + frame.right.z * x + frame.up.z * y;
+                let nx2 = frame.right.x * nx + frame.up.x * ny + frame.forward.x * nz;
+                let ny2 = frame.right.y * nx + frame.up.y * ny + frame.forward.y * nz;
+                let nz2 = frame.right.z * nx + frame.up.z * ny + frame.forward.z * nz;
+                points.setXYZ(i, px, py, pz);
+                normals.setXYZ(i, nx2, ny2, nz2);
+              }
+              points.needsUpdate = true;
+              normals.needsUpdate = true;
+            }
+            onCleanup(() => {
+              starGeometry.dispose();
+              starRailGeometry.dispose();
+            });
+            //
             return (props: { ref: (self: THREE.Object3D) => void, }) => {
               createRenderEffect(
                 () => params.isSelected(),
@@ -226,11 +395,20 @@ export function mkTrackNodeType(
                 },
               );
               return (
-                <T.Mesh
-                  geometry={geometry}
-                  ref={props.ref}
-                  material={material}
-                />
+                <>
+                  <T.Mesh
+                    geometry={starRailGeometry}
+                  >
+                    <T.MeshStandardMaterial
+                      color="yellow"
+                    />
+                  </T.Mesh>
+                  <T.Mesh
+                    geometry={geometry}
+                    ref={props.ref}
+                    material={material}
+                  />
+                </>
               );
             };
           });
