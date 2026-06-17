@@ -10,45 +10,82 @@ export interface TrackFrame {
 
 export class TrackEvaluator {
   private curve: CatmullRomCurve4;
-  private loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, }[];
+  private loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[];
+  private sampleFrames: TrackFrame[];
 
   constructor(
     curve: CatmullRomCurve4,
-    loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, }[],
+    loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[],
+    numSamples: number = 200,
   ) {
     this.curve = curve;
     this.loopDaLoopRanges = loopDaLoopRanges;
+    this.sampleFrames = [];
+    this.computeFrames(numSamples);
+  }
+
+  private computeFrames(numSamples: number): void {
+    let loopRanges = this.loopDaLoopRanges;
+    for (let i = 0; i <= numSamples; i++) {
+      let t = i / numSamples;
+
+      let v4 = this.curve.getPoint(t);
+      let position = new THREE.Vector3(v4.x, v4.y, v4.z);
+      let twist = v4.w;
+
+      let t2 = t + 0.01;
+      if (t2 > 1.0) {
+        t2 -= 1.0;
+      }
+      let v4b = this.curve.getPoint(t2);
+      let forward = new THREE.Vector3(v4b.x, v4b.y, v4b.z).sub(position).normalize();
+
+      let loopCentre: THREE.Vector3 | undefined;
+      for (let range of loopRanges) {
+        if (range.fromT <= t && t <= range.toT) {
+          loopCentre = range.centrePoint;
+          break;
+        }
+      }
+
+      let up: THREE.Vector3;
+      if (loopCentre !== undefined) {
+        up = new THREE.Vector3().subVectors(loopCentre, position).normalize();
+      } else {
+        up = new THREE.Vector3(0.0, 1.0, 0.0);
+      }
+
+      let right = new THREE.Vector3().crossVectors(forward, up).normalize();
+      up.crossVectors(right, forward);
+
+      if (twist !== 0) {
+        up.applyAxisAngle(forward, twist);
+        right.applyAxisAngle(forward, twist);
+      }
+
+      this.sampleFrames.push({ position, forward, up, right });
+    }
   }
 
   public getFrameAt(t: number): TrackFrame {
-    let loopDaLoopCentrePoint: THREE.Vector3 | undefined;
-    for (let loopDaLoopRange of this.loopDaLoopRanges) {
-      if (loopDaLoopRange.fromT <= t && t <= loopDaLoopRange.toT) {
-        loopDaLoopCentrePoint = loopDaLoopRange.centrePoint;
-        break;
-      }
-    }
-    let t1 = t;
-    let t2 = t + 0.01;
-    if (t2 > 1.0) {
-      t2 -= 1.0;
-    }
-    let pt = this.curve.getPoint(t1);
-    let twist = pt.w;
-    let pt1 = new THREE.Vector3().copy(pt);
-    let pt2 = new THREE.Vector3().copy(this.curve.getPoint(t2));
-    let position = pt1;
-    let forward = pt2.sub(pt1).normalize();
-    let up: THREE.Vector3;
-    if (loopDaLoopCentrePoint !== undefined) {
-      up = new THREE.Vector3().subVectors(loopDaLoopCentrePoint, position).normalize();
-    } else {
-      up = new THREE.Vector3(0.0, 1.0, 0.0);
-    }
+    let n = this.sampleFrames.length - 1;
+    t = Math.max(0, Math.min(1, t));
+
+    let idx = t * n;
+    let lo = Math.floor(idx);
+    let hi = Math.min(lo + 1, n);
+    if (lo < 0) lo = 0;
+    let frac = idx - lo;
+
+    let frameLo = this.sampleFrames[lo];
+    let frameHi = this.sampleFrames[hi];
+
+    let pos = new THREE.Vector3().lerpVectors(frameLo.position, frameHi.position, frac);
+    let up = new THREE.Vector3().lerpVectors(frameLo.up, frameHi.up, frac).normalize();
+    let forward = new THREE.Vector3().lerpVectors(frameLo.forward, frameHi.forward, frac).normalize();
     let right = new THREE.Vector3().crossVectors(forward, up).normalize();
     up.crossVectors(right, forward);
-    up.applyAxisAngle(forward, twist);
-    right.applyAxisAngle(forward, twist);
-    return { position, forward, up, right, };
+
+    return { position: pos, forward, up, right };
   }
 }
