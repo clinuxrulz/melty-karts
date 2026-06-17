@@ -6,6 +6,7 @@ import { mkChildComponent } from "./child-component";
 import { mkTrackComponent } from "./track-component";
 import { mkTrackPathPtComponent } from "./track-path-pt-component";
 import { registerIdGenResource } from "./id-gen-resource";
+import { mkLoopDaLoopComponent } from "./loop-da-loop-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -37,6 +38,7 @@ export function registerComponents(ecs: ECS) {
     componentTypeToSchemaMap,
     Child: mkChildComponent(proxiedEcs),
     Id: mkId(proxiedEcs),
+    LoopDaLoop: mkLoopDaLoopComponent(proxiedEcs),
     Parent: mkParentComponent(proxiedEcs),
     Track: mkTrackComponent(proxiedEcs),
     TrackPathPt: mkTrackPathPtComponent(proxiedEcs),

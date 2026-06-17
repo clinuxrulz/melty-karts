@@ -302,6 +302,7 @@ export function createEditTrackPtNodesMode(params: {
                 <td><label style={{ "text-wrap": "nowrap", }}>Position X:</label></td>
                 <td>
                   <input
+                    class="input"
                     ref={(input) =>
                       runWithOwner(
                         owner,
@@ -331,6 +332,7 @@ export function createEditTrackPtNodesMode(params: {
                 <td><label style={{ "text-wrap": "nowrap", }}>Position Y:</label></td>
                 <td>
                   <input
+                    class="input"
                     ref={(input) =>
                       runWithOwner(
                         owner,
@@ -360,6 +362,7 @@ export function createEditTrackPtNodesMode(params: {
                 <td><label style={{ "text-wrap": "nowrap", }}>Position Z:</label></td>
                 <td>
                   <input
+                    class="input"
                     ref={(input) =>
                       runWithOwner(
                         owner,
@@ -389,6 +392,7 @@ export function createEditTrackPtNodesMode(params: {
                 <td><label>Twist:</label></td>
                 <td>
                   <input
+                    class="input"
                     ref={(input) =>
                       runWithOwner(
                         owner,
@@ -464,6 +468,32 @@ export function createEditTrackPtNodesMode(params: {
                 <td colspan={2}>
                   <button
                     class="btn btn-primary"
+                    style="margin-top: 5px;"
+                    onClick={() => {
+                      let entityId = trackPtNode().trackPtNode.entityId;
+                      modeParams.doCommand(
+                        Command.addComponent(
+                          entityId,
+                          componentRegistry.LoopDaLoop,
+                          {
+                            diameter: 20,
+                            exitOffset: -5
+                          },
+                        ),
+                        true,
+                        "Add Loop-da-loop",
+                      );
+                    }}
+                  >
+                    Add Loop-da-loop
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td colspan={2}>
+                  <button
+                    class="btn btn-primary"
+                    style="margin-top: 5px;"
                     disabled={(() => {
                       let trackPtNodes2 = trackPtNodes();
                       if (trackPtNodes2 == undefined) {

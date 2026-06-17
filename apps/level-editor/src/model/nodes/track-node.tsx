@@ -33,7 +33,14 @@ export function mkTrackNodeType(
         if (head === -1) {
           return undefined;
         }
-        let result: { pt: THREE.Vector3, twist: number, }[] = [];
+        let result: {
+          pt: THREE.Vector3,
+          twist: number,
+          loopDaLoop: {
+            diameter: number,
+            exitOffset: number,
+          } | undefined,
+        }[] = [];
         let at = head;
         while (true) {
           let node = params.ecs.entity(at);
@@ -51,9 +58,24 @@ export function mkTrackNodeType(
               node.getField(componentRegistry.TrackPathPt, "pz"),
             );
             let twist = node.getField(componentRegistry.TrackPathPt, "twist");
+            let loopDaLoop: {
+              diameter: number,
+              exitOffset: number,
+            } | undefined;
+            if (node.hasComponent(componentRegistry.LoopDaLoop)) {
+              let diameter = node.getField(componentRegistry.LoopDaLoop, "diameter");
+              let exitOffset = node.getField(componentRegistry.LoopDaLoop, "exitOffset");
+              loopDaLoop = {
+                diameter,
+                exitOffset,
+              };
+            } else {
+              loopDaLoop = undefined;
+            }
             result.push({
               pt,
               twist,
+              loopDaLoop,
             });
           }
           if (next === -1) {
@@ -78,6 +100,98 @@ export function mkTrackNodeType(
               trackPtNodes2.map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist)),
               true,
             );
+            let additionalPoints: { afterIdx: number, centre: THREE.Vector3, pts: THREE.Vector4[], }[] = [];
+            for (let i = 0; i < trackPtNodes2.length; ++i) {
+              let pt = trackPtNodes2[i].pt;
+              let loopDaLoop = trackPtNodes2[i].loopDaLoop;
+              if (loopDaLoop === undefined) {
+                continue;
+              }
+              let t1 = i / trackPtNodes2.length;
+              let t2 = t1 + 0.01;
+              if (t2 > 1.0) {
+                t2 -= 1.0;
+              }
+              let pt1 = curve2.getPoint(t1);
+              let pt2 = curve2.getPoint(t2);
+              let forward = new THREE.Vector3().subVectors(pt2, pt1).normalize();
+              let up = new THREE.Vector3(0.0, 1.0, 0.0);
+              let right = new THREE.Vector3().crossVectors(forward, up).normalize();
+              up.crossVectors(right, forward);
+              let entry: { afterIdx: number, centre: THREE.Vector3, pts: THREE.Vector4[], } = {
+                afterIdx: i,
+                centre: new THREE.Vector3(
+                  pt.x + 0.5 * loopDaLoop.diameter * up.x + 0.5 * loopDaLoop.exitOffset * right.x,
+                  pt.y + 0.5 * loopDaLoop.diameter * up.y + 0.5 * loopDaLoop.exitOffset * right.y,
+                  pt.z + 0.5 * loopDaLoop.diameter * up.z + 0.5 * loopDaLoop.exitOffset * right.z,
+                ),
+                pts: [],
+              };
+              for (let j = 1; j < 10; ++j) {
+                let a = j * 2.0 * Math.PI / 10.0;
+                let ca = Math.cos(a);
+                let sa = Math.sin(a);
+                let lx = 0.5 * loopDaLoop.diameter * sa;
+                let ly = 0.5 * loopDaLoop.diameter * (1-ca);
+                let lz = j * loopDaLoop.exitOffset / 10.0;
+                let pt2 = new THREE.Vector4(
+                  pt.x + lx * forward.x + ly * up.x + lz * right.x,
+                  pt.y + lx * forward.y + ly * up.y + lz * right.y,
+                  pt.z + lx * forward.z + ly * up.z + lz * right.z,
+                  0.0,
+                );
+                entry.pts.push(pt2);
+              }
+              additionalPoints.push(entry);
+            }
+            let loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, }[] = [];
+            if (additionalPoints.length !== 0) {
+              let trackPts: {
+                value: THREE.Vector4,
+                loopDaLoopIdx: number | undefined,
+              }[] = trackPtNodes2
+                .map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist))
+                .flatMap((value, idx) => {
+                  let extraPointsIndex = additionalPoints.findIndex(({ afterIdx }) => afterIdx === idx);
+                  if (extraPointsIndex == -1) {
+                    return [ { value, loopDaLoopIdx: undefined, }, ];
+                  }
+                  let extraPoints = additionalPoints[extraPointsIndex].pts;
+                  return [
+                    { value, loopDaLoopIdx: undefined, },
+                    ...extraPoints.map((x) => ({ value: x, loopDaLoopIdx: extraPointsIndex, })),
+                  ];
+                });
+              curve2 = new CatmullRomCurve4(
+                trackPts.map((x) => x.value),
+                true,
+              );
+              let loopDaLoopIndexToRangeMap = new Map<number,{ fromT: number, toT: number, centrePoint: THREE.Vector3 }>();
+              for (let i = 0; i < trackPts.length; ++i) {
+                let trackPt = trackPts[i];
+                if (trackPt.loopDaLoopIdx === undefined) {
+                  continue;
+                }
+                let loopDaLoopIdx = trackPt.loopDaLoopIdx;
+                let atT = i / trackPts.length;
+                //let nextAtT = (i + 1) / trackPts.length;
+                let entry = loopDaLoopIndexToRangeMap.get(loopDaLoopIdx);
+                if (entry === undefined) {
+                  entry = {
+                    fromT: atT,
+                    toT: atT,
+                    centrePoint: additionalPoints[loopDaLoopIdx].centre,
+                  };
+                  loopDaLoopIndexToRangeMap.set(loopDaLoopIdx, entry);
+                } else {
+                  entry.fromT = Math.min(entry.fromT, atT);
+                  entry.toT = Math.max(entry.toT, atT);
+                }
+              }
+              for (let x of loopDaLoopIndexToRangeMap.values()) {
+                loopDaLoopRanges.push(x);
+              }
+            }
             let length = 0.0;
             let v4 = new THREE.Vector4();
             let lastPt = new THREE.Vector3();
@@ -95,6 +209,7 @@ export function mkTrackNodeType(
             console.log("track length", length);
             return {
               curve: curve2,
+              loopDaLoopRanges,
               length,
             }
           });
@@ -146,7 +261,7 @@ export function mkTrackNodeType(
             };
             let trackEval = new TrackEvaluator(
               curve2.curve,
-              200,
+              curve2.loopDaLoopRanges,
             );
             let shape = new THREE.Shape();
             shape.moveTo(-0.5 * track().width, -0.3);

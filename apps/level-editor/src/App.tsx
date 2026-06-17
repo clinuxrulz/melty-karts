@@ -255,14 +255,14 @@ const App: Component = () => {
       })()}</>)}
     </Show>
   );
-  let OverlayHtml: Component = () => {
+  let OverlayHtml: Component = () => (
     <Show when={mode().overlayHtml?.()}>
       {(overlayHtml) => (<>{(() => {
         let OverlayHtml = overlayHtml();
         return untrack(() => <OverlayHtml/>);
       })()}</>)}
     </Show>
-  };
+  );
   let orbitControlsEnabled = createMemo(() => {
     let x = mode().orbitControlsEnabled;
     if (x === undefined) {
