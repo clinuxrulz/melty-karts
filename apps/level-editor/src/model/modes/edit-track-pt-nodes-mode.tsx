@@ -1,13 +1,14 @@
 import { Accessor, createMemo, createRenderEffect, createSignal, createStore, For, getOwner, onCleanup, runWithOwner, Show, untrack } from "solid-js";
 import * as THREE from "three";
 import { Mode, ModeParams } from "../mode";
-import { EntityID } from "@oasys/oecs";
+import { EntityID, FieldValues } from "@oasys/oecs";
 import { bidirectionalBindForInputNumber, constAccessor } from "../../util";
 import { TransformControls } from "three/examples/jsm/Addons.js";
 import { T } from "../../t";
 import { Command } from "../commands";
 import { whenDefined } from "../../when";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
+import { ComponentDefGetSchemaType } from "../components/util";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,
@@ -285,6 +286,20 @@ export function createEditTrackPtNodesMode(params: {
     selectedTrackPtNode,
     (trackPtNode) => () => {
       let owner = getOwner();
+      let loopDaLoop = createMemo(() => {
+        let entity = modeParams.ecs.entity(trackPtNode().trackPtNode.entityId);
+        if (!entity.hasComponent(componentRegistry.LoopDaLoop)) {
+          return undefined;
+        }
+        return new Proxy<FieldValues<ComponentDefGetSchemaType<typeof componentRegistry.LoopDaLoop>>>(
+          {} as any,
+          {
+            get(target, p, receiver) {
+              return entity.getField(componentRegistry.LoopDaLoop, p as any);
+            },
+          },
+        );
+      });
       return (
         <div>
           <table>
@@ -465,31 +480,102 @@ export function createEditTrackPtNodesMode(params: {
                   })}
                 </td>
               </tr>
-              <tr>
-                <td colspan={2}>
-                  <button
-                    class="btn btn-primary"
-                    style="margin-top: 5px;"
-                    onClick={() => {
-                      let entityId = trackPtNode().trackPtNode.entityId;
-                      modeParams.doCommand(
-                        Command.addComponent(
-                          entityId,
-                          componentRegistry.LoopDaLoop,
-                          {
-                            diameter: 20,
-                            exitOffset: -5
-                          },
-                        ),
-                        true,
-                        "Add Loop-da-loop",
-                      );
-                    }}
-                  >
-                    Add Loop-da-loop
-                  </button>
-                </td>
-              </tr>
+              <Show when={loopDaLoop() === undefined}>
+                <tr>
+                  <td colspan={2}>
+                    <button
+                      class="btn btn-primary"
+                      style="margin-top: 5px;"
+                      onClick={() => {
+                        let entityId = trackPtNode().trackPtNode.entityId;
+                        modeParams.doCommand(
+                          Command.addComponent(
+                            entityId,
+                            componentRegistry.LoopDaLoop,
+                            {
+                              diameter: 20,
+                              exitOffset: -5
+                            },
+                          ),
+                          true,
+                          "Add Loop-da-loop",
+                        );
+                      }}
+                    >
+                      Add Loop-da-loop
+                    </button>
+                  </td>
+                </tr>
+              </Show>
+              <Show when={loopDaLoop()}>
+                {(loopDaLoop) => {
+                  let owner = getOwner();
+                  return (
+                    <>
+                      <tr>
+                        <td style="margin-right: 5px;">Diameter:</td>
+                        <td>
+                          <input
+                            ref={(input) =>
+                              runWithOwner(
+                                owner,
+                                () => bidirectionalBindForInputNumber({
+                                  input,
+                                  value: () => loopDaLoop().diameter,
+                                  setValue: (x) => {
+                                    modeParams.doCommand(
+                                      Command.setField(
+                                        trackPtNode().trackPtNode.entityId,
+                                        componentRegistry.LoopDaLoop,
+                                        "diameter",
+                                        x,
+                                      ),
+                                      true,
+                                      "Edit Loop-da-loop diameter",
+                                    );
+                                  },
+                                }),
+                              )
+                            }
+                            class="input"
+                            type="text"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="margin-right: 5px;">Exit Offset:</td>
+                        <td>
+                          <input
+                            ref={(input) =>
+                              runWithOwner(
+                                owner,
+                                () => bidirectionalBindForInputNumber({
+                                  input,
+                                  value: () => loopDaLoop().exitOffset,
+                                  setValue: (x) => {
+                                    modeParams.doCommand(
+                                      Command.setField(
+                                        trackPtNode().trackPtNode.entityId,
+                                        componentRegistry.LoopDaLoop,
+                                        "exitOffset",
+                                        x,
+                                      ),
+                                      true,
+                                      "Edit Loop-da-loop exit offset",
+                                    );
+                                  },
+                                }),
+                              )
+                            }
+                            class="input"
+                            type="text"
+                          />
+                        </td>
+                      </tr>
+                    </>
+                  );
+                }}
+              </Show>
               <tr>
                 <td colspan={2}>
                   <button
