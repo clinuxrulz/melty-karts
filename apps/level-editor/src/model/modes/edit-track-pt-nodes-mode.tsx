@@ -457,6 +457,7 @@ export function createEditTrackPtNodesMode(params: {
                             ),
                             description: "Twist Track Point Node",
                           });
+                          modeParams.undoManager.clearRedo();
                           initValue = value * Math.PI / 180.0;
                         }}
                       />
@@ -608,6 +609,7 @@ export function createEditTrackPtNodesMode(params: {
                   ]),
                   description: "Move Track Point Node",
                 });
+                modeParams.undoManager.clearRedo();
                 initPos = untrack(() => trackPtNode().pt());
               };
               transformControls.addEventListener("dragging-changed", listener);

@@ -21,12 +21,12 @@ export function loadEcsFromXml(
   ecs.ecs.flush();
   let loadEntity = (parentId: EntityID | undefined, element: Element) => {
     let tagName = element.tagName;
-    let componentDef = (componentRegistery as any)[tagName] as ComponentDef<ComponentSchema>;
-    let componentSchema = componentRegistery.componentTypeToSchemaMap.get(componentDef);
+    let primaryComponentDef = (componentRegistery as any)[tagName] as ComponentDef<ComponentSchema>;
+    let componentSchema = componentRegistery.componentTypeToSchemaMap.get(primaryComponentDef);
     if (componentSchema === undefined) {
       return;
     }
-    let modelNodeType = modelNodeRegistery.findModelNodeTypeForComponentTypes([ componentDef, ]);
+    let modelNodeType = modelNodeRegistery.findModelNodeTypeForComponentTypes([ primaryComponentDef, ]);
     if (modelNodeType === undefined) {
       return;
     }
@@ -47,9 +47,46 @@ export function loadEcsFromXml(
     }
     ecs.add_component(
       entityId,
-      componentDef,
+      primaryComponentDef,
       object,
     );
+    let otherComponentTypeNames = new Set(element.getAttributeNames().flatMap((attributeName) => {
+      let match = /^(.*)?\..*$/.exec(attributeName);
+      if (match === null) {
+        return [];
+      }
+      return [ match[1], ];
+    }));
+    for (let componentTypeName of otherComponentTypeNames) {
+      let componentType = componentRegistery[componentTypeName as keyof ComponentRegistry] as ComponentDef | undefined;
+      if (componentType === undefined) {
+        continue;
+      }
+      let obj: any = {};
+      let schema = componentRegistery.componentTypeToSchemaMap.get(componentType);
+      if (schema === undefined) {
+        continue;
+      }
+      for (let fieldName in schema) {
+        let attributeName = `${componentTypeName}.${fieldName}`;
+        let attributeValue = element.getAttribute(attributeName);
+        let value: number;
+        if (attributeValue !== null) {
+          value = Number.parseFloat(attributeValue);
+          if (Number.isNaN(value)) {
+            value = 0.0;
+          }
+        } else {
+          value = 0.0;
+        }
+        obj[fieldName] = value;
+      }
+      ecs.add_component(
+        entityId,
+        componentType,
+        obj,
+      );
+    }
     if (parentId !== undefined) {
       entityAddChild(
         componentRegistery,
@@ -85,16 +122,44 @@ export function saveEcsToXml(
     } else {
       element = xmlDoc.createElement("Entity");
     }
-    if (modelNodeType !== undefined) {
-      let componentType = modelNodeType.componentType;
-      let schema = componentRegistery.componentTypeToSchemaMap.get(componentType);
-      for (let fieldName in schema) {
-        let fieldValue = ecs.ecs.get_field(
-          entityId,
-          componentType,
-          fieldName,
-        );
-        element.setAttribute(fieldName, fieldValue.toString());
+    let primaryComponentType = modelNodeType?.componentType;
+    if (primaryComponentType !== undefined) {
+      let schema = componentRegistery.componentTypeToSchemaMap.get(primaryComponentType);
+      if (schema !== undefined) {
+        for (let fieldName in schema) {
+          let fieldValue = ecs.ecs.get_field(
+            entityId,
+            primaryComponentType,
+            fieldName,
+          );
+          element.setAttribute(fieldName, fieldValue.toString());
+        }
+      }
+    }
+    for (let componentTypeName of Object.keys(componentRegistery)) {
+      if (componentTypeName === "componentTypeToSchemaMap") {
+        continue;
+      }
+      let componentType = componentRegistery[componentTypeName as keyof ComponentRegistry] as ComponentDef<ComponentSchema>;
+      if (
+        componentType === primaryComponentType ||
+        componentType === componentRegistery.Parent ||
+        componentType === componentRegistery.Child
+      ) {
+        continue;
+      }
+      if (ecs.ecs.has_component(entityId, componentType)) {
+        let schema = componentRegistery.componentTypeToSchemaMap.get(componentType);
+        if (schema !== undefined) {
+          for (let fieldName in schema) {
+            let fieldValue = ecs.ecs.get_field(
+              entityId,
+              componentType,
+              fieldName,
+            );
+            element.setAttribute(`${componentTypeName}.${fieldName}`, fieldValue.toString());
+          }
+        }
       }
     }
     parent.appendChild(element);
