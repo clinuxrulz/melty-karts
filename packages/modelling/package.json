@@ -5,19 +5,18 @@
   "main": "./src/index.ts",
   "scripts": {
   },
-  "dependencies": {
-    "solid-three": "https://pkg.pr.new/solid-three@99a428a"
-  },
   "peerDependencies": {
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "0.3.1",
     "@solidjs/web": "2.0.0-beta.10",
     "solid-js": "2.0.0-beta.10",
+    "solid-three": "*",
     "three": "^0.183.2"
   },
   "devDependencies": {
     "@types/three": "^0.183.1",
     "babel-preset-solid": "2.0.0-beta.10",
+    "solid-three": "https://pkg.pr.new/solid-three@99a428a",
     "typescript": "^5.7.2",
     "vite": "^7.1.4",
     "vite-plugin-solid": "^3.0.0-next.4",
