@@ -1,12 +1,10 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { ComponentDef, ComponentSchema, EntityID } from "@oasys/oecs";
 import { ComponentRegistry } from "./components/registry";
-import { ModelNodeRegistry } from "./model-node-registry";
 import { entityAddChild } from "./components/parent-component";
 
 export function loadEcsFromXml(
   componentRegistery: ComponentRegistry,
-  modelNodeRegistery: ModelNodeRegistry,
   ecs: ReactiveECS,
   xmlData: string,
 ): void {
@@ -24,10 +22,6 @@ export function loadEcsFromXml(
     let primaryComponentDef = (componentRegistery as any)[tagName] as ComponentDef<ComponentSchema>;
     let componentSchema = componentRegistery.componentTypeToSchemaMap.get(primaryComponentDef);
     if (componentSchema === undefined) {
-      return;
-    }
-    let modelNodeType = modelNodeRegistery.findModelNodeTypeForComponentTypes([ primaryComponentDef, ]);
-    if (modelNodeType === undefined) {
       return;
     }
     let entityId = ecs.create_entity();
@@ -106,23 +100,33 @@ export function loadEcsFromXml(
 
 export function saveEcsToXml(
   componentRegistery: ComponentRegistry,
-  modelNodeRegistery: ModelNodeRegistry,
+  primaryComponentTypes: ComponentDef[],
   ecs: ReactiveECS
 ): string {
   let xmlDoc = document.implementation.createDocument("", "melty-karts-level");
   let root = xmlDoc.documentElement;
   let writeEntity = (parent: HTMLElement, entityId: EntityID) => {
-    let modelNodeType = modelNodeRegistery.fineModelNodeTypeForEntityId(
-      ecs,
-      entityId
-    );
+    let primaryComponentType: ComponentDef | undefined = undefined;
+    for (let componentType of primaryComponentTypes) {
+      if (ecs.ecs.has_component(entityId, componentType)) {
+        primaryComponentType = componentType;
+        break;
+      }
+    }
+    let primaryComponentTypeName: string | undefined = undefined;
+    for (let componentTypeName in componentRegistery) {
+      let componentType = componentRegistery[componentTypeName as keyof ComponentRegistry];
+      if (componentType === primaryComponentType) {
+        primaryComponentTypeName = componentTypeName;
+        break;
+      }
+    }
     let element: HTMLElement;
-    if (modelNodeType !== undefined) {
-      element = xmlDoc.createElement(modelNodeType.typeName);
+    if (primaryComponentTypeName !== undefined) {
+      element = xmlDoc.createElement(primaryComponentTypeName);
     } else {
       element = xmlDoc.createElement("Entity");
     }
-    let primaryComponentType = modelNodeType?.componentType;
     if (primaryComponentType !== undefined) {
       let schema = componentRegistery.componentTypeToSchemaMap.get(primaryComponentType);
       if (schema !== undefined) {

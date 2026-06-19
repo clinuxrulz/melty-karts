@@ -1,6 +1,5 @@
 import { constAccessor } from "../../util";
-import { ComponentRegistry } from "../components/registry";
-import { TrackPathPtSchema } from "../components/track-path-pt-component";
+import { ComponentRegistry, TrackPathPtSchema } from "@melty-karts/modelling";
 import { ModelNodeRegistry, ModelNodeType } from "../model-node-registry";
 
 export function mkTrackPtNodeType(

@@ -1,8 +1,8 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { Command } from "./commands";
 import { ComponentDef, ComponentSchema, EntityID } from "@oasys/oecs";
-import { entityAddChild, entityAddChildBeforeChild, entityRemoveChild } from "./components/parent-component";
-import { ComponentRegistry } from "./components/registry";
+import { entityAddChild, entityAddChildBeforeChild, entityRemoveChild } from "@melty-karts/modelling";
+import { ComponentRegistry } from "@melty-karts/modelling";
 
 export class CommandExecutor {
   private componentRegistry: ComponentRegistry;

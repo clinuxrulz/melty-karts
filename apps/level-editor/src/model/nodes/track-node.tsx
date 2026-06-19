@@ -1,7 +1,6 @@
 import { createMemo, createRenderEffect, getOwner, onCleanup, runWithOwner } from "solid-js";
 import * as THREE from "three";
-import { ComponentRegistry } from "../components/registry";
-import { TrackSchema } from "../components/track-component";
+import { ComponentRegistry, TrackSchema } from "@melty-karts/modelling";
 import { ResolvedModelNode } from "../model-node";
 import { findComponentData, ModelNodeRegistry, ModelNodeType } from "../model-node-registry";
 import { whenAllDefined } from "../../when";

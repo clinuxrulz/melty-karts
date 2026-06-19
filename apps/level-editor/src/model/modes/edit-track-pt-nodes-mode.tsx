@@ -8,7 +8,7 @@ import { T } from "../../t";
 import { Command } from "../commands";
 import { whenDefined } from "../../when";
 import { CatmullRomCurve4 } from "../catmull-rom-curve4";
-import { ComponentDefGetSchemaType } from "../components/util";
+import { ComponentDefGetSchemaType } from "@melty-karts/modelling";
 
 export function createEditTrackPtNodesMode(params: {
   modeParams: ModeParams,

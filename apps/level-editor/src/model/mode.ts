@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { ResolvedModelNode } from "./model-node";
 import { Command } from "./commands";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
-import { ComponentRegistry } from "./components/registry";
+import { ComponentRegistry } from "@melty-karts/modelling";
 import { Operation } from "./operation";
 import { UndoRedoManager } from "./undo-redo";
 

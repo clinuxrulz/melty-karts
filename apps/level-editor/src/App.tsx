@@ -6,14 +6,13 @@ import { T } from "./t";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { ECS, EntityID } from "@oasys/oecs";
-import { registerComponents } from "./model/components/registry";
+import { registerComponents } from "@melty-karts/modelling";
 import { registerModelNodes } from "./model/nodes/registry";
 import { untrack } from "@solidjs/web";
 import { ModelNodeInterpreter } from "./model/model-node-interpreter";
 import { Lookups } from "./model/lookups";
 import { ModelNodeSpec } from "./model/model-node";
 import { constAccessor, opToArr } from "./util";
-import { entityAddChild } from "./model/components/parent-component";
 import { Mode, ModeParams } from "./model/mode";
 import { createSelectionMode } from "./model/modes/selection-mode";
 import { ThreeJsUserData } from "./model/threejs-user-data";
@@ -23,7 +22,7 @@ import { UndoRedoManager } from "./model/undo-redo";
 import { Operation } from "./model/operation";
 import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mode";
 import { Command } from "./model/commands";
-import { loadEcsFromXml, saveEcsToXml } from "./model/load-save";
+import { loadEcsFromXml, saveEcsToXml } from "@melty-karts/modelling";
 import * as FileSaver from "file-saver";
 
 const App: Component = () => {
@@ -130,7 +129,7 @@ const App: Component = () => {
     (entityId) => {
       let entityId2 = untrack(entityId);
       return createMemo(() => {
-        let modelNodeType = modelNodeRegistry.fineModelNodeTypeForEntityId(ecs, entityId2);
+        let modelNodeType = modelNodeRegistry.findModelNodeTypeForEntityId(ecs, entityId2);
         if (modelNodeType == undefined) {
           return undefined;
         }
@@ -488,7 +487,7 @@ const App: Component = () => {
               onClick={() => {
                 let xmlData = saveEcsToXml(
                   componentRegistry,
-                  modelNodeRegistry,
+                  modelNodeRegistry.primaryComponentTypes,
                   ecs,
                 );
                 let blob = new Blob([ xmlData ], { type: "application/xml", });
@@ -525,7 +524,6 @@ const App: Component = () => {
                       try {
                         loadEcsFromXml(
                           componentRegistry,
-                          modelNodeRegistry,
                           ecs,
                           xmlData,
                         );

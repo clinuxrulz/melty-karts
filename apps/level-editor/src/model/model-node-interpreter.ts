@@ -2,7 +2,7 @@ import { Accessor, createMemo, createSignal, mapArray, runWithOwner, Signal, unt
 import { ModelNodeSpec, ResolvedModelNode } from "./model-node";
 import { Lookups } from "./lookups";
 import { ModelNodeRegistry } from "./model-node-registry";
-import { ComponentRegistry } from "./components/registry";
+import { ComponentRegistry } from "@melty-karts/modelling";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export class ModelNodeInterpreter {

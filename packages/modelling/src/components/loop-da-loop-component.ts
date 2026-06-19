@@ -1,4 +1,5 @@
 import { ECS } from "@oasys/oecs";
+import { ComponentDefGetDataType } from "./util";
 
 export function mkLoopDaLoopComponent(ecs: ECS) {
   return ecs.register_component({
@@ -11,3 +12,5 @@ export function mkLoopDaLoopComponent(ecs: ECS) {
     exitOffset: "f32",
   });
 }
+
+export type LoopDaLoopState = ComponentDefGetDataType<ReturnType<typeof mkLoopDaLoopComponent>>;

@@ -1,4 +1,4 @@
-import { ComponentDef, ECS, FieldValues } from "@oasys/oecs";
+import { ECS } from "@oasys/oecs";
 import * as THREE from "three";
 import { ComponentDefGetDataType } from "./util";
 

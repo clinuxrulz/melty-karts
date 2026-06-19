@@ -19,6 +19,9 @@ importers:
 
   apps/level-editor:
     dependencies:
+      '@melty-karts/modelling':
+        specifier: workspace:*
+        version: link:../../packages/modelling
       '@melty-karts/reactive-ecs':
         specifier: workspace:*
         version: link:../../packages/reactive-ecs
@@ -203,6 +206,46 @@ importers:
       vite-plugin-solid:
         specifier: ^3.0.0-next.3
         version: 3.0.0-next.5(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(solid-js@2.0.0-beta.10)(vite@7.3.2(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0))
+
+  packages/modelling:
+    dependencies:
+      '@melty-karts/reactive-ecs':
+        specifier: workspace:*
+        version: link:../reactive-ecs
+      '@oasys/oecs':
+        specifier: 0.3.1
+        version: 0.3.1
+      '@solidjs/web':
+        specifier: 2.0.0-beta.10
+        version: 2.0.0-beta.10(solid-js@2.0.0-beta.10)
+      solid-js:
+        specifier: 2.0.0-beta.10
+        version: 2.0.0-beta.10
+      solid-three:
+        specifier: https://pkg.pr.new/solid-three@99a428a
+        version: https://pkg.pr.new/solid-three@99a428a(@solidjs/signals@2.0.0-beta.10)(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(@types/three@0.183.1)(solid-js@2.0.0-beta.10)(three@0.183.2)
+      three:
+        specifier: ^0.183.2
+        version: 0.183.2
+    devDependencies:
+      '@types/three':
+        specifier: ^0.183.1
+        version: 0.183.1
+      babel-preset-solid:
+        specifier: 2.0.0-beta.10
+        version: 2.0.0-beta.10(@babel/core@7.29.0)(solid-js@2.0.0-beta.10)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.4
+        version: 7.3.2(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)
+      vite-plugin-solid:
+        specifier: ^3.0.0-next.4
+        version: 3.0.0-next.5(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(solid-js@2.0.0-beta.10)(vite@7.3.2(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0))
+      vitest:
+        specifier: ^4.1.3
+        version: 4.1.5(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.2(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0))
 
   packages/reactive-ecs:
     devDependencies:

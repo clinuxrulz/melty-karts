@@ -21,12 +21,14 @@ export interface ModelNodeType<S extends ComponentSchema> {
 export class ModelNodeRegistry {
   readonly modelNodeTypes: ModelNodeType<any>[];
   readonly modelNodeTypeByComponentType: Map<ComponentDef<ComponentSchema>, ModelNodeType<any>>;
+  readonly primaryComponentTypes: ComponentDef<ComponentSchema>[];
 
   constructor(modelNodeTypes: ModelNodeType<any>[] = []) {
     this.modelNodeTypes = [...modelNodeTypes];
     this.modelNodeTypeByComponentType = new Map(
       modelNodeTypes.map((nodeType) => [nodeType.componentType, nodeType]),
     );
+    this.primaryComponentTypes = [ ...this.modelNodeTypeByComponentType.keys(), ];
   }
 
   register<S extends ComponentSchema>(modelNodeType: ModelNodeType<S>) {
@@ -38,10 +40,10 @@ export class ModelNodeRegistry {
         break;
       }
     }
-
     this.modelNodeTypeByComponentType.set(modelNodeType.componentType, modelNodeType);
     if (!found) {
       this.modelNodeTypes.push(modelNodeType);
+      this.primaryComponentTypes.push(modelNodeType.componentType);
     }
   }
 
@@ -49,7 +51,7 @@ export class ModelNodeRegistry {
     return this.modelNodeTypes;
   }
 
-  fineModelNodeTypeForEntityId(ecs: ReactiveECS, entityId: EntityID): ModelNodeType<any> | undefined {
+  findModelNodeTypeForEntityId(ecs: ReactiveECS, entityId: EntityID): ModelNodeType<any> | undefined {
     for (let modelNodeType of this.modelNodeTypes) {
       let component = modelNodeType.componentType;
       if (ecs.entity(entityId).hasComponent(component)) {
@@ -62,7 +64,7 @@ export class ModelNodeRegistry {
   findModelNodeTypeForSpec(ecs: ReactiveECS, modelNode: ModelNodeSpec): ModelNodeType<any> | undefined {
     let entityId = modelNode.entityId;
     if (entityId !== undefined) {
-      return this.fineModelNodeTypeForEntityId(ecs, entityId);
+      return this.findModelNodeTypeForEntityId(ecs, entityId);
     }
     const components = modelNode.components?.() ?? [];
     for (let component of components) {

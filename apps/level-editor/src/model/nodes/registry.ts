@@ -1,6 +1,6 @@
 import { ECS } from "@oasys/oecs";
 import { ModelNodeRegistry } from "../model-node-registry";
-import { ComponentRegistry } from "../components/registry";
+import { ComponentRegistry } from "@melty-karts/modelling";
 import { mkTrackNodeType } from "./track-node";
 import { mkTrackPtNodeType } from "./track-pt-node";
 

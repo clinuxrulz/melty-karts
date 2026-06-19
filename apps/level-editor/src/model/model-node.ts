@@ -4,9 +4,8 @@ import { findComponentData, ModelNodeRegistry, ModelNodeType } from "./model-nod
 import { Operation } from "./operation";
 import { IsEcsComponentData } from "./ecs-component-data";
 import { createRcMemo } from "./rc-memo";
-import { ComponentRegistry } from "./components/registry";
+import { ComponentRegistry, transformGetMatrix } from "@melty-karts/modelling";
 import { ComponentDef, ComponentSchema, EntityID, FieldValues } from "@oasys/oecs";
-import { transformGetMatrix } from "./components/transform3d-component";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { Command } from "./commands";
 
