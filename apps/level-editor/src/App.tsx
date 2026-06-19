@@ -24,6 +24,13 @@ import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mo
 import { Command } from "./model/commands";
 import { loadEcsFromXml, saveEcsToXml } from "@melty-karts/modelling";
 import * as FileSaver from "file-saver";
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// @ts-ignore
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+// @ts-ignore
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const App: Component = () => {
   let [ canvas, setCanvas, ] = createSignal<HTMLCanvasElement>();
@@ -415,7 +422,7 @@ const App: Component = () => {
                   "overflow": "hidden",
                 }}
               >
-                <div style="pointer-events: auto; display: inline-block; overflow: auto;">
+                <div style="pointer-events: auto; display: inline-block; height: 100%; overflow: auto;">
                   <SideForm/>
                 </div>
               </div>

@@ -55,6 +55,9 @@ importers:
       three:
         specifier: ^0.183.2
         version: 0.183.2
+      three-mesh-bvh:
+        specifier: ^0.9.9
+        version: 0.9.9(three@0.183.2)
     devDependencies:
       '@types/file-saver':
         specifier: ^2.0.7
@@ -92,6 +95,9 @@ importers:
       '@solidjs/web':
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10(solid-js@2.0.0-beta.10)
+      cannon-es:
+        specifier: ^0.20.0
+        version: 0.20.0
       howler:
         specifier: ^2.2.4
         version: 2.2.4
@@ -974,6 +980,9 @@ packages:
 
   caniuse-lite@1.0.30001791:
     resolution: {integrity: sha512-yk0l/YSrOnFZk3UROpDLQD9+kC1l4meK/wed583AXrzoarMGJcbRi2Q4RaUYbKxYAsZ8sWmaSa/DsLmdBeI1vQ==}
+
+  cannon-es@0.20.0:
+    resolution: {integrity: sha512-eZhWTZIkFOnMAJOgfXJa9+b3kVlvG+FX4mdkpePev/w/rP5V8NRquGyEozcjPfEoXUlb+p7d9SUcmDSn14prOA==}
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
@@ -2239,6 +2248,8 @@ snapshots:
   camelcase@5.3.1: {}
 
   caniuse-lite@1.0.30001791: {}
+
+  cannon-es@0.20.0: {}
 
   chai@6.2.2: {}
 

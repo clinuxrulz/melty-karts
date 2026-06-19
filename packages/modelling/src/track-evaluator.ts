@@ -10,13 +10,13 @@ export interface TrackFrame {
 
 export class TrackEvaluator {
   private curve: CatmullRomCurve4;
-  private loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[];
+  private loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3 }[];
   private sampleFrames: TrackFrame[];
 
   constructor(
     curve: CatmullRomCurve4,
-    loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[],
-    numSamples: number = 200,
+    loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3 }[],
+    numSamples: number = 400,
   ) {
     this.curve = curve;
     this.loopDaLoopRanges = loopDaLoopRanges;
@@ -40,22 +40,27 @@ export class TrackEvaluator {
       let v4b = this.curve.getPoint(t2);
       let forward = new THREE.Vector3(v4b.x, v4b.y, v4b.z).sub(position).normalize();
 
-      let loopCentre: THREE.Vector3 | undefined;
+      let loopRange: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3 } | undefined;
       for (let range of loopRanges) {
         if (range.fromT <= t && t <= range.toT) {
-          loopCentre = range.centrePoint;
+          loopRange = range;
           break;
         }
       }
 
       let up: THREE.Vector3;
-      if (loopCentre !== undefined) {
-        up = new THREE.Vector3().subVectors(loopCentre, position).normalize();
+      if (loopRange !== undefined) {
+        const dir = loopRange.right.clone().normalize();
+        const tParam = new THREE.Vector3().subVectors(position, loopRange.centrePoint).dot(dir);
+        const centre = loopRange.centrePoint.clone().add(dir.multiplyScalar(tParam));
+        up = new THREE.Vector3().subVectors(centre, position).normalize();
+        forward.addScaledVector(forward, -forward.dot(loopRange.right)).normalize();
       } else {
         up = new THREE.Vector3(0.0, 1.0, 0.0);
       }
 
       let right = new THREE.Vector3().crossVectors(forward, up).normalize();
+
       up.crossVectors(right, forward);
 
       if (twist !== 0) {

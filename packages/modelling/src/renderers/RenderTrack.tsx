@@ -36,7 +36,7 @@ const RenderTrack: Component<{
       return undefined;
     }
     let curve2 = props.curve;
-    let numSamples = 200;
+    let numSamples = 400;
     let arcWeights: number[] = [0.0];
     {
       let atWeight = 0.0;
@@ -88,7 +88,7 @@ const RenderTrack: Component<{
       {
         bevelEnabled: false,
         depth: curve2.length,
-        steps: 50.0,
+        steps: Math.ceil(curve2.length / 0.5),
       },
     );
     let points = geometry.getAttribute("position");
@@ -111,12 +111,12 @@ const RenderTrack: Component<{
       }
       t = remapTValueViaWeights(t);
       let frame = trackEval.getFrameAt(t);
-      let px = frame.position.x + frame.right.x * x + frame.up.x * y;
-      let py = frame.position.y + frame.right.y * x + frame.up.y * y;
-      let pz = frame.position.z + frame.right.z * x + frame.up.z * y;
-      let nx2 = frame.right.x * nx - frame.up.x * ny + frame.forward.x * nz;
-      let ny2 = frame.right.y * nx - frame.up.y * ny + frame.forward.y * nz;
-      let nz2 = frame.right.z * nx - frame.up.z * ny + frame.forward.z * nz;
+      let px = frame.position.x - frame.right.x * x + frame.up.x * y;
+      let py = frame.position.y - frame.right.y * x + frame.up.y * y;
+      let pz = frame.position.z - frame.right.z * x + frame.up.z * y;
+      let nx2 = frame.right.x * nx + frame.up.x * ny + frame.forward.x * nz;
+      let ny2 = frame.right.y * nx + frame.up.y * ny + frame.forward.y * nz;
+      let nz2 = frame.right.z * nx + frame.up.z * ny + frame.forward.z * nz;
       points.setXYZ(i, px, py, pz);
       normals.setXYZ(i, nx2, ny2, nz2);
     }
@@ -300,9 +300,9 @@ const RenderTrack: Component<{
         }
         t = remapTValueViaWeights(t);
         let frame = trackEval.getFrameAt(t);
-        let px = frame.position.x + frame.right.x * x + frame.up.x * y;
-        let py = frame.position.y + frame.right.y * x + frame.up.y * y;
-        let pz = frame.position.z + frame.right.z * x + frame.up.z * y;
+        let px = frame.position.x - frame.right.x * x + frame.up.x * y;
+        let py = frame.position.y - frame.right.y * x + frame.up.y * y;
+        let pz = frame.position.z - frame.right.z * x + frame.up.z * y;
         let nx2 = frame.right.x * nx + frame.up.x * ny + frame.forward.x * nz;
         let ny2 = frame.right.y * nx + frame.up.y * ny + frame.forward.y * nz;
         let nz2 = frame.right.z * nx + frame.up.z * ny + frame.forward.z * nz;

@@ -98,7 +98,7 @@ export function generateTrackCurve(params: {
     trackPtNodes.map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist)),
     true,
   );
-  let additionalPoints: { afterIdx: number, centre: THREE.Vector3, pts: THREE.Vector4[], }[] = [];
+  let additionalPoints: { afterIdx: number, centre: THREE.Vector3, right: THREE.Vector3, pts: THREE.Vector4[], }[] = [];
   for (let i = 0; i < trackPtNodes.length; ++i) {
     let pt = trackPtNodes[i].pt;
     let loopDaLoop = trackPtNodes[i].loopDaLoop;
@@ -116,22 +116,24 @@ export function generateTrackCurve(params: {
     let up = new THREE.Vector3(0.0, 1.0, 0.0);
     let right = new THREE.Vector3().crossVectors(forward, up).normalize();
     up.crossVectors(right, forward);
-    let entry: { afterIdx: number, centre: THREE.Vector3, pts: THREE.Vector4[], } = {
+    let entry: { afterIdx: number, centre: THREE.Vector3, right: THREE.Vector3, pts: THREE.Vector4[], } = {
       afterIdx: i,
       centre: new THREE.Vector3(
-        pt.x + 0.5 * loopDaLoop.diameter * up.x + 0.5 * loopDaLoop.exitOffset * right.x,
-        pt.y + 0.5 * loopDaLoop.diameter * up.y + 0.5 * loopDaLoop.exitOffset * right.y,
-        pt.z + 0.5 * loopDaLoop.diameter * up.z + 0.5 * loopDaLoop.exitOffset * right.z,
+        pt.x + 0.5 * loopDaLoop.diameter * up.x,
+        pt.y + 0.5 * loopDaLoop.diameter * up.y,
+        pt.z + 0.5 * loopDaLoop.diameter * up.z,
       ),
+      right: right.clone(),
       pts: [],
     };
-    for (let j = 1; j < 10; ++j) {
-      let a = j * 2.0 * Math.PI / 10.0;
+    let numLoopSegments = 10;
+    for (let j = 1; j < numLoopSegments; ++j) {
+      let a = j * 2.0 * Math.PI / numLoopSegments;
       let ca = Math.cos(a);
       let sa = Math.sin(a);
       let lx = 0.5 * loopDaLoop.diameter * sa;
       let ly = 0.5 * loopDaLoop.diameter * (1-ca);
-      let lz = j * loopDaLoop.exitOffset / 10.0;
+      let lz = j * loopDaLoop.exitOffset / numLoopSegments;
       let pt2 = new THREE.Vector4(
         pt.x + lx * forward.x + ly * up.x + lz * right.x,
         pt.y + lx * forward.y + ly * up.y + lz * right.y,
@@ -142,7 +144,7 @@ export function generateTrackCurve(params: {
     }
     additionalPoints.push(entry);
   }
-  let loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, }[] = [];
+  let loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3, }[] = [];
   if (additionalPoints.length !== 0) {
     let trackPts: {
       value: THREE.Vector4,
@@ -164,7 +166,7 @@ export function generateTrackCurve(params: {
       trackPts.map((x) => x.value),
       true,
     );
-    let loopDaLoopIndexToRangeMap = new Map<number,{ fromT: number, toT: number, centrePoint: THREE.Vector3 }>();
+    let loopDaLoopIndexToRangeMap = new Map<number,{ fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3 }>();
     for (let i = 0; i < trackPts.length; ++i) {
       let trackPt = trackPts[i];
       if (trackPt.loopDaLoopIdx === undefined) {
@@ -178,6 +180,7 @@ export function generateTrackCurve(params: {
           fromT: atT,
           toT: atT,
           centrePoint: additionalPoints[loopDaLoopIdx].centre,
+          right: additionalPoints[loopDaLoopIdx].right,
         };
         loopDaLoopIndexToRangeMap.set(loopDaLoopIdx, entry);
       } else {
