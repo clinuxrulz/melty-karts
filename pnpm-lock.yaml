@@ -77,6 +77,9 @@ importers:
 
   apps/melty-karts:
     dependencies:
+      '@melty-karts/modelling':
+        specifier: 'workspace: *'
+        version: link:../../packages/modelling
       '@melty-karts/reactive-ecs':
         specifier: workspace:*
         version: link:../../packages/reactive-ecs

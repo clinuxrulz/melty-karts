@@ -7,16 +7,19 @@ export function loadEcsFromXml(
   componentRegistery: ComponentRegistry,
   ecs: ReactiveECS,
   xmlData: string,
+  clearExisting = true,
 ): void {
   let parser = new DOMParser();
   let xmlDoc = parser.parseFromString(xmlData, "application/xml");
-  ecs.ecs.query().for_each((arch) => {
-    for (let i = 0; i < arch.entity_count; ++i) {
-      let entityId = arch.entity_ids[i] as EntityID;
-      ecs.destroy_entity_deferred(entityId);
-    }
-  });
-  ecs.ecs.flush();
+  if (clearExisting) {
+    ecs.ecs.query().for_each((arch) => {
+      for (let i = 0; i < arch.entity_count; ++i) {
+        let entityId = arch.entity_ids[i] as EntityID;
+        ecs.destroy_entity_deferred(entityId);
+      }
+    });
+    ecs.ecs.flush();
+  }
   let loadEntity = (parentId: EntityID | undefined, element: Element) => {
     let tagName = element.tagName;
     let primaryComponentDef = (componentRegistery as any)[tagName] as ComponentDef<ComponentSchema>;

@@ -10,3 +10,5 @@ export { type ComponentDefGetSchemaType, type ComponentDefGetDataType } from "./
 export { loadEcsFromXml, saveEcsToXml } from "./load-save";
 export { obtainTrackPtNodes, generateTrackCurve } from "./track-curve-gen";
 export { default as RenderTrack } from "./renderers/RenderTrack";
+export { entityGetComponentData } from "./util";
+export { ShowAll } from "./util";

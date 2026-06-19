@@ -8,8 +8,12 @@ import { createInGameSystem } from "./InGameSystem";
 import { createMultiplayerLobbySystem } from "./MultiplayerLobbySystem";
 import { untrack } from "@solidjs/web";
 import { createKeyBindingSystem } from "./KeyBindingSystem";
+import { createLevelSelectionSystem } from "./LevelSelectionSystem";
+import { createInGameSystemV2 } from "./InGameSystemV2";
+import { registerComponents } from "@melty-karts/modelling";
 
 export function createMasterSystem(ecs: ReactiveECS): System {
+  let componentRegistry = registerComponents(ecs.ecs);
   let masterState = createMemo(() => ecs.resource(RegisteredMasterState).get("masterState") as MasterState);
   //
   let subsystems = createMemo(() => {
@@ -30,9 +34,23 @@ export function createMasterSystem(ecs: ReactiveECS): System {
         return [
           createMultiplayerLobbySystem(ecs),
         ];
+      case MasterState.LEVEL_SELECTION:
+        return [
+          untrack(() => createLevelSelectionSystem(
+            componentRegistry,
+            ecs,
+          )),
+        ];
       case MasterState.IN_GAME:
         return [
           untrack(() => createInGameSystem(ecs)),
+        ];
+      case MasterState.IN_GAME_V2:
+        return [
+          untrack(() => createInGameSystemV2(
+            componentRegistry,
+            ecs,
+          )),
         ];
     }
   });

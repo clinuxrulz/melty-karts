@@ -94,7 +94,8 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
     if (mode === 1) {
       ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
     } else {
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+      //ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.LEVEL_SELECTION, });
     }
   };
 

@@ -280,14 +280,16 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
   *[Symbol.iterator]() {
     const observer = getObserver();
     if (observer === null) {
-      for (const arch of this.#query.archetypes) {
+      for (let i = 0; i < this.#query.archetype_count; ++i) {
+        let arch = this.#query.archetypes[i];
         yield arch;
       }
       return;
     }
     this.#triggerStore.track(`${this.#queryKey}:archetypes`);
     this.#triggerStore.track("world:entities");
-    for (const arch of this.#query.archetypes) {
+    for (let i = 0; i < this.#query.archetype_count; ++i) {
+      let arch = this.#query.archetypes[i];
       yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch as any, this.#queryKey);
     }
   }

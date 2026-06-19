@@ -35,7 +35,9 @@ export const enum MasterState {
   CHARACTER_SELECTION_SCREEN = 1,
   KEY_BINDINGS = 2,
   MULTIPLAYER_LOBBY = 3,
-  IN_GAME = 4,
+  LEVEL_SELECTION = 4,
+  IN_GAME = 5,
+  IN_GAME_V2 = 6,
 };
 export const RegisteredMasterState = resource_key<{ masterState: MasterState }>("MasterState");
 baseEcs.register_resource(RegisteredMasterState, {
