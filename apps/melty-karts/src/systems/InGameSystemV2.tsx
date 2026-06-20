@@ -98,8 +98,8 @@ function VehicleController(props: {
 
   onSettled(() => {
     world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-    world.defaultContactMaterial.restitution = 0.0;
-    world.defaultContactMaterial.friction = 0.05;
+    world.defaultContactMaterial.restitution = 0.2;
+    world.defaultContactMaterial.friction = 0.1;
 
     trackBody = createTrackBody(props.trackEval, props.trackWidth, props.numSegments);
     world.addBody(trackBody);
