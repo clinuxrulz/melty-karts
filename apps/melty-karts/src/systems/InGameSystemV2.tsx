@@ -8,11 +8,11 @@ import { Canvas, useFrame } from "solid-three";
 import * as CANNON from "cannon-es";
 import { T } from "../t";
 
-function createTrackBody(
+function generateTrackCollisionVertices(
   trackEval: TrackEvaluator,
   trackWidth: number,
   numSegments: number,
-): CANNON.Body {
+): { vertices: number[]; indices: number[] } {
   const halfWidth = trackWidth / 2;
   const segments = numSegments;
   const N = segments + 1;
@@ -60,6 +60,15 @@ function createTrackBody(
     indices.push(sR1, wR1, wR0);
   }
 
+  return { vertices, indices };
+}
+
+function createTrackBody(
+  trackEval: TrackEvaluator,
+  trackWidth: number,
+  numSegments: number,
+): CANNON.Body {
+  const { vertices, indices } = generateTrackCollisionVertices(trackEval, trackWidth, numSegments);
   const shape = new CANNON.Trimesh(vertices, indices);
   const body = new CANNON.Body({ mass: 0 });
   body.addShape(shape);
@@ -76,10 +85,21 @@ function VehicleController(props: {
   let trackBody: CANNON.Body;
   let mesh: THREE.Mesh | undefined;
 
+  const collisionGeom = (() => {
+    const { vertices, indices } = generateTrackCollisionVertices(
+      props.trackEval, props.trackWidth, props.numSegments,
+    );
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+    geometry.computeVertexNormals();
+    return geometry;
+  })();
+
   onSettled(() => {
     world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-    world.defaultContactMaterial.restitution = 0.5;
-    world.defaultContactMaterial.friction = 0.5;
+    world.defaultContactMaterial.restitution = 0.0;
+    world.defaultContactMaterial.friction = 0.05;
 
     trackBody = createTrackBody(props.trackEval, props.trackWidth, props.numSegments);
     world.addBody(trackBody);
@@ -92,7 +112,7 @@ function VehicleController(props: {
     console.log("sf pos:", sf.position.x.toFixed(2), sf.position.y.toFixed(2), sf.position.z.toFixed(2));
     console.log("sf up:", sf.up.x.toFixed(4), sf.up.y.toFixed(4), sf.up.z.toFixed(4));
 
-    body = new CANNON.Body({ mass: 5 });
+    body = new CANNON.Body({ mass: 5, linearDamping: 0.0, angularDamping: 0.0 });
     body.addShape(new CANNON.Sphere(0.5));
     body.position.set(sf.position.x, sf.position.y + 0.55, sf.position.z);
     world.addBody(body);
@@ -106,7 +126,7 @@ function VehicleController(props: {
   let frameCount = 0;
   useFrame((state, dt) => {
     if (!world || !body) return;
-    world.step(1 / 60, Math.min(dt, 0.1), 10);
+    world.step(1 / 60, Math.min(dt, 0.1), 20);
     const pos = body.position;
     if (mesh) {
       mesh.position.set(pos.x, pos.y, pos.z);
@@ -124,10 +144,23 @@ function VehicleController(props: {
   });
 
   return (
-    <T.Mesh ref={(m: THREE.Mesh) => { mesh = m; }}>
-      <T.SphereGeometry args={[0.5]} />
-      <T.MeshStandardMaterial color="#e03030" />
-    </T.Mesh>
+    <>
+      <T.Mesh geometry={collisionGeom}>
+        <T.MeshBasicMaterial
+          args={[{
+            color: 0x00ff00,
+            transparent: true,
+            opacity: 0.25,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }]}
+        />
+      </T.Mesh>
+      <T.Mesh ref={(m: THREE.Mesh) => { mesh = m; }}>
+        <T.SphereGeometry args={[0.5]} />
+        <T.MeshStandardMaterial color="#e03030" />
+      </T.Mesh>
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import { TrackEvaluator } from "../track-evaluator";
 import { T } from "../t";
 import { attribute, div, Fn, fract, mix, uniform, vec3, vec4 } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 const RenderTrack: Component<{
   ref: (self: THREE.Object3D) => void,
@@ -312,14 +313,55 @@ const RenderTrack: Component<{
       points.needsUpdate = true;
       normals.needsUpdate = true;
     }
+    ////
+    let extraRailGeometry: THREE.BufferGeometry = new THREE.BoxGeometry(curve2.length, 1, 0.5, Math.ceil(curve2.length * 0.5));
+    extraRailGeometry.rotateY(0.5 * Math.PI);
+    extraRailGeometry.translate(-0.5 * props.track.width, 0.5, 0.5 * curve2.length);
+    let tmp = extraRailGeometry.clone();
+    tmp.translate(props.track.width, 0.0, 0.0);
+    extraRailGeometry = mergeGeometries([
+      extraRailGeometry,
+      tmp,
+    ]);
+    {
+      let points = extraRailGeometry.getAttribute("position");
+      let normals = extraRailGeometry.getAttribute("normal");
+      for (let i = 0; i < points.count; ++i) {
+        let x = points.getX(i);
+        let y = points.getY(i);
+        let z = points.getZ(i);
+        let nx = normals.getX(i);
+        let ny = normals.getY(i);
+        let nz = normals.getZ(i);
+        let t = Math.max(0.0, Math.min(1.0, z / curve2.length));
+        if (t === 1.0) {
+          t = 0.0;
+        }
+        t = remapTValueViaWeights(t);
+        let frame = trackEval.getFrameAt(t);
+        let px = frame.position.x - frame.right.x * x + frame.up.x * y;
+        let py = frame.position.y - frame.right.y * x + frame.up.y * y;
+        let pz = frame.position.z - frame.right.z * x + frame.up.z * y;
+        let nx2 = frame.right.x * nx + frame.up.x * ny + frame.forward.x * nz;
+        let ny2 = frame.right.y * nx + frame.up.y * ny + frame.forward.y * nz;
+        let nz2 = frame.right.z * nx + frame.up.z * ny + frame.forward.z * nz;
+        points.setXYZ(i, px, py, pz);
+        normals.setXYZ(i, nx2, ny2, nz2);
+      }
+      points.needsUpdate = true;
+      normals.needsUpdate = true;
+    }
+    ////
     onCleanup(() => {
       starGeometry.dispose();
       starRailGeometry.dispose();
+      extraRailGeometry.dispose();
     });
     return {
       geometry,
       material,
       starRailGeometry,
+      extraRailGeometry,
     };
   });
   let matRef: THREE.MeshBasicMaterial | undefined;
@@ -343,6 +385,15 @@ const RenderTrack: Component<{
           >
             <T.MeshStandardMaterial
               color="yellow"
+            />
+          </T.Mesh>
+          <T.Mesh
+            geometry={geometries().extraRailGeometry}
+          >
+            <T.MeshStandardMaterial
+              color="yellow"
+              opacity={0.5}
+              transparent
             />
           </T.Mesh>
           <T.Mesh
