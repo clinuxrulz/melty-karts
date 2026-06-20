@@ -105,7 +105,10 @@ export function generateTrackCurve(params: {
     if (loopDaLoop === undefined) {
       continue;
     }
-    let t1 = i / trackPtNodes.length;
+    let t1 = (i - 0.5) / trackPtNodes.length;
+    if (t1 < 0.0) {
+      t1 += 1.0;
+    }
     let t2 = t1 + 0.01;
     if (t2 > 1.0) {
       t2 -= 1.0;
