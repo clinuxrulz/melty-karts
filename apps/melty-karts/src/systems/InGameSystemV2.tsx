@@ -1,7 +1,7 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { ComponentRegistry, entityGetComponentData, generateTrackCurve, obtainTrackPtNodes, RenderTrack, ShowAll, TrackState, TrackEvaluator } from "@melty-karts/modelling";
-import { Component, createMemo, onCleanup, onSettled } from "solid-js";
+import { Component, createMemo, getOwner, onCleanup, onSettled, runWithOwner } from "solid-js";
 import * as THREE from "three";
 import { EntityID } from "@oasys/oecs";
 import { Canvas, useFrame } from "solid-three";
@@ -96,6 +96,8 @@ function VehicleController(props: {
     return geometry;
   })();
 
+  let owner = getOwner();
+
   onSettled(() => {
     world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
     world.defaultContactMaterial.restitution = 0.2;
@@ -117,9 +119,11 @@ function VehicleController(props: {
     body.position.set(sf.position.x, sf.position.y + 0.55, sf.position.z);
     world.addBody(body);
 
-    onCleanup(() => {
-      world.removeBody(body);
-      world.removeBody(trackBody);
+    runWithOwner(owner, () => {
+      onCleanup(() => {
+        world.removeBody(body);
+        world.removeBody(trackBody);
+      });
     });
   });
 
