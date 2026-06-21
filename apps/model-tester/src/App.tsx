@@ -179,7 +179,7 @@ const App: Component = () => {
             try {
               const scenePass = TSL.pass(localScene, localCamera);
               const scenePassColor = scenePass.getTextureNode("output");
-              const bloomPass = bloom(scenePassColor, 1.5, 0.4, 0.4);
+              const bloomPass = bloom(scenePassColor, 1.5, 0.4, 0.85);
               const pipeline2 = new RenderPipeline(gl);
               pipeline2.outputNode = scenePassColor.add(bloomPass as any);
               pipeline = pipeline2;

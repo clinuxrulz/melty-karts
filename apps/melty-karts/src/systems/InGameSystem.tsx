@@ -1140,7 +1140,7 @@ async function initScene(
   const rt = new RenderTarget(1, 1, { type: HalfFloatType, depthBuffer: true });
   rt.texture.name = "scene_rt";
   const sceneTextureNode = texture(rt.texture);
-  const bloomPass = bloom(sceneTextureNode, 1.5, 0.4, 0.4);
+  const bloomPass = bloom(sceneTextureNode, 1.5, 0.4, 0.85);
   const pipeline = new RenderPipeline(renderer as any);
   pipeline.outputNode = sceneTextureNode.add(bloomPass as any);
 

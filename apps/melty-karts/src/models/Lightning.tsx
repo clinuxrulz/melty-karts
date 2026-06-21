@@ -2,7 +2,7 @@ import { Component, createRenderEffect, onCleanup } from "solid-js";
 import { T } from "../t";
 import * as THREE from "three";
 import { TSL, MeshBasicNodeMaterial } from "three/webgpu";
-const { uniform, varying, Fn, vec2, vec3, vec4, float, smoothstep, mix, length, dot, sin, cos, abs, fract, floor, positionLocal, normalize, pow, sub, add, mul, div, max, min, negate, lessThanEqual, clamp } = TSL;
+const { uniform, varying, Fn, vec2, vec3, vec4, float, smoothstep, mix, length, dot, sin, cos, abs, fract, floor, positionLocal, normalize, pow, sub, add, mul, div, max, min, negate, lessThanEqual, clamp, modelViewMatrix, cameraProjectionMatrix } = TSL;
 
 const kBoltCount = 5.0;
 const kSegmentsPerBolt = 16.0;
@@ -172,13 +172,18 @@ const _sharedBolts = (() => {
   const prevPoint = boltPoint(boltIdx, prevT, phaseSeed);
   const nextPoint = boltPoint(boltIdx, nextT, phaseSeed);
 
-  const localDir = normalize(add(sub(nextPoint, prevPoint), vec3(0.0001, 0.0, 0.0)));
-  const localNormal = vec3(negate(localDir.y), localDir.x, 0.0);
+  // Transform to view space for screen-aligned normals (matching GLSL behavior)
+  const mvCurrent = mul(modelViewMatrix, vec4(currentPoint, 1.0));
+  const mvPrev = mul(modelViewMatrix, vec4(prevPoint, 1.0));
+  const mvNext = mul(modelViewMatrix, vec4(nextPoint, 1.0));
+
+  const screenDir = normalize(add(sub(mvNext.xy, mvPrev.xy), vec2(0.0001, 0.0)));
+  const screenNormal = vec2(negate(screenDir.y), screenDir.x);
 
   const boltWidth = mul(mul(mix(0.08, 0.012, t), 0.3), add(mul(hash11(add(mul(boltIdx, 13.0), phaseSeed)), 0.35), 0.8));
   const edgeFactor = sub(mul(edgeIdx, 2.0), 1.0);
-  const offset = mul(mul(localNormal, edgeFactor), boltWidth);
-  const finalPos = add(currentPoint, offset);
+  const mvCurrentOffset = vec4(add(mvCurrent.xy, mul(mul(screenNormal, edgeFactor), boltWidth)), mvCurrent.zw);
+  const finalClip = mul(cameraProjectionMatrix, mvCurrentOffset);
 
   const vAcross = varying(edgeIdx);
   const vAlong = varying(t);
@@ -190,7 +195,7 @@ const _sharedBolts = (() => {
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
   });
-  material.positionNode = finalPos;
+  material.vertexNode = finalClip;
 
   const edgeFade = sub(1.0, smoothstep(0.15, 0.95, abs(mul(sub(vAcross, 0.5), 2.0))));
   const alongFade = mul(smoothstep(0.0, 0.08, vAlong), sub(1.0, smoothstep(0.78, 1.0, vAlong)));

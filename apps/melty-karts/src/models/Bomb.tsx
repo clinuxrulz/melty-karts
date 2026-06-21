@@ -117,7 +117,7 @@ const _sharedWickFire = (() => {
   const mvPos = mul(modelViewMatrix, vec4(animPos, 1.0));
   const dist = length(mvPos.xyz);
   const perspScale = mix(0.25, reciprocal(max(dist, 0.1)), uIsPerspective);
-  const particleSize = max(mul(mul(aSize, vFade), perspScale), 1.0);
+  const particleSize = max(mul(mul(aSize, vFade), perspScale), 0.0);
 
   // Billboard: offset in clip space by corner * size
   const clipPos = mul(cameraProjectionMatrix, mvPos);
