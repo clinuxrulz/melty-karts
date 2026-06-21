@@ -2,7 +2,7 @@ import { Accessor, createMemo, createEffect, createSignal, createStore, onCleanu
 import * as THREE from "three";
 import { WebGPURenderer, RenderPipeline, TSL } from "three/webgpu";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { bloom } from "./BloomNode";
+import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { createBananaModelHMR, createCubeyModelHMR, createKartModelHMR, createMeltyModelHMR, createMysteryBoxHMR, createReadySteadyGoTrafficLightModelHMR, createSolidLogoModelHMR } from "./model-tester";
 import { createReadySteadyGoSound, defaultReadySteadyGoConfig } from "../../melty-karts/src/sounds/ReadySteadyGo";
 import { Canvas, Entity, useFrame, useThree } from "solid-three";

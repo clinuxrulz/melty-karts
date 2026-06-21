@@ -21,7 +21,7 @@ import { createReadySteadyGoSystem } from "./ReadySteadyGoSystem";
 import { RegisteredAIControlled, RegisteredRaceStats, RegisteredLocalPlayerPosition, RegisteredRaceRankings, RegisteredRaceResults, MasterState, RegisteredMasterState, MAX_LAPS } from "../World";
 import { defaultReadySteadyGoConfig } from "../sounds/ReadySteadyGo";
 import { WebGPURenderer, RenderPipeline, TSL, RenderTarget, HalfFloatType } from "three/webgpu";
-import { bloom } from "../BloomNode";
+import { bloom } from "three/addons/tsl/display/BloomNode.js";
 const { texture } = TSL;
 import { Canvas } from "solid-three";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
