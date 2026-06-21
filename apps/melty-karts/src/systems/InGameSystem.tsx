@@ -67,6 +67,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   );
   let [ renderSystem, setRenderSystem ] = createSignal<System>();
   let [ thisDevicePlayerEntityId, setThisDevicePlayerEntityId, ] = createSignal<EntityID>();
+  let [ loading, setLoading ] = createSignal(true);
   /*
   createMemo(() => {
     let canvasDiv2 = canvasDiv();
@@ -343,6 +344,25 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         "bottom": "0",
       }}
     >
+      <Show when={loading()}>
+        <div style={{
+          "position": "absolute",
+          "left": "0",
+          "top": "0",
+          "right": "0",
+          "bottom": "0",
+          "display": "flex",
+          "align-items": "center",
+          "justify-content": "center",
+          "background": "#000",
+          "z-index": "1000",
+          "color": "#fff",
+          "font-family": "sans-serif",
+          "font-size": "24px",
+        }}>
+          Loading...
+        </div>
+      </Show>
       <Canvas
         gl={(canvas) => new WebGPURenderer({ canvas }) as any}
         ref={(ctx) => {
@@ -369,6 +389,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             });
             setThisDevicePlayerEntityId(thisDevicePlayerEntityId2);
             setRenderSystem(renderSystem);
+            setLoading(false);
           });
         }}
         style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
@@ -1128,6 +1149,18 @@ async function initScene(
     renderer.getSize(s);
     return s;
   };
+
+  // Pre-compile scene shaders asynchronously (uses createRenderPipelineAsync internally)
+  await (renderer as any).compileAsync(scene, camera);
+  // Warm up the bloom pipeline so its TSL shaders compile before the first frame
+  {
+    const { x: w, y: h } = getSize();
+    rt.setSize(w, h);
+    (renderer as any).setRenderTarget(rt);
+    renderer.render(scene, camera);
+    (renderer as any).setRenderTarget(null);
+    pipeline.render();
+  }
 
   renderer.autoClear = true;
   let render = () => {
