@@ -241,8 +241,8 @@ importers:
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10(@babel/core@7.29.0)(solid-js@2.0.0-beta.10)
       solid-three:
-        specifier: https://pkg.pr.new/solid-three@99a428a
-        version: https://pkg.pr.new/solid-three@99a428a(@solidjs/signals@2.0.0-beta.10)(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(@types/three@0.183.1)(solid-js@2.0.0-beta.10)(three@0.183.2)
+        specifier: https://pkg.pr.new/solid-three@dcd9e3d
+        version: https://pkg.pr.new/solid-three@dcd9e3d(@solidjs/signals@2.0.0-beta.10)(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(@types/three@0.183.1)(solid-js@2.0.0-beta.10)(three@0.183.2)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -1412,16 +1412,6 @@ packages:
     resolution: {integrity: sha512-fqkPRAeiE0tqfo2ZljeQBIXwfYssU2w1FmaWFrXmnV33B/CfGfez7BjtOF0Y1/orUNRXI/DZcJlJThHllcCMsA==}
     peerDependencies:
       solid-js: 2.0.0-beta.10
-
-  solid-three@https://pkg.pr.new/solid-three@99a428a:
-    resolution: {tarball: https://pkg.pr.new/solid-three@99a428a}
-    version: 0.3.0-next.12
-    peerDependencies:
-      '@solidjs/signals': '*'
-      '@solidjs/web': 2.0.0-beta.10
-      '@types/three': '*'
-      solid-js: 2.0.0-beta.10
-      three: '*'
 
   solid-three@https://pkg.pr.new/solid-three@dcd9e3d:
     resolution: {integrity: sha512-0qijbb7d1mJ9HZc1dhiUZpxB74n3zxKtTuI6zAzA0xoRXRTuc6bA9qn45sM7kDEv5MhRzbJ5OeZvdtfji64lbg==, tarball: https://pkg.pr.new/solid-three@dcd9e3d}
@@ -2639,15 +2629,6 @@ snapshots:
       '@babel/generator': 7.29.1
       '@babel/types': 7.29.0
       solid-js: 2.0.0-beta.10
-
-  solid-three@https://pkg.pr.new/solid-three@99a428a(@solidjs/signals@2.0.0-beta.10)(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(@types/three@0.183.1)(solid-js@2.0.0-beta.10)(three@0.183.2):
-    dependencies:
-      '@solidjs/signals': 2.0.0-beta.10
-      '@solidjs/web': 2.0.0-beta.10(solid-js@2.0.0-beta.10)
-      '@types/three': 0.183.1
-      debounce: 2.2.0
-      solid-js: 2.0.0-beta.10
-      three: 0.183.2
 
   solid-three@https://pkg.pr.new/solid-three@dcd9e3d(@solidjs/signals@2.0.0-beta.10)(@solidjs/web@2.0.0-beta.10(solid-js@2.0.0-beta.10))(@types/three@0.183.1)(solid-js@2.0.0-beta.10)(three@0.183.2):
     dependencies:
