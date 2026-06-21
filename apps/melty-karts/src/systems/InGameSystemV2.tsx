@@ -5,6 +5,7 @@ import { Component, createMemo, getOwner, onCleanup, onSettled, runWithOwner } f
 import * as THREE from "three";
 import { EntityID } from "@oasys/oecs";
 import { Canvas, useFrame } from "solid-three";
+import { WebGPURenderer } from "three/webgpu";
 import * as CANNON from "cannon-es";
 import { T } from "../t";
 
@@ -223,6 +224,7 @@ export function createInGameSystemV2(
       <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
         {([ track, trackPtNodes, curve, ]) => (
           <Canvas
+            gl={(canvas) => new WebGPURenderer({ canvas })}
             ref={(ref) => {
               ref.camera.position.set(5, 5, 5);
               ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
