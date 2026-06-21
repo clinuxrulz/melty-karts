@@ -2,7 +2,8 @@ import { Component, createRenderEffect, onCleanup } from "solid-js";
 import { T } from "../t";
 import * as THREE from "three";
 import { TSL, MeshBasicNodeMaterial } from "three/webgpu";
-const { uniform, varying, Fn, vec2, vec3, vec4, float, smoothstep, mix, length, dot, sin, cos, abs, fract, floor, positionLocal, normalize, pow, sub, add, mul, div, max, min, negate, lessThanEqual, clamp, modelViewMatrix, cameraProjectionMatrix } = TSL;
+import { greaterThan, select } from "three/tsl";
+const { uniform, varying, Fn, vec2, vec3, vec4, float, smoothstep, mix, length, dot, sin, cos, abs, fract, floor, positionLocal, positionGeometry, normalize, pow, sub, add, mul, div, max, min, negate, lessThanEqual, clamp, modelViewMatrix, cameraProjectionMatrix } = TSL;
 
 const kBoltCount = 5.0;
 const kSegmentsPerBolt = 16.0;
@@ -155,9 +156,9 @@ const _sharedBolts = (() => {
     return centerLine;
   });
 
-  const boltIdx = positionLocal.x;
-  const t = div(positionLocal.y, kSegmentsPerBolt);
-  const edgeIdx = positionLocal.z;
+  const boltIdx = positionGeometry.x;
+  const t = div(positionGeometry.y, kSegmentsPerBolt);
+  const edgeIdx = positionGeometry.z;
 
   const flashStep = floor(add(mul(uTime, 12.0), mul(boltIdx, 3.7)));
   const flashT = fract(add(mul(uTime, 12.0), mul(boltIdx, 0.17)));
@@ -180,7 +181,11 @@ const _sharedBolts = (() => {
   const screenDir = normalize(add(sub(mvNext.xy, mvPrev.xy), vec2(0.0001, 0.0)));
   const screenNormal = vec2(negate(screenDir.y), screenDir.x);
 
-  const boltWidth = mul(mul(mix(0.08, 0.012, t), 0.3), add(mul(hash11(add(mul(boltIdx, 13.0), phaseSeed)), 0.35), 0.8));
+  const projCol3 = mul(cameraProjectionMatrix, vec4(0, 0, 0, 1));
+  const projectionDiagonal = projCol3.w;
+  const projectionType = greaterThan(projectionDiagonal, float(0.5));
+  const boltWidthScale = select(projectionType, float(80.0), float(1.0));
+  const boltWidth = mul(mul(mul(mix(0.08, 0.012, t), 0.3), add(mul(hash11(add(mul(boltIdx, 13.0), phaseSeed)), 0.35), 0.8)), boltWidthScale);
   const edgeFactor = sub(mul(edgeIdx, 2.0), 1.0);
   const mvCurrentOffset = vec4(add(mvCurrent.xy, mul(mul(screenNormal, edgeFactor), boltWidth)), mvCurrent.zw);
   const finalClip = mul(cameraProjectionMatrix, mvCurrentOffset);
@@ -196,6 +201,7 @@ const _sharedBolts = (() => {
     side: THREE.DoubleSide,
   });
   material.vertexNode = finalClip;
+  material.positionNode = currentPoint;
 
   const edgeFade = sub(1.0, smoothstep(0.15, 0.95, abs(mul(sub(vAcross, 0.5), 2.0))));
   const alongFade = mul(smoothstep(0.0, 0.08, vAlong), sub(1.0, smoothstep(0.78, 1.0, vAlong)));
