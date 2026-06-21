@@ -390,6 +390,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             setThisDevicePlayerEntityId(thisDevicePlayerEntityId2);
             setRenderSystem(renderSystem);
             setLoading(false);
+            ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
+            ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay: 3.0, });
           });
         }}
         style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
@@ -596,22 +598,13 @@ export function createInGameSystem(ecs: ReactiveECS): System {
       </div>
     );
   };
-  //
-  queueMicrotask(() => {
-    ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
-    ecs.set_resource(
-      RegisteredPreReadySteadyGoDelay,
-      {
-        delay: 3.0,
-      },
-    );
-  });
   let musicStarted = false;
   return {
     subsystems,
     ui,
     topLeftOverlayUi,
     update(dt) {
+      if (loading()) return;
       let delayFinished = ecs.resource(RegisteredPreReadySteadyGoDelayFinished).get("value");
       if (!delayFinished) {
         let delay = ecs.resource(RegisteredPreReadySteadyGoDelay).get("delay");
