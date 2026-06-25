@@ -98,6 +98,9 @@ importers:
       cannon-es:
         specifier: ^0.20.0
         version: 0.20.0
+      cannon-es-debugger:
+        specifier: ^1.0.0
+        version: 1.0.0(cannon-es@0.20.0)(three@0.183.2)(typescript@5.9.3)
       howler:
         specifier: ^2.2.4
         version: 2.2.4
@@ -981,6 +984,16 @@ packages:
   caniuse-lite@1.0.30001791:
     resolution: {integrity: sha512-yk0l/YSrOnFZk3UROpDLQD9+kC1l4meK/wed583AXrzoarMGJcbRi2Q4RaUYbKxYAsZ8sWmaSa/DsLmdBeI1vQ==}
 
+  cannon-es-debugger@1.0.0:
+    resolution: {integrity: sha512-sE9lDOBAYFKlh+0w+cvWKwUhJef8HYnUSVPWPL0jD15MAuVRQKno4QYZSGxgOoJkMR3mQqxL4bxys2b3RSWH8g==}
+    peerDependencies:
+      cannon-es: 0.x
+      three: 0.x
+      typescript: '>=3.8'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   cannon-es@0.20.0:
     resolution: {integrity: sha512-eZhWTZIkFOnMAJOgfXJa9+b3kVlvG+FX4mdkpePev/w/rP5V8NRquGyEozcjPfEoXUlb+p7d9SUcmDSn14prOA==}
 
@@ -1414,7 +1427,7 @@ packages:
       solid-js: 2.0.0-beta.10
 
   solid-three@https://pkg.pr.new/solid-three@dcd9e3d:
-    resolution: {integrity: sha512-0qijbb7d1mJ9HZc1dhiUZpxB74n3zxKtTuI6zAzA0xoRXRTuc6bA9qn45sM7kDEv5MhRzbJ5OeZvdtfji64lbg==, tarball: https://pkg.pr.new/solid-three@dcd9e3d}
+    resolution: {tarball: https://pkg.pr.new/solid-three@dcd9e3d}
     version: 0.3.0-next.12
     peerDependencies:
       '@solidjs/signals': '*'
@@ -2238,6 +2251,13 @@ snapshots:
   camelcase@5.3.1: {}
 
   caniuse-lite@1.0.30001791: {}
+
+  cannon-es-debugger@1.0.0(cannon-es@0.20.0)(three@0.183.2)(typescript@5.9.3):
+    dependencies:
+      cannon-es: 0.20.0
+      three: 0.183.2
+    optionalDependencies:
+      typescript: 5.9.3
 
   cannon-es@0.20.0: {}
 

@@ -55,6 +55,7 @@ export async function loadKartModel(): Promise<THREE.Group> {
     );
     group.add(kart);
 
+    /*
     // DEBUG: Add wheel position markers - START
     // Position wheels at local Y = WHEEL_OFFSET_Y - SUSPENSION_REST_LENGTH so they sit at ground level
     const wheelY = WHEEL_OFFSET_Y - SUSPENSION_REST_LENGTH;
@@ -81,7 +82,8 @@ export async function loadKartModel(): Promise<THREE.Group> {
     rrWheel.position.set(WHEEL_OFFSET_X, wheelY, -WHEEL_OFFSET_Z);
     group.add(rrWheel);
     // DEBUG: Add wheel position markers - END
-  
+    */
+   
     return group;
   } catch (e) {
     console.error("Failed to load kart:", e);

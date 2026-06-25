@@ -25,6 +25,7 @@
     "@solidjs/signals": "2.0.0-beta.10",
     "@solidjs/web": "2.0.0-beta.10",
     "cannon-es": "^0.20.0",
+    "cannon-es-debugger": "^1.0.0",
     "howler": "^2.2.4",
     "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
