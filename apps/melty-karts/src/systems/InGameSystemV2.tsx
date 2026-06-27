@@ -6,16 +6,45 @@ import * as THREE from "three";
 import { EntityID } from "@oasys/oecs";
 import { Canvas, Entity, useFrame } from "solid-three";
 import { WebGPURenderer } from "three/webgpu";
-import * as CANNON from "cannon-es";
+import RAPIER from "@dimforge/rapier3d";
+import { DynamicRayCastVehicleController } from "@dimforge/rapier3d/control";
 import { T } from "../t";
 import { createKart } from "../Kart";
-import { RegisteredKartConfig, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { RegisteredKartConfig, RegisteredKeyboardInput, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
 import { loadKartModel } from "../models/Kart";
 import Melty from "../models/melty";
 import { createCubey } from "../models/cubey";
 import { createSolidLogo } from "../models/SolidLogo";
-import CannonDebugger from "cannon-es-debugger";
 import { OrbitControls } from "three-stdlib";
+import { Joystick } from "../Joystick";
+import { ActionButton } from "../ActionButton";
+
+class RapierDebugRenderer {
+  mesh: THREE.LineSegments;
+  world: RAPIER.World;
+  enabled = true;
+
+  constructor(scene: THREE.Scene, world: RAPIER.World) {
+    this.world = world;
+    this.mesh = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: 0x00ff00, vertexColors: true }),
+    );
+    this.mesh.frustumCulled = false;
+    scene.add(this.mesh);
+  }
+
+  update() {
+    if (this.enabled) {
+      const { vertices, colors } = this.world.debugRender();
+      this.mesh.geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+      this.mesh.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 4));
+      this.mesh.visible = true;
+    } else {
+      this.mesh.visible = false;
+    }
+  }
+}
 
 function generateTrackCollisionVertices(
   trackEval: TrackEvaluator,
@@ -73,119 +102,26 @@ function generateTrackCollisionVertices(
 }
 
 function createTrackBody(
+  world: RAPIER.World,
   trackEval: TrackEvaluator,
   trackWidth: number,
   numSegments: number,
-): CANNON.Body {
+): RAPIER.RigidBody {
   const { vertices, indices } = generateTrackCollisionVertices(trackEval, trackWidth, numSegments);
-  const shape = new CANNON.Trimesh(vertices, indices);
-  const body = new CANNON.Body({ mass: 0 });
-  body.addShape(shape);
-  return body;
-}
-
-function VehicleController(props: {
-  trackEval: TrackEvaluator;
-  trackWidth: number;
-  numSegments: number;
-}) {
-  let world: CANNON.World;
-  let body: CANNON.Body;
-  let trackBody: CANNON.Body;
-  let mesh: THREE.Mesh | undefined;
-
-  const collisionGeom = (() => {
-    const { vertices, indices } = generateTrackCollisionVertices(
-      props.trackEval, props.trackWidth, props.numSegments,
-    );
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
-    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
-    geometry.computeVertexNormals();
-    return geometry;
-  })();
-
-  let owner = getOwner();
-
-  onSettled(() => {
-    world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-    world.defaultContactMaterial.restitution = 0.2;
-    world.defaultContactMaterial.friction = 0.1;
-
-    trackBody = createTrackBody(props.trackEval, props.trackWidth, props.numSegments);
-    world.addBody(trackBody);
-
-    const s0 = props.trackEval.getFrameAt(0);
-    const s1 = props.trackEval.getFrameAt(1 / 200);
-    const sf = props.trackEval.getFrameAt(0.5 / 200);
-    console.log("t=0 pos:", s0.position.x.toFixed(2), s0.position.y.toFixed(2), s0.position.z.toFixed(2));
-    console.log("t=0.005 pos:", s1.position.x.toFixed(2), s1.position.y.toFixed(2), s1.position.z.toFixed(2));
-    console.log("sf pos:", sf.position.x.toFixed(2), sf.position.y.toFixed(2), sf.position.z.toFixed(2));
-    console.log("sf up:", sf.up.x.toFixed(4), sf.up.y.toFixed(4), sf.up.z.toFixed(4));
-
-    body = new CANNON.Body({ mass: 5, linearDamping: 0.0, angularDamping: 0.0 });
-    body.addShape(new CANNON.Sphere(0.5));
-    body.position.set(sf.position.x, sf.position.y + 0.55, sf.position.z);
-    world.addBody(body);
-
-    runWithOwner(owner, () => {
-      onCleanup(() => {
-        world.removeBody(body);
-        world.removeBody(trackBody);
-      });
-    });
-  });
-
-  let frameCount = 0;
-  useFrame((state, dt) => {
-    if (!world || !body) return;
-    world.step(1 / 60, Math.min(dt, 0.1), 20);
-    const pos = body.position;
-    if (mesh) {
-      mesh.position.set(pos.x, pos.y, pos.z);
-    }
-    frameCount++;
-    if (frameCount % 30 === 0) {
-      const speed = Math.sqrt(body.velocity.x**2 + body.velocity.y**2 + body.velocity.z**2);
-      console.log(`frame=${frameCount} pos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}) speed=${speed.toFixed(2)} vel=(${body.velocity.x.toFixed(2)}, ${body.velocity.y.toFixed(2)}, ${body.velocity.z.toFixed(2)})`);
-    }
-    /*
-    state.camera.position.lerp(
-      new THREE.Vector3(pos.x + 6, pos.y + 9, pos.z + 15),
-      0.05,
-    );
-    state.camera.lookAt(pos.x, pos.y, pos.z);
-    */
-  });
-
-  return (
-    <>
-      <T.Mesh geometry={collisionGeom}>
-        <T.MeshBasicMaterial
-          args={[{
-            color: 0x00ff00,
-            transparent: true,
-            opacity: 0.25,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-          }]}
-        />
-      </T.Mesh>
-      <T.Mesh ref={(m: THREE.Mesh) => { mesh = m; }}>
-        <T.SphereGeometry args={[0.5]} />
-        <T.MeshStandardMaterial color="#e03030" />
-      </T.Mesh>
-    </>
+  const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+  const collider = RAPIER.ColliderDesc.trimesh(
+    new Float32Array(vertices),
+    new Uint32Array(indices),
   );
+  world.createCollider(collider, body);
+  return body;
 }
 
 export function createInGameSystemV2(
   componentRegistry: ComponentRegistry,
   ecs: ReactiveECS,
 ): System {
-  let world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-  world.defaultContactMaterial.restitution = 0.2;
-  world.defaultContactMaterial.friction = 0.1;
+  let world = new RAPIER.World({ x: 0, y: -9.82, z: 0 });
   let trackIds = ecs.createQueryEntityIds(componentRegistry.Track);
   let trackId = createMemo(() => {
     let trackIds2 = trackIds();
@@ -240,9 +176,49 @@ export function createInGameSystemV2(
   let [ camera, setCamera, ] = createSignal<THREE.Camera>();
   let [ playerId, setPlayerId, ] = createSignal<EntityID>();
   let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
+  let [ start, setStart, ] = createSignal<boolean>(false);
+  setTimeout(() => { setStart(true); }, 500);
+  let updateKeyboardInput = (params: {
+    upDown?: boolean,
+    downDown?: boolean,
+    leftDown?: boolean,
+    rightDown?: boolean,
+    actionDown?: boolean,
+  }) => {
+    let s = { ...ecs.ecs.resource(RegisteredKeyboardInput) };
+    if (params.upDown !== undefined) s.upDown = params.upDown ? 1 : 0;
+    if (params.downDown !== undefined) s.downDown = params.downDown ? 1 : 0;
+    if (params.leftDown !== undefined) s.leftDown = params.leftDown ? 1 : 0;
+    if (params.rightDown !== undefined) s.rightDown = params.rightDown ? 1 : 0;
+    if (params.actionDown !== undefined) s.actionDown = params.actionDown ? 1 : 0;
+    ecs.set_resource(RegisteredKeyboardInput, s);
+  };
+  let keyDownListener = (e: KeyboardEvent) => {
+    if (e.key === "ArrowUp") updateKeyboardInput({ upDown: true });
+    else if (e.key === "ArrowDown") updateKeyboardInput({ downDown: true });
+    else if (e.key === "ArrowLeft") updateKeyboardInput({ leftDown: true });
+    else if (e.key === "ArrowRight") updateKeyboardInput({ rightDown: true });
+    else if (e.key === " ") updateKeyboardInput({ actionDown: true });
+  };
+  let keyUpListener = (e: KeyboardEvent) => {
+    if (e.key === "ArrowUp") updateKeyboardInput({ upDown: false });
+    else if (e.key === "ArrowDown") updateKeyboardInput({ downDown: false });
+    else if (e.key === "ArrowLeft") updateKeyboardInput({ leftDown: false });
+    else if (e.key === "ArrowRight") updateKeyboardInput({ rightDown: false });
+    else if (e.key === " ") updateKeyboardInput({ actionDown: false });
+  };
+  document.addEventListener("keydown", keyDownListener);
+  document.addEventListener("keyup", keyUpListener);
+  onCleanup(() => {
+    document.removeEventListener("keydown", keyDownListener);
+    document.removeEventListener("keyup", keyUpListener);
+  });
   createEffect(
-    () => [ track(), curve(), ] as const,
-    ([ track, curve, ]) => {
+    () => [ track(), curve(), start() ] as const,
+    ([ track, curve, start, ]) => {
+      if (!start) {
+        return;
+      }
       if (track === undefined) {
         return;
       }
@@ -250,10 +226,11 @@ export function createInGameSystemV2(
         return;
       }
       {
-        let trackBody = createTrackBody(curve.trackEval, track.track.width, 200);
-        world.addBody(trackBody);
+        createTrackBody(world, curve.trackEval, track.track.width, 200);
       }
-      let frame = curve.trackEval.getFrameAt(0.0);
+      let frame = curve.trackEval.getFrameAt(0.92);
+      camera()?.position.set(2, 2, 2).add(frame.position);
+      orbitControls()?.update();
       let matrix = new THREE.Matrix4().makeBasis(
         frame.right,
         frame.up,
@@ -263,7 +240,7 @@ export function createInGameSystemV2(
       let playerId2 = ecs.create_entity();
       ecs.add_component(playerId2, componentRegistry.Transform3D, {
         ox: frame.position.x,
-        oy: frame.position.y + 0.7,
+        oy: frame.position.y + 0.5,
         oz: frame.position.z,
         qx: q.x,
         qy: q.y,
@@ -294,249 +271,412 @@ export function createInGameSystemV2(
     RegisteredVelocity,
     RegisteredKartConfig,
   );
-  let kartsWithCannonBodies = createMemo(mapArray(
+  let kartsWithPhysics = createMemo(mapArray(
     kartEntityIds,
     (kartEntityId) => {
       let kartEntityId2 = untrack(kartEntityId);
-      const chassisShape = new CANNON.Box(new CANNON.Vec3(0.35, 0.2, 0.35));
-      const chassisBody = new CANNON.Body({ mass: 1.0 });
-      chassisBody.shapeOffsets.push(new CANNON.Vec3(0, 0.5, 0));
-      chassisBody.addShape(chassisShape);
-      untrack(() => {
-        let transform = entityGetComponentData(ecs, kartEntityId2, componentRegistry.Transform3D);
-        if (transform !== undefined) {
-          chassisBody.position.set(
-            transform.ox,
-            transform.oy,
-            transform.oz,
-          );
-          chassisBody.quaternion.set(
-            transform.qx,
-            transform.qy,
-            transform.qz,
-            transform.qw,
-          );
+      const wheelRadius = 0.25;
+      const wheelPositions = [
+        { x: -0.4, y: 0.2, z: 0.4 },  // Front Left
+        { x: 0.4, y: 0.2, z: 0.4 },   // Front Right
+        { x: -0.4, y: 0.2, z: -0.4 }, // Rear Left
+        { x: 0.4, y: 0.2, z: -0.4 },  // Rear Right
+      ];
+
+      let transform = untrack(() => entityGetComponentData(ecs, kartEntityId2, componentRegistry.Transform3D));
+      const initX = transform?.ox ?? 0;
+      const initY = transform?.oy ?? 0;
+      const initZ = transform?.oz ?? 0;
+      const initQx = transform?.qx ?? 0;
+      const initQy = transform?.qy ?? 0;
+      const initQz = transform?.qz ?? 0;
+      const initQw = transform?.qw ?? 1;
+
+      const chassisDesc = RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(initX, initY, initZ)
+        .setRotation({ x: initQx, y: initQy, z: initQz, w: initQw })
+        .setCanSleep(false)
+        .setLinearDamping(0.1)
+        .setAngularDamping(5.0)
+        .setAdditionalMass(5.0);
+      const chassisBody = world.createRigidBody(chassisDesc);
+      // Small, flat collider positioned at the body center
+      // The visual mesh sits on top, wheels extend below
+      const chassisCollider = RAPIER.ColliderDesc.cuboid(0.3, 0.2, 0.6)
+        .setTranslation(0, 0.35, 0)
+        .setRestitution(0.0)
+        .setFriction(0.8);
+      world.createCollider(chassisCollider, chassisBody);
+
+      const broadPhase = world.broadPhase;
+      const narrowPhase = world.narrowPhase;
+      const bodies = world.bodies;
+      const colliders = world.colliders;
+
+      const vehicle = new DynamicRayCastVehicleController(
+        chassisBody,
+        broadPhase,
+        narrowPhase,
+        bodies,
+        colliders
+      );
+
+      vehicle.indexUpAxis = 1;
+      vehicle.setIndexForwardAxis = 2;
+
+      const suspensionRestLength = 0.1;//0.35;
+
+      wheelPositions.forEach((pos, i) => {
+        vehicle.addWheel(
+          RAPIER.VectorOps.new(pos.x, pos.y, pos.z),
+          RAPIER.VectorOps.new(0, -1, 0),
+          RAPIER.VectorOps.new(-1, 0, 0),
+          suspensionRestLength,
+          wheelRadius
+        );
+        vehicle.setWheelFrictionSlip(i, 3.5);
+        vehicle.setWheelSuspensionStiffness(i, 20);
+        vehicle.setWheelSuspensionCompression(i, 30);
+        vehicle.setWheelSuspensionRelaxation(i, 80);
+        vehicle.setWheelMaxSuspensionForce(i, 2000);
+        vehicle.setWheelMaxSuspensionTravel(i, 0.6);
+      });
+
+      onCleanup(() => {
+        vehicle.free();
+        world.removeRigidBody(chassisBody);
+      });
+
+      const wheelMeshes: THREE.Mesh[] = [];
+      for (let i = 0; i < 4; i++) {
+        let geometry = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 8);
+        geometry.rotateZ(0.5 * Math.PI);
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, metalness: 0.2 }),
+        );
+        wheelMeshes.push(mesh);
+        wheelMeshGroup.add(mesh);
+      }
+      onCleanup(() => {
+        for (const mesh of wheelMeshes) {
+          wheelMeshGroup.remove(mesh);
+          mesh.geometry.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => m.dispose());
+          } else {
+            mesh.material.dispose();
+          }
         }
       });
-      const vehicle = new CANNON.RigidVehicle({ chassisBody });
-      const wheelRadius = 0.18;
-      const wheelShape = new CANNON.Sphere(wheelRadius);
-      const wheelMaterial = new CANNON.Material("wheel");
-      const wheelAxis = new CANNON.Vec3(1, 0, 0);
-      const wheelPositions = [
-        new CANNON.Vec3(-0.38, 0.18, 0.38),  // Front Left
-        new CANNON.Vec3(0.38, 0.18, 0.38),   // Front Right
-        new CANNON.Vec3(-0.38, 0.18, -0.38), // Rear Left
-        new CANNON.Vec3(0.38, 0.18, -0.38),  // Rear Right
-      ];
-      wheelPositions.forEach((position) => {
-        const wheelBody = new CANNON.Body({ 
-          mass: 0.2,
-          material: wheelMaterial 
-        });
-        wheelBody.addShape(wheelShape);
-        wheelBody.angularDamping = 0;
-        vehicle.addWheel({
-          body: wheelBody,
-          position: position,
-          axis: wheelAxis,
-          direction: wheelAxis,
-        });
-      });
-      vehicle.addToWorld(world);
-      onCleanup(() => {
-        vehicle.removeFromWorld(world);
-      });
+
       return {
         kartEntityId: kartEntityId2,
-        cannonBody: vehicle,
+        vehicle,
+        wheelAxleDirs: wheelPositions.map(() => ({ x: -1, y: 0, z: 0 })),
+        wheelMeshes,
       };
     },
   ));
-  let cannonDebugger: any | undefined = undefined;
+  let rapierDebugRenderer: RapierDebugRenderer | undefined = undefined;
+  let wheelMeshGroup = new THREE.Group();
   createEffect(
     scene,
     (scene) => {
       if (scene === undefined) {
         return;
       }
-      cannonDebugger = new (CannonDebugger as any)(scene, world, {
-        color: 0x00ff00, // Optional: change wireframe color (defaults to green)
-        scale: 1         // Optional: scale the wireframes if needed
+      rapierDebugRenderer = new RapierDebugRenderer(scene, world);
+      scene.add(wheelMeshGroup);
+      onCleanup(() => {
+        scene.remove(wheelMeshGroup);
       });
     },
   )
-   let UI: Component = () => {
-    return (
-      <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
-        {([ track, trackPtNodes, curve, ]) => (
-          <Canvas
-            gl={(canvas) => new WebGPURenderer({ canvas })}
-            ref={(ref) => {
-              runWithOwner(null, () => {
-                ref.camera.position.set(5, 5, 5);
-                ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
-                let orbitControls2 = new OrbitControls(ref.camera, ref.canvas);
-                setScene(ref.scene);
-                setCamera(ref.camera);
-                setOrbitControls(orbitControls2);
-              });
-            }}
-            style={{
-              "width": "100%",
-              "height": "100%",
-            }}
-          >
-            <T.AmbientLight args={[0xffffff, 0.6]} />
-            <T.DirectionalLight args={[0xffffff, 1.0]} position={[5, 10, 7]} />
-            <RenderTrack
-              ref={() => {}}
-              track={track().track}
-              trackPtNodes={trackPtNodes()}
-              curve={curve()}
-              isSelected={false}
-            />
-            <For each={kartsWithCannonBodies()}>
-              {(kartWithCannonBody) => {
-                let kartWithCannonBody2 = untrack(kartWithCannonBody);
-                let kartEntityId = kartWithCannonBody2.kartEntityId;
-                let cannonBody = kartWithCannonBody2.cannonBody;
-                cannonBody.chassisBody.shapes[0];
-                let kartEntity = ecs.entity(kartEntityId);
-                let playerConfig = { 
-                  playerType: kartEntity.getField(RegisteredPlayerConfig, "playerType"), 
-                  facingForward: kartEntity.getField(RegisteredPlayerConfig, "facingForward") 
-                };
-                
-                let kartModel = createMemo(async () => await loadKartModel());
-                
-                let Player = () => (
-                  <Switch>
-                    <Match when={playerConfig.playerType == 0}>
+    let UI: Component = () => {
+      return (
+        <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
+          {([ track, trackPtNodes, curve, ]) => (
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <Canvas
+                gl={(canvas) => new WebGPURenderer({ canvas })}
+                ref={(ref) => {
+                  runWithOwner(null, () => {
+                    ref.camera.position.set(5, 5, 5);
+                    ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
+                    let orbitControls2 = new OrbitControls(ref.camera, ref.canvas);
+                    setScene(ref.scene);
+                    setCamera(ref.camera);
+                    setOrbitControls(orbitControls2);
+                  });
+                }}
+                style={{
+                  "width": "100%",
+                  "height": "100%",
+                }}
+              >
+                <T.AmbientLight args={[0xffffff, 0.6]} />
+                <T.DirectionalLight args={[0xffffff, 1.0]} position={[5, 10, 7]} />
+                <RenderTrack
+                  ref={() => {}}
+                  track={track().track}
+                  trackPtNodes={trackPtNodes()}
+                  curve={curve()}
+                  isSelected={false}
+                />
+                <For each={kartsWithPhysics()}>
+                  {(kartPhysics) => {
+                    let kartPhysics2 = untrack(kartPhysics);
+                    let kartEntityId = kartPhysics2.kartEntityId;
+                    let kartEntity = ecs.entity(kartEntityId);
+                    let playerConfig = {
+                      playerType: kartEntity.getField(RegisteredPlayerConfig, "playerType"),
+                      facingForward: kartEntity.getField(RegisteredPlayerConfig, "facingForward")
+                    };
+
+                    let kartModel = createMemo(async () => await loadKartModel());
+
+                    let Player = () => (
+                      <Switch>
+                        <Match when={playerConfig.playerType == 0}>
+                          <T.Group
+                            position={[ 0.0, 0.32, 0.0, ]}
+                            scale={[ 0.5, 0.5, 0.5, ]}
+                          >
+                            <Melty/>
+                          </T.Group>
+                        </Match>
+                        <Match when={playerConfig.playerType == 1}>
+                          <T.Group
+                            position={[ 0.0, 0.32, 0.0, ]}
+                            scale={[ 0.5, 0.5, 0.5, ]}
+                          >
+                            <Entity from={createCubey()}/>
+                          </T.Group>
+                        </Match>
+                        <Match when={playerConfig.playerType == 2}>
+                          <T.Group
+                            position={[ 0.0, 0.32, 0.0, ]}
+                            scale={[ 0.5, 0.5, 0.5, ]}
+                          >
+                            <Entity from={createSolidLogo()}/>
+                          </T.Group>
+                        </Match>
+                      </Switch>
+                    );
+                    return (
                       <T.Group
-                        position={[ 0.0, 0.32, 0.0, ]}
-                        scale={[ 0.5, 0.5, 0.5, ]}
+                        position={[
+                          kartEntity.getField(componentRegistry.Transform3D, "ox"),
+                          kartEntity.getField(componentRegistry.Transform3D, "oy"),
+                          kartEntity.getField(componentRegistry.Transform3D, "oz"),
+                        ]}
+                        quaternion={[
+                          kartEntity.getField(componentRegistry.Transform3D, "qx"),
+                          kartEntity.getField(componentRegistry.Transform3D, "qy"),
+                          kartEntity.getField(componentRegistry.Transform3D, "qz"),
+                          kartEntity.getField(componentRegistry.Transform3D, "qw"),
+                        ]}
                       >
-                        <Melty/>
+                        <>{(() => {
+                          let kartModel2 = kartModel();
+                          return untrack(() => (<Entity from={kartModel2}/>));
+                        })()}</>
+                        <Player/>
                       </T.Group>
-                    </Match>
-                    <Match when={playerConfig.playerType == 1}>
-                      <T.Group
-                        position={[ 0.0, 0.32, 0.0, ]}
-                        scale={[ 0.5, 0.5, 0.5, ]}
-                      >
-                        <Entity from={createCubey()}/>
-                      </T.Group>
-                    </Match>
-                    <Match when={playerConfig.playerType == 2}>
-                      <T.Group
-                        position={[ 0.0, 0.32, 0.0, ]}
-                        scale={[ 0.5, 0.5, 0.5, ]}
-                      >
-                        <Entity from={createSolidLogo()}/>
-                      </T.Group>
-                    </Match>
-                  </Switch>
-                );
-                return (
-                  <T.Group
-                    position={[
-                      kartEntity.getField(componentRegistry.Transform3D, "ox"),
-                      kartEntity.getField(componentRegistry.Transform3D, "oy"),
-                      kartEntity.getField(componentRegistry.Transform3D, "oz"),
-                    ]}
-                    quaternion={[
-                      kartEntity.getField(componentRegistry.Transform3D, "qx"),
-                      kartEntity.getField(componentRegistry.Transform3D, "qy"),
-                      kartEntity.getField(componentRegistry.Transform3D, "qz"),
-                      kartEntity.getField(componentRegistry.Transform3D, "qw"),
-                    ]}
-                  >
-                    <>{(() => {
-                      let kartModel2 = kartModel();
-                      return untrack(() => (<Entity from={kartModel2}/>));
-                    })()}</>
-                    <Player/>
-                  </T.Group>
-                );
-              }}
-            </For>
-          </Canvas>
-        )}
-      </ShowAll>
-    );
-  };
+                    );
+                  }}
+                </For>
+              </Canvas>
+              <joystick.UI/>
+              <actionButton.UI/>
+            </div>
+          )}
+        </ShowAll>
+      );
+    };
   let tmpV1 = new THREE.Vector3();
   let tmpV2 = new THREE.Vector3();
   let tmpQ1 = new THREE.Quaternion();
+  let maxSteerDeg = 30 * Math.PI / 180;
+  let joystick = Joystick({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        50.0,
+        (window.innerHeight ?? 800) - 50 - 150,
+      )
+    ),
+    hitAreaSize: 150,
+    outerRingSize: () => 0.8 * 150,
+    knobSize: () => 70,
+  });
+  let actionButton = ActionButton({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        (window.innerWidth ?? 800) - 50 - 100,
+        (window.innerHeight ?? 800) - 50 - 100,
+      )
+    ),
+    size: () => 100,
+  });
+  let actionButton2 = ActionButton({
+    position: createMemo(() =>
+      new THREE.Vector2(
+        (window.innerWidth ?? 800) - (50.0 + 0.5 * (80.0 - 100.0)) - 100,
+        (window.innerHeight ?? 800) - 150.0 - 100,
+      )
+    ),
+    size: () => 80.0,
+    colour: () => "red",
+    specialSlidePress: () => true,
+  });
+  let joystickAnalog = { x: 0, y: 0 };
+  createEffect(
+    joystick.value,
+    (joyVal) => {
+      joystickAnalog.x = joyVal.x;
+      joystickAnalog.y = joyVal.y;
+    },
+  );
+
   let update = (dt: number) => {
-    for (let kartWithCannonBody of kartsWithCannonBodies()) {
-      let entityId = kartWithCannonBody.kartEntityId;
-      let cannonBody = kartWithCannonBody.cannonBody;
+    for (let kartPhysics2 of kartsWithPhysics()) {
+      let entityId = kartPhysics2.kartEntityId;
+      let chassisBody = kartPhysics2.vehicle.chassis();
       let transform = entityGetComponentData(ecs, entityId, componentRegistry.Transform3D);
       if (transform !== undefined) {
-        cannonBody.chassisBody.position.set(
-          transform.ox,
-          transform.oy,
-          transform.oz,
+        chassisBody.setTranslation(
+          { x: transform.ox, y: transform.oy, z: transform.oz },
+          true,
         );
-        cannonBody.chassisBody.quaternion.set(
-          transform.qx,
-          transform.qy,
-          transform.qz,
-          transform.qw,
+        chassisBody.setRotation(
+          { x: transform.qx, y: transform.qy, z: transform.qz, w: transform.qw },
+          true,
         );
       }
     }
-    for (let i = 0; i < 5; ++i) {
-      world.step(1 / 60 / 5, 1 / 60 / 5, 20);
+    let keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
+    for (let kartPhysics2 of kartsWithPhysics()) {
+      const vehicle = kartPhysics2.vehicle;
+      const chassisBody = vehicle.chassis();
+      let rot = chassisBody.rotation();
+      tmpQ1.set(rot.x, rot.y, rot.z, rot.w);
+
+      let engineForce = 0.0;
+      let steering = 0.0;
+
+      let actionPressed = keyboard.actionDown !== 0 || actionButton.pressed() || actionButton2.pressed();
+
+      // Joystick analog control (overrides keyboard when active)
+      if (Math.abs(joystickAnalog.y) > 0.1) {
+        let joyForce = -joystickAnalog.y * 10.0;
+        engineForce = joyForce > 0 ? joyForce : Math.max(-2.5, joyForce);
+      } else if (keyboard.upDown !== 0 || actionPressed) {
+        engineForce = 10.0;
+      } else if (keyboard.downDown !== 0) {
+        engineForce = -5.0;
+      }
+
+      if (Math.abs(joystickAnalog.x) > 0.1) {
+        steering = -joystickAnalog.x * 2.0 * maxSteerDeg;
+      } else {
+        if (keyboard.leftDown !== 0) {
+          steering = maxSteerDeg;
+        }
+        if (keyboard.rightDown !== 0) {
+          steering = -maxSteerDeg;
+        }
+      }
+
+      // Apply engine force to rear wheels (2 and 3) for driving
+      for (let i = 2; i < vehicle.numWheels(); i++) {
+        vehicle.setWheelEngineForce(i, engineForce);
+      }
+      // Apply steering to front wheels (0 and 1)
+      for (let i = 0; i <= 1; i++) {
+        vehicle.setWheelSteering(i, steering);
+      }
     }
-    cannonDebugger?.update();
-    for (let kartWithCannonBody of kartsWithCannonBodies()) {
-      let entityId = kartWithCannonBody.kartEntityId;
-      let cannonBody = kartWithCannonBody.cannonBody;
+    const fixedDt = 1 / 60 / 5;
+    world.timestep = fixedDt;
+    for (let i = 0; i < 5; ++i) {
+      for (let kartPhysics2 of kartsWithPhysics()) {
+        kartPhysics2.vehicle.updateVehicle(fixedDt);
+      }
+      world.step();
+    }
+    rapierDebugRenderer?.update();
+    for (let kartPhysics2 of kartsWithPhysics()) {
+      let entityId = kartPhysics2.kartEntityId;
+      let chassisBody = kartPhysics2.vehicle.chassis();
+      let pos = chassisBody.translation();
+      let rot = chassisBody.rotation();
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "ox",
-        cannonBody.chassisBody.position.x,
+        pos.x,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "oy",
-        cannonBody.chassisBody.position.y,
+        pos.y,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "oz",
-        cannonBody.chassisBody.position.z,
+        pos.z,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "qx",
-        cannonBody.chassisBody.quaternion.x,
+        rot.x,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "qy",
-        cannonBody.chassisBody.quaternion.y,
+        rot.y,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "qz",
-        cannonBody.chassisBody.quaternion.z,
+        rot.z,
       );
       ecs.set_field(
         entityId,
         componentRegistry.Transform3D,
         "qw",
-        cannonBody.chassisBody.quaternion.w,
+        rot.w,
       );
+    }
+    // Update visual wheel meshes from vehicle controller
+    for (let kartPhysics2 of kartsWithPhysics()) {
+      const vehicle = kartPhysics2.vehicle;
+      const wheelMeshes = kartPhysics2.wheelMeshes;
+      const chassisBody = vehicle.chassis();
+      const cPos = chassisBody.translation();
+      const cRot = chassisBody.rotation();
+      tmpQ1.set(cRot.x, cRot.y, cRot.z, cRot.w);
+      tmpV1.set(0, -1, 0).applyQuaternion(tmpQ1);
+      for (let i = 0; i < vehicle.numWheels(); i++) {
+        const hardPt = vehicle.wheelHardPoint(i);
+        const suspLen = vehicle.wheelSuspensionLength(i);
+        if (hardPt == null || suspLen == null) continue;
+        const offset = suspLen;
+        wheelMeshes[i].position.set(
+          hardPt.x + tmpV1.x * offset,
+          hardPt.y + tmpV1.y * offset,
+          hardPt.z + tmpV1.z * offset,
+        );
+        wheelMeshes[i].quaternion.set(
+          cRot.x, cRot.y, cRot.z, cRot.w,
+        )
+      }
     }
     let camera2 = camera();
     let playerId2 = playerId();
