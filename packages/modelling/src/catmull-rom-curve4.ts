@@ -78,10 +78,10 @@ export class CatmullRomCurve4 {
       p3 = new THREE.Vector4().subVectors(points[l - 1], points[l - 2]).add(points[l - 1]);
     }
 
-    // Calculate 4D Distance Squared
+    // Calculate 3D Distance Squared (w/twist excluded — twist shouldn't distort spatial interpolation)
     const distSq = (a: THREE.Vector4, b: THREE.Vector4) => {
-      const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z, dw = a.w - b.w;
-      return dx * dx + dy * dy + dz * dz + dw * dw;
+      const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+      return dx * dx + dy * dy + dz * dz;
     };
 
     // Centripetal parameterization

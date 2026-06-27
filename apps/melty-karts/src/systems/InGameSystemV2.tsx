@@ -1,6 +1,6 @@
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
-import { ComponentRegistry, entityGetComponentData, generateTrackCurve, obtainTrackPtNodes, RenderTrack, ShowAll, TrackState, TrackEvaluator, transformGetMatrix } from "@melty-karts/modelling";
+import { CatmullRomCurve4, ComponentRegistry, entityGetComponentData, generateTrackCurve, obtainTrackPtNodes, RenderTrack, ShowAll, TrackState, TrackEvaluator, transformGetMatrix } from "@melty-karts/modelling";
 import { Accessor, Component, createEffect, createMemo, createSignal, For, getOwner, mapArray, Match, onCleanup, onSettled, runWithOwner, Switch, untrack } from "solid-js";
 import * as THREE from "three";
 import { EntityID } from "@oasys/oecs";
@@ -18,6 +18,7 @@ import { createSolidLogo } from "../models/SolidLogo";
 import { OrbitControls } from "three-stdlib";
 import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
+import { raceMusicRainbowWay } from "../Music";
 
 class RapierDebugRenderer {
   mesh: THREE.LineSegments;
@@ -46,59 +47,171 @@ class RapierDebugRenderer {
   }
 }
 
-function generateTrackCollisionVertices(
+function computeArcWeights(curve: CatmullRomCurve4): number[] {
+  let numSamples = 400;
+  let arcWeights: number[] = [0.0];
+  let atWeight = 0.0;
+  let v4 = new THREE.Vector4();
+  let lastPt = new THREE.Vector3();
+  let pt = new THREE.Vector3();
+  curve.getPoint(0, v4);
+  lastPt.set(v4.x, v4.y, v4.z);
+  for (let i = 1; i <= numSamples; ++i) {
+    let t = i / numSamples;
+    curve.getPoint(t, v4);
+    pt.set(v4.x, v4.y, v4.z);
+    let d = lastPt.distanceTo(pt);
+    atWeight += d;
+    arcWeights.push(atWeight);
+    lastPt.copy(pt);
+  }
+  for (let i = 0; i < arcWeights.length; ++i) {
+    arcWeights[i] /= atWeight;
+  }
+  return arcWeights;
+}
+
+function generateTrackCollisionVerticesInRange(
   trackEval: TrackEvaluator,
   trackWidth: number,
   numSegments: number,
+  arcWeights: number[],
+  segStart: number,
+  segEnd: number,
 ): { vertices: number[]; indices: number[] } {
   const halfWidth = trackWidth / 2;
   const segments = numSegments;
-  const N = segments + 1;
+  const numPts = segEnd - segStart + 1;
   const wallHeight = 1.5;
+  const wallThickness = 0.15;
+  const wallLeanOutward = 0.2;
+  const wallOverlap = 0.2;
+  const hw = halfWidth - wallOverlap;
+
+  let remapTValueViaWeights = (x: number): number => {
+    let lo = 0;
+    let hi = arcWeights.length - 1;
+    while (lo < hi - 1) {
+      let mid = (lo + hi) >> 1;
+      if (arcWeights[mid] < x) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    let a = arcWeights[lo];
+    let b = arcWeights[hi];
+    let t = (x - a) / (b - a);
+    let c = lo / (arcWeights.length - 1);
+    let d = hi / (arcWeights.length - 1);
+    return c + t * (d - c);
+  };
 
   const vertices: number[] = [];
-  for (let i = 0; i < N; i++) {
-    const t = i / segments;
+
+  for (let i = segStart; i <= segEnd; i++) {
+    let t = i / segments;
+    if (t === 1.0) {
+      t = 0.0;
+    }
+    t = remapTValueViaWeights(t);
     const f = trackEval.getFrameAt(t);
-    const lx = f.position.x - halfWidth * f.right.x;
-    const ly = f.position.y - halfWidth * f.right.y;
-    const lz = f.position.z - halfWidth * f.right.z;
-    const rx = f.position.x + halfWidth * f.right.x;
-    const ry = f.position.y + halfWidth * f.right.y;
-    const rz = f.position.z + halfWidth * f.right.z;
+    const lx = f.position.x - hw * f.right.x;
+    const ly = f.position.y - hw * f.right.y;
+    const lz = f.position.z - hw * f.right.z;
+    const rx = f.position.x + hw * f.right.x;
+    const ry = f.position.y + hw * f.right.y;
+    const rz = f.position.z + hw * f.right.z;
     vertices.push(lx, ly, lz, rx, ry, rz);
   }
 
-  for (let i = 0; i < N; i++) {
-    const t = i / segments;
+  for (let i = segStart; i <= segEnd; i++) {
+    let t = i / segments;
+    if (t === 1.0) {
+      t = 0.0;
+    }
+    t = remapTValueViaWeights(t);
     const f = trackEval.getFrameAt(t);
-    const lx = f.position.x - halfWidth * f.right.x;
-    const ly = f.position.y - halfWidth * f.right.y;
-    const lz = f.position.z - halfWidth * f.right.z;
-    const rx = f.position.x + halfWidth * f.right.x;
-    const ry = f.position.y + halfWidth * f.right.y;
-    const rz = f.position.z + halfWidth * f.right.z;
     vertices.push(
-      lx + wallHeight * f.up.x, ly + wallHeight * f.up.y, lz + wallHeight * f.up.z,
-      rx + wallHeight * f.up.x, ry + wallHeight * f.up.y, rz + wallHeight * f.up.z,
+      f.position.x - (hw + wallLeanOutward) * f.right.x + wallHeight * f.up.x,
+      f.position.y - (hw + wallLeanOutward) * f.right.y + wallHeight * f.up.y,
+      f.position.z - (hw + wallLeanOutward) * f.right.z + wallHeight * f.up.z,
+      f.position.x + (hw + wallLeanOutward) * f.right.x + wallHeight * f.up.x,
+      f.position.y + (hw + wallLeanOutward) * f.right.y + wallHeight * f.up.y,
+      f.position.z + (hw + wallLeanOutward) * f.right.z + wallHeight * f.up.z,
+    );
+  }
+
+  for (let i = segStart; i <= segEnd; i++) {
+    let t = i / segments;
+    if (t === 1.0) {
+      t = 0.0;
+    }
+    t = remapTValueViaWeights(t);
+    const f = trackEval.getFrameAt(t);
+    const lx = f.position.x - (hw + wallThickness) * f.right.x;
+    const ly = f.position.y - (hw + wallThickness) * f.right.y;
+    const lz = f.position.z - (hw + wallThickness) * f.right.z;
+    const rx = f.position.x + (hw + wallThickness) * f.right.x;
+    const ry = f.position.y + (hw + wallThickness) * f.right.y;
+    const rz = f.position.z + (hw + wallThickness) * f.right.z;
+    vertices.push(lx, ly, lz, rx, ry, rz);
+  }
+
+  for (let i = segStart; i <= segEnd; i++) {
+    let t = i / segments;
+    if (t === 1.0) {
+      t = 0.0;
+    }
+    t = remapTValueViaWeights(t);
+    const f = trackEval.getFrameAt(t);
+    vertices.push(
+      f.position.x - (hw + wallThickness + wallLeanOutward) * f.right.x + wallHeight * f.up.x,
+      f.position.y - (hw + wallThickness + wallLeanOutward) * f.right.y + wallHeight * f.up.y,
+      f.position.z - (hw + wallThickness + wallLeanOutward) * f.right.z + wallHeight * f.up.z,
+      f.position.x + (hw + wallThickness + wallLeanOutward) * f.right.x + wallHeight * f.up.x,
+      f.position.y + (hw + wallThickness + wallLeanOutward) * f.right.y + wallHeight * f.up.y,
+      f.position.z + (hw + wallThickness + wallLeanOutward) * f.right.z + wallHeight * f.up.z,
     );
   }
 
   const indices: number[] = [];
-  for (let i = 0; i < segments; i++) {
+  for (let i = 0; i < numPts - 1; i++) {
     const sL0 = i * 2, sR0 = i * 2 + 1;
     const sL1 = (i + 1) * 2, sR1 = (i + 1) * 2 + 1;
-    const wL0 = 2 * N + i * 2, wR0 = 2 * N + i * 2 + 1;
-    const wL1 = 2 * N + (i + 1) * 2, wR1 = 2 * N + (i + 1) * 2 + 1;
+    const wL0 = 2 * numPts + i * 2, wR0 = 2 * numPts + i * 2 + 1;
+    const wL1 = 2 * numPts + (i + 1) * 2, wR1 = 2 * numPts + (i + 1) * 2 + 1;
+    const bL0 = 4 * numPts + i * 2, bR0 = 4 * numPts + i * 2 + 1;
+    const bL1 = 4 * numPts + (i + 1) * 2, bR1 = 4 * numPts + (i + 1) * 2 + 1;
+    const xL0 = 6 * numPts + i * 2, xR0 = 6 * numPts + i * 2 + 1;
+    const xL1 = 6 * numPts + (i + 1) * 2, xR1 = 6 * numPts + (i + 1) * 2 + 1;
     indices.push(sL0, sL1, sR0);
     indices.push(sL1, sR1, sR0);
     indices.push(sL0, wL0, sL1);
     indices.push(wL0, wL1, sL1);
     indices.push(sR0, sR1, wR0);
     indices.push(sR1, wR1, wR0);
+    indices.push(bL0, bL1, xL0);
+    indices.push(bL1, xL1, xL0);
+    indices.push(bR0, bR1, xR0);
+    indices.push(bR1, xR1, xR0);
+    indices.push(wL0, xL0, wL1);
+    indices.push(xL0, xL1, wL1);
+    indices.push(wR0, wR1, xR0);
+    indices.push(wR1, xR1, xR0);
   }
 
   return { vertices, indices };
+}
+
+function generateTrackCollisionVertices(
+  trackEval: TrackEvaluator,
+  trackWidth: number,
+  numSegments: number,
+  curve: CatmullRomCurve4,
+): { vertices: number[]; indices: number[] } {
+  let arcWeights = computeArcWeights(curve);
+  return generateTrackCollisionVerticesInRange(trackEval, trackWidth, numSegments, arcWeights, 0, numSegments);
 }
 
 function createTrackBody(
@@ -106,14 +219,22 @@ function createTrackBody(
   trackEval: TrackEvaluator,
   trackWidth: number,
   numSegments: number,
+  curve: CatmullRomCurve4,
 ): RAPIER.RigidBody {
-  const { vertices, indices } = generateTrackCollisionVertices(trackEval, trackWidth, numSegments);
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
-  const collider = RAPIER.ColliderDesc.trimesh(
-    new Float32Array(vertices),
-    new Uint32Array(indices),
-  );
-  world.createCollider(collider, body);
+  let arcWeights = computeArcWeights(curve);
+  const numParts = 10;
+  const segsPerPart = numSegments / numParts;
+  for (let p = 0; p < numParts; p++) {
+    const segStart = Math.round(p * segsPerPart);
+    const segEnd = Math.round((p + 1) * segsPerPart);
+    const { vertices, indices } = generateTrackCollisionVerticesInRange(trackEval, trackWidth, numSegments, arcWeights, segStart, segEnd);
+    const collider = RAPIER.ColliderDesc.trimesh(
+      new Float32Array(vertices),
+      new Uint32Array(indices),
+    );
+    world.createCollider(collider, body);
+  }
   return body;
 }
 
@@ -121,6 +242,10 @@ export function createInGameSystemV2(
   componentRegistry: ComponentRegistry,
   ecs: ReactiveECS,
 ): System {
+  raceMusicRainbowWay.play();
+  onCleanup(() => {
+    raceMusicRainbowWay.stop();
+  });
   let world = new RAPIER.World({ x: 0, y: -9.82, z: 0 });
   let trackIds = ecs.createQueryEntityIds(componentRegistry.Track);
   let trackId = createMemo(() => {
@@ -175,7 +300,6 @@ export function createInGameSystemV2(
   let [ scene, setScene ] = createSignal<THREE.Scene>();
   let [ camera, setCamera, ] = createSignal<THREE.Camera>();
   let [ playerId, setPlayerId, ] = createSignal<EntityID>();
-  let [ orbitControls, setOrbitControls, ] = createSignal<OrbitControls>();
   let [ start, setStart, ] = createSignal<boolean>(false);
   setTimeout(() => { setStart(true); }, 500);
   let updateKeyboardInput = (params: {
@@ -226,11 +350,10 @@ export function createInGameSystemV2(
         return;
       }
       {
-        createTrackBody(world, curve.trackEval, track.track.width, 200);
+        createTrackBody(world, curve.trackEval, track.track.width, 500, curve.curve);
       }
-      let frame = curve.trackEval.getFrameAt(0.92);
+      let frame = curve.trackEval.getFrameAt(0.0);
       camera()?.position.set(2, 2, 2).add(frame.position);
-      orbitControls()?.update();
       let matrix = new THREE.Matrix4().makeBasis(
         frame.right,
         frame.up,
@@ -277,10 +400,10 @@ export function createInGameSystemV2(
       let kartEntityId2 = untrack(kartEntityId);
       const wheelRadius = 0.25;
       const wheelPositions = [
-        { x: -0.4, y: 0.2, z: 0.4 },  // Front Left
-        { x: 0.4, y: 0.2, z: 0.4 },   // Front Right
-        { x: -0.4, y: 0.2, z: -0.4 }, // Rear Left
-        { x: 0.4, y: 0.2, z: -0.4 },  // Rear Right
+        { x: -0.4, y: 0.35, z: 0.4 },  // Front Left
+        { x: 0.4, y: 0.35, z: 0.4 },   // Front Right
+        { x: -0.4, y: 0.35, z: -0.4 }, // Rear Left
+        { x: 0.4, y: 0.35, z: -0.4 },  // Rear Right
       ];
 
       let transform = untrack(() => entityGetComponentData(ecs, kartEntityId2, componentRegistry.Transform3D));
@@ -299,6 +422,7 @@ export function createInGameSystemV2(
         .setLinearDamping(0.1)
         .setAngularDamping(5.0)
         .setAdditionalMass(5.0);
+      chassisDesc.centerOfMass = { x: 0, y: 0.08, z: 0.25 };
       const chassisBody = world.createRigidBody(chassisDesc);
       // Small, flat collider positioned at the body center
       // The visual mesh sits on top, wheels extend below
@@ -335,9 +459,10 @@ export function createInGameSystemV2(
           wheelRadius
         );
         vehicle.setWheelFrictionSlip(i, 3.5);
-        vehicle.setWheelSuspensionStiffness(i, 20);
-        vehicle.setWheelSuspensionCompression(i, 30);
-        vehicle.setWheelSuspensionRelaxation(i, 80);
+        let isFront = i <= 1;
+        vehicle.setWheelSuspensionStiffness(i, isFront ? 22 : 18);
+        vehicle.setWheelSuspensionCompression(i, isFront ? 28 : 28);
+        vehicle.setWheelSuspensionRelaxation(i, isFront ? 30 : 28);
         vehicle.setWheelMaxSuspensionForce(i, 2000);
         vehicle.setWheelMaxSuspensionTravel(i, 0.6);
       });
@@ -404,10 +529,8 @@ export function createInGameSystemV2(
                   runWithOwner(null, () => {
                     ref.camera.position.set(5, 5, 5);
                     ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
-                    let orbitControls2 = new OrbitControls(ref.camera, ref.canvas);
                     setScene(ref.scene);
                     setCamera(ref.camera);
-                    setOrbitControls(orbitControls2);
                   });
                 }}
                 style={{
@@ -499,6 +622,8 @@ export function createInGameSystemV2(
   let tmpV2 = new THREE.Vector3();
   let tmpQ1 = new THREE.Quaternion();
   let maxSteerDeg = 30 * Math.PI / 180;
+  let currentSteering = 0;
+  let steeringLerpSpeed = 8.0;
   let joystick = Joystick({
     position: createMemo(() =>
       new THREE.Vector2(
@@ -572,21 +697,23 @@ export function createInGameSystemV2(
         let joyForce = -joystickAnalog.y * 10.0;
         engineForce = joyForce > 0 ? joyForce : Math.max(-2.5, joyForce);
       } else if (keyboard.upDown !== 0 || actionPressed) {
-        engineForce = 10.0;
+        engineForce = 40.0;
       } else if (keyboard.downDown !== 0) {
-        engineForce = -5.0;
+        engineForce = -10.0;
       }
 
+      let targetSteering = 0;
       if (Math.abs(joystickAnalog.x) > 0.1) {
-        steering = -joystickAnalog.x * 2.0 * maxSteerDeg;
+        targetSteering = -joystickAnalog.x * 2.0 * maxSteerDeg;
       } else {
         if (keyboard.leftDown !== 0) {
-          steering = maxSteerDeg;
+          targetSteering = maxSteerDeg;
         }
         if (keyboard.rightDown !== 0) {
-          steering = -maxSteerDeg;
+          targetSteering = -maxSteerDeg;
         }
       }
+      steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
 
       // Apply engine force to rear wheels (2 and 3) for driving
       for (let i = 2; i < vehicle.numWheels(); i++) {
@@ -597,9 +724,11 @@ export function createInGameSystemV2(
         vehicle.setWheelSteering(i, steering);
       }
     }
-    const fixedDt = 1 / 60 / 5;
-    world.timestep = fixedDt;
-    for (let i = 0; i < 5; ++i) {
+    let tmp = dt;
+    while (tmp > 0.0) {
+      const fixedDt = 1 / (60 * 5);
+      tmp -= fixedDt;
+      world.timestep = fixedDt;
       for (let kartPhysics2 of kartsWithPhysics()) {
         kartPhysics2.vehicle.updateVehicle(fixedDt);
       }
@@ -718,16 +847,10 @@ export function createInGameSystemV2(
       );
       tmpV1.set(playerPosX, playerPosY, playerPosZ);
       tmpQ1.set(playerOrientX, playerOrientY, playerOrientZ, playerOrientW);
-      tmpV2.set(0, 3, -5).applyQuaternion(tmpQ1).add(tmpV1);
-      tmpQ1.conjugate();
-      //camera2.position.lerp(tmpV2, 0.05);
-      //camera2.quaternion.slerp(tmpQ1, 0.05);
-      //camera2.lookAt(tmpV1);
-      let orbitControls2 = orbitControls();
-      if (orbitControls2 !== undefined) {
-        orbitControls2.target.copy(tmpV1);
-        orbitControls2.update();
-      }
+      tmpV2.set(0, 2, -5).applyQuaternion(tmpQ1).add(tmpV1);
+      camera2.position.lerp(tmpV2, 0.05);
+      let tmpQ2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI).premultiply(tmpQ1);
+      camera2.quaternion.slerp(tmpQ2, 0.05);
     }
   };
   return {

@@ -17,3 +17,9 @@ export const raceMusic = new Howl({
   volume: 0.5,
   loop: true,
 });
+
+export const raceMusicRainbowWay = new Howl({
+  src: "./music/somewhat-good-karts/Rainbow Way.ogg",
+  volume: 0.5,
+  loop: true,
+});

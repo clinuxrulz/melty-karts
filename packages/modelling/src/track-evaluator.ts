@@ -26,6 +26,7 @@ export class TrackEvaluator {
 
   private computeFrames(numSamples: number): void {
     let loopRanges = this.loopDaLoopRanges;
+    const transitionWidth = 0.03;
     for (let i = 0; i <= numSamples; i++) {
       let t = i / numSamples;
 
@@ -40,11 +41,29 @@ export class TrackEvaluator {
       let v4b = this.curve.getPoint(t2);
       let forward = new THREE.Vector3(v4b.x, v4b.y, v4b.z).sub(position).normalize();
 
+      let loopBlend = 0;
       let loopRange: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3 } | undefined;
       for (let range of loopRanges) {
         if (range.fromT <= t && t <= range.toT) {
+          loopBlend = 1;
           loopRange = range;
           break;
+        }
+      }
+      if (loopRange === undefined) {
+        for (let range of loopRanges) {
+          let distToStart = t - range.fromT;
+          let distToEnd = t - range.toT;
+          if (distToStart < 0 && distToStart > -transitionWidth) {
+            loopBlend = 1 + distToStart / transitionWidth;
+            loopRange = range;
+            break;
+          }
+          if (distToEnd > 0 && distToEnd < transitionWidth) {
+            loopBlend = 1 - distToEnd / transitionWidth;
+            loopRange = range;
+            break;
+          }
         }
       }
 
@@ -53,8 +72,18 @@ export class TrackEvaluator {
         const dir = loopRange.right.clone().normalize();
         const tParam = new THREE.Vector3().subVectors(position, loopRange.centrePoint).dot(dir);
         const centre = loopRange.centrePoint.clone().add(dir.multiplyScalar(tParam));
-        up = new THREE.Vector3().subVectors(centre, position).normalize();
-        forward.addScaledVector(forward, -forward.dot(loopRange.right)).normalize();
+        let loopUp = new THREE.Vector3().subVectors(centre, position).normalize();
+        let loopForward = forward.clone();
+        loopForward.addScaledVector(loopForward, -loopForward.dot(loopRange.right)).normalize();
+
+        if (loopBlend < 1) {
+          const worldUp = new THREE.Vector3(0.0, 1.0, 0.0);
+          up = loopUp.clone().lerp(worldUp, 1 - loopBlend).normalize();
+          forward = loopForward.clone().lerp(forward, 1 - loopBlend).normalize();
+        } else {
+          up = loopUp;
+          forward = loopForward;
+        }
       } else {
         up = new THREE.Vector3(0.0, 1.0, 0.0);
       }

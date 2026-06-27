@@ -13,3 +13,4 @@ export { default as RenderTrack } from "./renderers/RenderTrack";
 export { entityGetComponentData } from "./util";
 export { ShowAll } from "./util";
 export { TrackEvaluator, type TrackFrame } from "./track-evaluator";
+export { CatmullRomCurve4 } from "./catmull-rom-curve4";
