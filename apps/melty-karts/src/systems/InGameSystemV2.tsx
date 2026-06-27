@@ -511,7 +511,7 @@ export function createInGameSystemV2(
       if (scene === undefined) {
         return;
       }
-      rapierDebugRenderer = new RapierDebugRenderer(scene, world);
+      //rapierDebugRenderer = new RapierDebugRenderer(scene, world);
       scene.add(wheelMeshGroup);
       onCleanup(() => {
         scene.remove(wheelMeshGroup);
