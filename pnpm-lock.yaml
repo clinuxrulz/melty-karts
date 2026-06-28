@@ -119,6 +119,9 @@ importers:
       three:
         specifier: ^0.183.2
         version: 0.183.2
+      three-bvh-csg:
+        specifier: ^0.0.18
+        version: 0.0.18(three-mesh-bvh@0.9.9(three@0.183.2))(three@0.183.2)
       three-mesh-bvh:
         specifier: ^0.9.9
         version: 0.9.9(three@0.183.2)
@@ -174,6 +177,9 @@ importers:
       three:
         specifier: ^0.183.2
         version: 0.183.2
+      three-bvh-csg:
+        specifier: ^0.0.18
+        version: 0.0.18(three-mesh-bvh@0.9.9(three@0.183.2))(three@0.183.2)
     devDependencies:
       '@types/howler':
         specifier: ^2.2.12
@@ -1556,6 +1562,12 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
+  three-bvh-csg@0.0.18:
+    resolution: {integrity: sha512-M3GCZMmGFgASGuDf+YMamM83nVlD/vdwzVHcYbFxgW+g1S7/nKPiuY00YVHOMbjmJPh8mLevGZL65ItHUuGt2w==}
+    peerDependencies:
+      three: '>=0.179.0'
+      three-mesh-bvh: '>=0.9.7'
+
   three-mesh-bvh@0.9.9:
     resolution: {integrity: sha512-FJKitcjvbALmeQRK+Sc+nLGorCpkrZBrbgJZFzhdyWboak37DZikn46hvQkNqSbJPm227ahYmS6k3N/GXaAyXw==}
     peerDependencies:
@@ -2846,6 +2858,11 @@ snapshots:
   tailwindcss@4.3.0: {}
 
   tapable@2.3.3: {}
+
+  three-bvh-csg@0.0.18(three-mesh-bvh@0.9.9(three@0.183.2))(three@0.183.2):
+    dependencies:
+      three: 0.183.2
+      three-mesh-bvh: 0.9.9(three@0.183.2)
 
   three-mesh-bvh@0.9.9(three@0.183.2):
     dependencies:

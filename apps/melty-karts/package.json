@@ -34,6 +34,7 @@
     "solid-js": "2.0.0-beta.10",
     "solid-three": "https://pkg.pr.new/solid-three@dcd9e3d",
     "three": "^0.183.2",
+    "three-bvh-csg": "^0.0.18",
     "three-mesh-bvh": "^0.9.9",
     "three-stdlib": "^2.36.1"
   }

@@ -12,10 +12,23 @@ import Bomb from "../../melty-karts/src/models/Bomb";
 import Lightning from "../../melty-karts/src/models/Lightning";
 import SlotMachine from "../../melty-karts/src/models/SlotMachine";
 import Explosion from "../../melty-karts/src/models/Explosion";
+import Ufo from "../../melty-karts/src/models/Ufo";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
-    model: "Melty" | "Cubey" | "SolidLogo" | "Kart" | "ReadySteadyGo" | "Banana" | "MysteryBox" | "Bomb" | "Lightning" | "SlotMachine" | "Explosion",
+    model:
+      | "Melty"
+      | "Cubey"
+      | "SolidLogo"
+      | "Kart"
+      | "ReadySteadyGo"
+      | "Banana"
+      | "MysteryBox"
+      | "Bomb"
+      | "Lightning"
+      | "SlotMachine"
+      | "Explosion"
+      | "Ufo",
   }>({
     model: "SolidLogo",
   });
@@ -356,6 +369,9 @@ const App: Component = () => {
               time={time()}
             />
           </Match>
+          <Match when={state.model === "Ufo"}>
+            <Ufo/>
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -385,6 +401,7 @@ const App: Component = () => {
         <option value="Lightning" selected={state.model === "Lightning"}>Lightning</option>
         <option value="SlotMachine" selected={state.model === "SlotMachine"}>Slot Machine</option>
         <option value="Explosion" selected={state.model === "Explosion"}>Explosion</option>
+        <option value="Ufo" selected={state.model === "Ufo"}>Ufo</option>
       </select>
     </div>
   );
