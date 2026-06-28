@@ -13,8 +13,8 @@ const Ufo: Component<{}> = (props) => {
     metalness: 0.0,
     roughness: 0.1,
     transmission: 0.9,//1.0, 
-    thickness: 2.0,
-    ior: 1.08,//1.5,
+    thickness: 0.35,
+    ior: 1.5,
   });
   //glassMaterialNode.roughnessNode = oscSine(time.mul(0.5)).mul(0.3); 
   onCleanup(() => glassMaterialNode.dispose());
