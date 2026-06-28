@@ -20,6 +20,8 @@ import { Joystick } from "../Joystick";
 import { ActionButton } from "../ActionButton";
 import { raceMusicRainbowWay } from "../Music";
 
+const SHOW_DEBUG_MESH = false;
+
 class RapierDebugRenderer {
   mesh: THREE.LineSegments;
   world: RAPIER.World;
@@ -505,119 +507,121 @@ export function createInGameSystemV2(
   ));
   let rapierDebugRenderer: RapierDebugRenderer | undefined = undefined;
   let wheelMeshGroup = new THREE.Group();
-  createEffect(
-    scene,
-    (scene) => {
-      if (scene === undefined) {
-        return;
-      }
-      //rapierDebugRenderer = new RapierDebugRenderer(scene, world);
-      scene.add(wheelMeshGroup);
-      onCleanup(() => {
-        scene.remove(wheelMeshGroup);
-      });
-    },
-  )
-    let UI: Component = () => {
-      return (
-        <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
-          {([ track, trackPtNodes, curve, ]) => (
-            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-              <Canvas
-                gl={(canvas) => new WebGPURenderer({ canvas })}
-                ref={(ref) => {
-                  runWithOwner(null, () => {
-                    ref.camera.position.set(5, 5, 5);
-                    ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
-                    setScene(ref.scene);
-                    setCamera(ref.camera);
-                  });
-                }}
-                style={{
-                  "width": "100%",
-                  "height": "100%",
-                }}
-              >
-                <T.AmbientLight args={[0xffffff, 0.6]} />
-                <T.DirectionalLight args={[0xffffff, 1.0]} position={[5, 10, 7]} />
-                <RenderTrack
-                  ref={() => {}}
-                  track={track().track}
-                  trackPtNodes={trackPtNodes()}
-                  curve={curve()}
-                  isSelected={false}
-                />
-                <For each={kartsWithPhysics()}>
-                  {(kartPhysics) => {
-                    let kartPhysics2 = untrack(kartPhysics);
-                    let kartEntityId = kartPhysics2.kartEntityId;
-                    let kartEntity = ecs.entity(kartEntityId);
-                    let playerConfig = {
-                      playerType: kartEntity.getField(RegisteredPlayerConfig, "playerType"),
-                      facingForward: kartEntity.getField(RegisteredPlayerConfig, "facingForward")
-                    };
+  if (SHOW_DEBUG_MESH) {
+    createEffect(
+      scene,
+      (scene) => {
+        if (scene === undefined) {
+          return;
+        }
+        rapierDebugRenderer = new RapierDebugRenderer(scene, world);
+        scene.add(wheelMeshGroup);
+        onCleanup(() => {
+          scene.remove(wheelMeshGroup);
+        });
+      },
+    )
+  }
+  let UI: Component = () => {
+    return (
+      <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
+        {([ track, trackPtNodes, curve, ]) => (
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <Canvas
+              gl={(canvas) => new WebGPURenderer({ canvas })}
+              ref={(ref) => {
+                runWithOwner(null, () => {
+                  ref.camera.position.set(5, 5, 5);
+                  ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
+                  setScene(ref.scene);
+                  setCamera(ref.camera);
+                });
+              }}
+              style={{
+                "width": "100%",
+                "height": "100%",
+              }}
+            >
+              <T.AmbientLight args={[0xffffff, 0.6]} />
+              <T.DirectionalLight args={[0xffffff, 1.0]} position={[5, 10, 7]} />
+              <RenderTrack
+                ref={() => {}}
+                track={track().track}
+                trackPtNodes={trackPtNodes()}
+                curve={curve()}
+                isSelected={false}
+              />
+              <For each={kartsWithPhysics()}>
+                {(kartPhysics) => {
+                  let kartPhysics2 = untrack(kartPhysics);
+                  let kartEntityId = kartPhysics2.kartEntityId;
+                  let kartEntity = ecs.entity(kartEntityId);
+                  let playerConfig = {
+                    playerType: kartEntity.getField(RegisteredPlayerConfig, "playerType"),
+                    facingForward: kartEntity.getField(RegisteredPlayerConfig, "facingForward")
+                  };
 
-                    let kartModel = createMemo(async () => await loadKartModel());
+                  let kartModel = createMemo(async () => await loadKartModel());
 
-                    let Player = () => (
-                      <Switch>
-                        <Match when={playerConfig.playerType == 0}>
-                          <T.Group
-                            position={[ 0.0, 0.32, 0.0, ]}
-                            scale={[ 0.5, 0.5, 0.5, ]}
-                          >
-                            <Melty/>
-                          </T.Group>
-                        </Match>
-                        <Match when={playerConfig.playerType == 1}>
-                          <T.Group
-                            position={[ 0.0, 0.32, 0.0, ]}
-                            scale={[ 0.5, 0.5, 0.5, ]}
-                          >
-                            <Entity from={createCubey()}/>
-                          </T.Group>
-                        </Match>
-                        <Match when={playerConfig.playerType == 2}>
-                          <T.Group
-                            position={[ 0.0, 0.32, 0.0, ]}
-                            scale={[ 0.5, 0.5, 0.5, ]}
-                          >
-                            <Entity from={createSolidLogo()}/>
-                          </T.Group>
-                        </Match>
-                      </Switch>
-                    );
-                    return (
-                      <T.Group
-                        position={[
-                          kartEntity.getField(componentRegistry.Transform3D, "ox"),
-                          kartEntity.getField(componentRegistry.Transform3D, "oy"),
-                          kartEntity.getField(componentRegistry.Transform3D, "oz"),
-                        ]}
-                        quaternion={[
-                          kartEntity.getField(componentRegistry.Transform3D, "qx"),
-                          kartEntity.getField(componentRegistry.Transform3D, "qy"),
-                          kartEntity.getField(componentRegistry.Transform3D, "qz"),
-                          kartEntity.getField(componentRegistry.Transform3D, "qw"),
-                        ]}
-                      >
-                        <>{(() => {
-                          let kartModel2 = kartModel();
-                          return untrack(() => (<Entity from={kartModel2}/>));
-                        })()}</>
-                        <Player/>
-                      </T.Group>
-                    );
-                  }}
-                </For>
-              </Canvas>
-              <joystick.UI/>
-              <actionButton.UI/>
-            </div>
-          )}
-        </ShowAll>
-      );
-    };
+                  let Player = () => (
+                    <Switch>
+                      <Match when={playerConfig.playerType == 0}>
+                        <T.Group
+                          position={[ 0.0, 0.32, 0.0, ]}
+                          scale={[ 0.5, 0.5, 0.5, ]}
+                        >
+                          <Melty/>
+                        </T.Group>
+                      </Match>
+                      <Match when={playerConfig.playerType == 1}>
+                        <T.Group
+                          position={[ 0.0, 0.32, 0.0, ]}
+                          scale={[ 0.5, 0.5, 0.5, ]}
+                        >
+                          <Entity from={createCubey()}/>
+                        </T.Group>
+                      </Match>
+                      <Match when={playerConfig.playerType == 2}>
+                        <T.Group
+                          position={[ 0.0, 0.32, 0.0, ]}
+                          scale={[ 0.5, 0.5, 0.5, ]}
+                        >
+                          <Entity from={createSolidLogo()}/>
+                        </T.Group>
+                      </Match>
+                    </Switch>
+                  );
+                  return (
+                    <T.Group
+                      position={[
+                        kartEntity.getField(componentRegistry.Transform3D, "ox"),
+                        kartEntity.getField(componentRegistry.Transform3D, "oy"),
+                        kartEntity.getField(componentRegistry.Transform3D, "oz"),
+                      ]}
+                      quaternion={[
+                        kartEntity.getField(componentRegistry.Transform3D, "qx"),
+                        kartEntity.getField(componentRegistry.Transform3D, "qy"),
+                        kartEntity.getField(componentRegistry.Transform3D, "qz"),
+                        kartEntity.getField(componentRegistry.Transform3D, "qw"),
+                      ]}
+                    >
+                      <>{(() => {
+                        let kartModel2 = kartModel();
+                        return untrack(() => (<Entity from={kartModel2}/>));
+                      })()}</>
+                      <Player/>
+                    </T.Group>
+                  );
+                }}
+              </For>
+            </Canvas>
+            <joystick.UI/>
+            <actionButton.UI/>
+          </div>
+        )}
+      </ShowAll>
+    );
+  };
   let tmpV1 = new THREE.Vector3();
   let tmpV2 = new THREE.Vector3();
   let tmpQ1 = new THREE.Quaternion();
