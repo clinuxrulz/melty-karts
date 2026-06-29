@@ -9,6 +9,10 @@ import { registerIdGenResource } from "./id-gen-resource";
 import { mkLoopDaLoopComponent } from "./loop-da-loop-component";
 import { mkVelocityComponent } from "./velocity-component";
 import { mkAngularVelocityComponent } from "./angular-velocity-component";
+import { mkUfoComponent } from "./ufo-component";
+import { mkLastAngularVelocityComponent } from "./last-angular-velocity-component";
+import { mkLastVelocityComponent } from "./last-velocity-component";
+import { mkStillTimeComponent } from "./still-time-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -41,11 +45,15 @@ export function registerComponents(ecs: ECS) {
     AngularVelocity: mkAngularVelocityComponent(proxiedEcs),
     Child: mkChildComponent(proxiedEcs),
     Id: mkId(proxiedEcs),
+    LastAngularVelocity: mkLastAngularVelocityComponent(proxiedEcs),
+    LastVelocity: mkLastVelocityComponent(proxiedEcs),
     LoopDaLoop: mkLoopDaLoopComponent(proxiedEcs),
     Parent: mkParentComponent(proxiedEcs),
+    StillTime: mkStillTimeComponent(proxiedEcs),
     Track: mkTrackComponent(proxiedEcs),
     TrackPathPt: mkTrackPathPtComponent(proxiedEcs),
     Transform3D: mkTransform3DComponent(proxiedEcs),
+    Ufo: mkUfoComponent(proxiedEcs),
     Velocity: mkVelocityComponent(proxiedEcs),
   };
 }

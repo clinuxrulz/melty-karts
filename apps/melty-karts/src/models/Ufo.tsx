@@ -7,7 +7,10 @@ import { color, float, oscSine, time } from "three/tsl";
 
 const csgEvaluator = new CSG.Evaluator();
 
-const Ufo: Component<{}> = (props) => {
+const Ufo: Component<{
+  position?: number | THREE.Vector3 | [x: number, y: number, z: number] | undefined,
+  visible?: boolean,
+}> = (props) => {
   const glassMaterialNode = new MeshPhysicalNodeMaterial({
     color: 0xffffff,
     metalness: 0.0,
@@ -70,7 +73,10 @@ const Ufo: Component<{}> = (props) => {
   metalMaterial2.metalnessNode = float(0.6);
   let spriteTexture = new THREE.TextureLoader().load("./pilots.webp");
   return (
-    <T.Group position={[ 0.0, 1.0, 0.0 ]}>
+    <T.Group
+      position={props.position}
+      visible={props.visible}
+    >
       <T.Group
         position={[0.0, 0.25, 0.0]}
       >
