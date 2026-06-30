@@ -13,6 +13,7 @@ import { mkUfoComponent } from "./ufo-component";
 import { mkLastAngularVelocityComponent } from "./last-angular-velocity-component";
 import { mkLastVelocityComponent } from "./last-velocity-component";
 import { mkStillTimeComponent } from "./still-time-component";
+import { mkUfoTargetComponent } from "./ufo-target-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -54,6 +55,7 @@ export function registerComponents(ecs: ECS) {
     TrackPathPt: mkTrackPathPtComponent(proxiedEcs),
     Transform3D: mkTransform3DComponent(proxiedEcs),
     Ufo: mkUfoComponent(proxiedEcs),
+    UfoTarget: mkUfoTargetComponent(proxiedEcs),
     Velocity: mkVelocityComponent(proxiedEcs),
   };
 }

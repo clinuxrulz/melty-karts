@@ -7,71 +7,69 @@ import { color, float, oscSine, time } from "three/tsl";
 
 const csgEvaluator = new CSG.Evaluator();
 
+const glassMaterialNode = new MeshPhysicalNodeMaterial({
+  color: 0xffffff,
+  metalness: 0.0,
+  roughness: 0.1,
+  transmission: 0.9,//1.0, 
+  thickness: 0.35,
+  ior: 1.5,
+});
+
+let windowGeometry: THREE.BufferGeometry;
+{
+  let sphereBrush = new CSG.Brush(
+    new THREE.SphereGeometry(1.0),
+  );
+  let innerSphereBrush = new CSG.Brush(
+    new THREE.SphereGeometry(0.95),
+  );
+  let boxBrush = new CSG.Brush(
+    new THREE.BoxGeometry(2, 2, 2),
+  );
+  boxBrush.position.set(0.0, -1.0, 0.0);
+  boxBrush.updateMatrixWorld();
+  let window = csgEvaluator.evaluate(
+    csgEvaluator.evaluate(sphereBrush, innerSphereBrush, CSG.SUBTRACTION),
+    boxBrush,
+    CSG.SUBTRACTION,
+  );
+  windowGeometry = window.geometry;
+}
+let bodyGeometry: THREE.BufferGeometry;
+{
+  let shape = new THREE.Shape();
+  shape.moveTo(0.0, 0.0);
+  shape.bezierCurveTo(1, 0, 2, 0, 3.0, 0.5);
+  shape.lineTo(0.0, 1.0);
+  let bodyBrush = new CSG.Brush(
+    new THREE.LatheGeometry(shape.getPoints(), 25, 0, 2.0 * Math.PI),
+  );
+  let cylinderBrush = new CSG.Brush(
+    new THREE.CylinderGeometry(1, 1, 3)
+  );
+  cylinderBrush.updateMatrixWorld();
+  let body = csgEvaluator.evaluate(
+    bodyBrush,
+    cylinderBrush,
+    CSG.SUBTRACTION,
+  );
+  bodyGeometry = body.geometry;
+}
+const metalMaterial = new MeshStandardNodeMaterial();
+metalMaterial.colorNode = color("#AAAAAA");
+metalMaterial.roughnessNode = float(0.5);
+metalMaterial.metalnessNode = float(0.6);
+const metalMaterial2 = new MeshStandardNodeMaterial();
+metalMaterial2.colorNode = color("#CCCCCC");
+metalMaterial2.roughnessNode = float(0.5);
+metalMaterial2.metalnessNode = float(0.6);
+let spriteTexture = new THREE.TextureLoader().load("./pilots.webp");
+
 const Ufo: Component<{
   position?: number | THREE.Vector3 | [x: number, y: number, z: number] | undefined,
   visible?: boolean,
 }> = (props) => {
-  const glassMaterialNode = new MeshPhysicalNodeMaterial({
-    color: 0xffffff,
-    metalness: 0.0,
-    roughness: 0.1,
-    transmission: 0.9,//1.0, 
-    thickness: 0.35,
-    ior: 1.5,
-  });
-  //glassMaterialNode.roughnessNode = oscSine(time.mul(0.5)).mul(0.3); 
-  onCleanup(() => glassMaterialNode.dispose());
-  let windowGeometry: THREE.BufferGeometry;
-  {
-    let sphereBrush = new CSG.Brush(
-      new THREE.SphereGeometry(1.0),
-    );
-    let innerSphereBrush = new CSG.Brush(
-      new THREE.SphereGeometry(0.95),
-    );
-    let boxBrush = new CSG.Brush(
-      new THREE.BoxGeometry(2, 2, 2),
-    );
-    boxBrush.position.set(0.0, -1.0, 0.0);
-    boxBrush.updateMatrixWorld();
-    let window = csgEvaluator.evaluate(
-      csgEvaluator.evaluate(sphereBrush, innerSphereBrush, CSG.SUBTRACTION),
-      boxBrush,
-      CSG.SUBTRACTION,
-    );
-    windowGeometry = window.geometry;
-  }
-  let bodyGeometry: THREE.BufferGeometry;
-  {
-    let shape = new THREE.Shape();
-    shape.moveTo(0.0, 0.0);
-    shape.bezierCurveTo(1, 0, 2, 0, 3.0, 0.5);
-    shape.lineTo(0.0, 1.0);
-    let bodyBrush = new CSG.Brush(
-      new THREE.LatheGeometry(shape.getPoints(), 25, 0, 2.0 * Math.PI),
-    );
-    let cylinderBrush = new CSG.Brush(
-      new THREE.CylinderGeometry(1, 1, 3)
-    );
-    cylinderBrush.updateMatrixWorld();
-    let body = csgEvaluator.evaluate(
-      bodyBrush,
-      cylinderBrush,
-      CSG.SUBTRACTION,
-    );
-    bodyGeometry = body.geometry;
-  }
-  const metalMaterial = new MeshStandardNodeMaterial();
-  onCleanup(() => metalMaterial.dispose());
-  metalMaterial.colorNode = color("#AAAAAA");
-  metalMaterial.roughnessNode = float(0.5);
-  metalMaterial.metalnessNode = float(0.6);
-  const metalMaterial2 = new MeshStandardNodeMaterial();
-  onCleanup(() => metalMaterial2.dispose());
-  metalMaterial2.colorNode = color("#CCCCCC");
-  metalMaterial2.roughnessNode = float(0.5);
-  metalMaterial2.metalnessNode = float(0.6);
-  let spriteTexture = new THREE.TextureLoader().load("./pilots.webp");
   return (
     <T.Group
       position={props.position}

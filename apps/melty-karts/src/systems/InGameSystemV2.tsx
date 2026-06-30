@@ -375,8 +375,6 @@ export function createInGameSystemV2(
       });
       ecs.add_component(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.add_component(playerId2, componentRegistry.LastVelocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.add_component(playerId2, componentRegistry.LastAngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.StillTime, { time: 0.0, });
       ecs.add_component(playerId2, RegisteredPlayerConfig, {
         playerType: 0,
@@ -392,34 +390,7 @@ export function createInGameSystemV2(
       });
     },
   );
-  onSettled(() => {
-    let ufoId = ecs.create_entity();
-    ecs.add_component(ufoId, componentRegistry.Ufo, {});
-    ecs.add_component(ufoId, componentRegistry.Transform3D, {
-      "ox": 0.0,
-      "oy": 0.0,
-      "oz": 0.0,
-      "qx": 0.0,
-      "qy": 0.0,
-      "qz": 0.0,
-      "qw": 1.0,
-    });
-  });
-  let ufoEntityId = createMemo(() => {
-    for (let arch of ecs.query(componentRegistry.Ufo, componentRegistry.Transform3D)) {
-      for (let i = 0; i < arch.entity_count; ++i) {
-        return arch.entity_ids[i] as EntityID;
-      }
-    }
-    return undefined;
-  });
-  let ufoTransform = createMemo(() => {
-    let entityId = ufoEntityId();
-    if (entityId === undefined) {
-      return undefined;
-    }
-    return entityGetComponentData(ecs, entityId, componentRegistry.Transform3D);
-  });
+  let ufoEntityIds = ecs.createQueryEntityIds(componentRegistry.Ufo, componentRegistry.Transform3D);
   let kartEntityIds = ecs.createQueryEntityIds(
     RegisteredKartConfig,
     componentRegistry.Transform3D,
@@ -644,16 +615,23 @@ export function createInGameSystemV2(
                   );
                 }}
               </For>
-              <Ufo
-                visible={ufoTransform() !== undefined}
-                position={(() => {
-                  let transform = ufoTransform();
-                  if (transform === undefined) {
-                    return undefined;
-                  }
-                  return [ transform.ox, transform.oy, transform.oz, ];
-                })()}
-              />
+              <For each={ufoEntityIds()}>
+                {(ufoEntityId) => {
+                  let ufoTransform = createMemo(() => entityGetComponentData(ecs, untrack(ufoEntityId), componentRegistry.Transform3D));
+                  return (
+                    <Ufo
+                      visible
+                      position={(() => {
+                        let transform = ufoTransform();
+                        if (transform === undefined) {
+                          return undefined;
+                        }
+                        return [ transform.ox, transform.oy, transform.oz, ];
+                      })()}
+                    />
+                  );
+                }}
+              </For>
             </Canvas>
             <joystick.UI/>
             <actionButton.UI/>
@@ -872,37 +850,51 @@ export function createInGameSystemV2(
         "z",
         angVel.z,
       );
-      // Compare players new velocities to last velocities. If the velocities are
-      // unchanged increase the still time, otherwise last the last velocities
-      // to the new velocities and clear the still time.
-      {
-        let lastVel = entityGetComponentData(ecs, entityId, componentRegistry.LastVelocity);
-        let lastAngVel = entityGetComponentData(ecs, entityId, componentRegistry.LastAngularVelocity);
-        if (lastVel !== undefined && lastAngVel !== undefined) {
-          let velDiff =
-            Math.abs(vel.x - lastVel.x)
-            + Math.abs(vel.y - lastVel.y)
-            + Math.abs(vel.z - lastVel.z)
-            + Math.abs(angVel.x - lastAngVel.x)
-            + Math.abs(angVel.y - lastAngVel.y)
-            + Math.abs(angVel.z - lastAngVel.z);
-          if (velDiff > 0.001) {
-            ecs.set_field(entityId, componentRegistry.LastVelocity, "x", vel.x);
-            ecs.set_field(entityId, componentRegistry.LastVelocity, "y", vel.y);
-            ecs.set_field(entityId, componentRegistry.LastVelocity, "z", vel.z);
-            ecs.set_field(entityId, componentRegistry.LastAngularVelocity, "x", angVel.x);
-            ecs.set_field(entityId, componentRegistry.LastAngularVelocity, "y", angVel.y);
-            ecs.set_field(entityId, componentRegistry.LastAngularVelocity, "z", angVel.z);
+      // If the velocities are close to zero increase the still time, otherwise
+      // clear the still time.
+      let isUfoTarget = ecs.entity(entityId).hasComponent(componentRegistry.UfoTarget);
+      if (!isUfoTarget) {
+        let movementTest =
+          Math.abs(vel.x)
+          + Math.abs(vel.y)
+          + Math.abs(vel.z)
+          + Math.abs(angVel.x)
+          + Math.abs(angVel.y)
+          + Math.abs(angVel.z);
+        if (movementTest > 0.001) {
+          ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
+        } else {
+          let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
+          if (stillTime >= 5.0) {
+            console.log("Send the UFO!");
+            let ufoEntityId = ecs.create_entity();
             ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
+            ecs.add_component(entityId, componentRegistry.UfoTarget, {
+              ufo: ufoEntityId,
+            });
+            ecs.add_component(
+              ufoEntityId,
+              componentRegistry.Ufo,
+              {
+                target: entityId,
+              },
+            );
+            ecs.add_component(
+              ufoEntityId,
+              componentRegistry.Transform3D,
+              {
+                ox: 0.0,
+                oy: 0.0,
+                oz: 0.0,
+                qx: 0.0,
+                qy: 0.0,
+                qz: 0.0,
+                qw: 1.0,
+              },
+            );
           } else {
-            let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
-            if (stillTime >= 5.0) {
-              console.log("Send the UFO!");
-              ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
-            } else {
-              stillTime += dt;
-              ecs.set_field(entityId, componentRegistry.StillTime, "time", stillTime);
-            }
+            stillTime += dt;
+            ecs.set_field(entityId, componentRegistry.StillTime, "time", stillTime);
           }
         }
       }
@@ -931,6 +923,30 @@ export function createInGameSystemV2(
         )
       }
     }
+    // Ufo
+    {
+      let query = ecs.ecs.query(componentRegistry.Ufo, componentRegistry.Transform3D);
+      for (let i = 0; i < query.archetype_count; ++i) {
+        let arch = query.archetypes[i];
+        for (let j = 0; j < arch.entity_count; ++j) {
+          let ufoEntityId = arch.entity_ids[j] as EntityID;
+          let targetEntityId = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "target") as EntityID;
+          let ufoPosX = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "ox");
+          let ufoPosY = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oy");
+          let ufoPosZ = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oz");
+          let targetPosX = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "ox");
+          let targetPosY = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "oy");
+          let targetPosZ = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "oz");
+          ufoPosX += (targetPosX - ufoPosX) * 0.01;
+          ufoPosY += (targetPosY + 4.0 - ufoPosY) * 0.01;
+          ufoPosZ += (targetPosZ - ufoPosZ) * 0.01;
+          ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
+          ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
+          ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
+        }
+      }
+    }
+    // camera chase player
     let camera2 = camera();
     let playerId2 = playerId();
     if (camera2 !== undefined && playerId2 !== undefined) {
@@ -969,33 +985,26 @@ export function createInGameSystemV2(
         componentRegistry.Transform3D,
         "qw",
       );
-      tmpV1.set(playerPosX, playerPosY, playerPosZ);
-      tmpQ1.set(playerOrientX, playerOrientY, playerOrientZ, playerOrientW);
-      tmpV2.set(0, 2, -5).applyQuaternion(tmpQ1).add(tmpV1);
+      if (ecs.ecs.has_component(playerId2, componentRegistry.UfoTarget)) {
+        let ufoId = ecs.ecs.get_field(playerId2, componentRegistry.UfoTarget, "ufo") as EntityID;
+        let ufoPosX = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "ox");
+        let ufoPosY = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "oy");
+        let ufoPosZ = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "oz");
+        let ufoOrientX = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qx");
+        let ufoOrientY = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qy");
+        let ufoOrientZ = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qz");
+        let ufoOrientW = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qw");
+        tmpV1.set(ufoPosX, ufoPosY, ufoPosZ);
+        tmpQ1.set(ufoOrientX, ufoOrientY, ufoOrientZ, ufoOrientW);
+        tmpV2.set(0, 0, -10).applyQuaternion(tmpQ1).add(tmpV1);
+      } else {
+        tmpV1.set(playerPosX, playerPosY, playerPosZ);
+        tmpQ1.set(playerOrientX, playerOrientY, playerOrientZ, playerOrientW);
+        tmpV2.set(0, 2, -5).applyQuaternion(tmpQ1).add(tmpV1);
+      }
       camera2.position.lerp(tmpV2, 0.05);
       let tmpQ2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI).premultiply(tmpQ1);
       camera2.quaternion.slerp(tmpQ2, 0.05);
-      /*
-      // Ufo chases player for now
-      {
-        let query = ecs.ecs.query(componentRegistry.Ufo, componentRegistry.Transform3D);
-        for (let i = 0; i < query.archetype_count; ++i) {
-          let arch = query.archetypes[i];
-          for (let j = 0; j < arch.entity_count; ++j) {
-            let ufoEntityId = arch.entity_ids[j] as EntityID;
-            let ufoPosX = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "ox");
-            let ufoPosY = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oy");
-            let ufoPosZ = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oz");
-            ufoPosX += (playerPosX - ufoPosX) * 0.05;
-            ufoPosY += (playerPosY + 4.0 - ufoPosY) * 0.05;
-            ufoPosZ += (playerPosZ - ufoPosZ) * 0.05;
-            ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
-            ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
-            ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
-          }
-        }
-      }
-        */
     }
   };
   return {
