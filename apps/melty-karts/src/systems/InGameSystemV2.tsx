@@ -10,7 +10,7 @@ import RAPIER from "@dimforge/rapier3d";
 import { DynamicRayCastVehicleController } from "@dimforge/rapier3d/control";
 import { T } from "../t";
 import { createKart } from "../Kart";
-import { RegisteredKartConfig, RegisteredKeyboardInput, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { RegisteredFreeEntity, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
 import { loadKartModel } from "../models/Kart";
 import Melty from "../models/melty";
 import { createCubey } from "../models/cubey";
@@ -21,6 +21,7 @@ import { ActionButton } from "../ActionButton";
 import { raceMusicRainbowWay } from "../Music";
 import Ufo from "../models/Ufo";
 import { UFO_BEAMING_TIMEOUT, UfoStage } from "@melty-karts/modelling/src/components/ufo-component";
+import { getFreeEntityOrCreate } from "../util";
 
 const SHOW_DEBUG_MESH = false;
 
@@ -894,7 +895,7 @@ export function createInGameSystemV2(
           let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
           if (stillTime >= 5.0) {
             console.log("Send the UFO!");
-            let ufoEntityId = ecs.create_entity();
+            let ufoEntityId = getFreeEntityOrCreate(ecs);
             ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
             ecs.add_component(entityId, componentRegistry.UfoTarget, {
               ufo: ufoEntityId,
@@ -1059,9 +1060,9 @@ export function createInGameSystemV2(
               if (timeout > 0.0) {
                 ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
               } else {
-                //ecs.destroy_entity_deferred(ufoEntityId);
                 ecs.remove_component(ufoEntityId, componentRegistry.Ufo);
                 ecs.remove_component(ufoEntityId, componentRegistry.Transform3D);
+                ecs.add_component(ufoEntityId, RegisteredFreeEntity);
                 ecs.remove_component(targetEntityId, componentRegistry.UfoTarget);
               }
               break;
