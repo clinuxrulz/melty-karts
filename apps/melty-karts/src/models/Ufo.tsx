@@ -1,9 +1,10 @@
-import { Component, onCleanup } from "solid-js";
+import { Component, createRenderEffect, onCleanup, Show } from "solid-js";
 import * as THREE from "three";
 import * as CSG from "three-bvh-csg";
 import { T } from "../t";
-import { MeshPhysicalNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
-import { color, float, oscSine, time } from "three/tsl";
+import { MeshBasicNodeMaterial, MeshNormalNodeMaterial, MeshPhysicalNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
+import { color, float, If, mix, oscSine, positionLocal, Return, time, uniform, uv, vec3, vec4 } from "three/tsl";
+import { Fn } from "three/src/nodes/TSL.js";
 
 const csgEvaluator = new CSG.Evaluator();
 
@@ -69,7 +70,45 @@ let spriteTexture = new THREE.TextureLoader().load("./pilots.webp");
 const Ufo: Component<{
   position?: number | THREE.Vector3 | [x: number, y: number, z: number] | undefined,
   visible?: boolean,
+  time?: number,
+  showTractorBeam?: boolean,
 }> = (props) => {
+  let uTime = uniform(props.time ?? 0.0);
+  let tratorBeamMaterial = new MeshBasicNodeMaterial();
+  tratorBeamMaterial.transparent = true;
+  let a = Fn(() => {
+    let a2 =
+      positionLocal.y
+        .sub(
+          uTime.mul(float(2.0))
+            .add(uv().x.mul(float(30.0)).sin().mul(float(0.1).mul(uTime.mul(float(25)).sin().mul(float(1.0)))))
+        )
+        .mul(float(10.0))
+        .sin()
+        .add(float(1)).mul(float(0.5))
+        .toVar();
+    If(a2.lessThan(0.9), () => {
+      a2.assign(float(0.0));
+    });
+    return a2;
+  });
+  tratorBeamMaterial.colorNode =
+    mix(
+      vec3(1.0, 0.0, 0.0),
+      vec3(1.0, 1.0, 0.0),
+      a(),
+    );
+  tratorBeamMaterial.opacityNode =
+    (positionLocal.y.add(float(2.0))).mul(float(1.0 / 4.0)).mul(0.4); 
+  createRenderEffect(
+    () => props.time,
+    (time) => {
+      if (time === undefined) {
+        return;
+      }
+      uTime.value = time;
+    },
+  );
   return (
     <T.Group
       position={props.position}
@@ -105,6 +144,15 @@ const Ufo: Component<{
             map={spriteTexture}
           />
         </T.Sprite>
+        <Show when={props.showTractorBeam ?? false}>
+          <T.Mesh
+            position={[ 0.0, -2.5, 0.0, ]}
+            material={tratorBeamMaterial}
+            renderOrder={5}
+          >
+            <T.CylinderGeometry args={[ 0.5, 1.8, 4.0, ]}/>
+          </T.Mesh>
+        </Show>
       </T.Group>
     </T.Group>
   );

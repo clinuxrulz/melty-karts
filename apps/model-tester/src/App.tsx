@@ -141,7 +141,8 @@ const App: Component = () => {
     state.model === "Bomb" ||
     state.model === "Lightning" ||
     state.model === "SlotMachine" ||
-    state.model === "Explosion"
+    state.model === "Explosion" ||
+    state.model === "Ufo"
   );
   let [ time, setTime, ] = createSignal(0);
   createEffect(
@@ -370,7 +371,10 @@ const App: Component = () => {
             />
           </Match>
           <Match when={state.model === "Ufo"}>
-            <Ufo/>
+            <Ufo
+              time={time()}
+              showTractorBeam
+            />
           </Match>
         </Switch>
       </Canvas>

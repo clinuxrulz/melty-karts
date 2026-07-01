@@ -365,15 +365,21 @@ export function createInGameSystemV2(
       );
       let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
       let playerId2 = ecs.create_entity();
-      ecs.add_component(playerId2, componentRegistry.Transform3D, {
-        ox: frame.position.x,
-        oy: frame.position.y + 0.5,
-        oz: frame.position.z,
-        qx: q.x,
-        qy: q.y,
-        qz: q.z,
-        qw: q.w,
-      });
+      {
+        let ox = frame.position.x;
+        let oy = frame.position.y + 0.5;
+        let oz = frame.position.z;
+        let qx = q.x;
+        let qy = q.y;
+        let qz = q.z;
+        let qw = q.w;
+        ecs.add_component(playerId2, componentRegistry.Transform3D, {
+          ox, oy, oz, qx, qy, qz, qw,
+        });
+        ecs.add_component(playerId2, componentRegistry.LastTransform3D, {
+          ox, oy, oz, qx, qy, qz, qw,
+        });
+      }
       ecs.add_component(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.StillTime, { time: 0.0, });
@@ -618,6 +624,8 @@ export function createInGameSystemV2(
               </For>
               <For each={ufoEntityIds()}>
                 {(ufoEntityId) => {
+                  let ufo = createMemo(() => entityGetComponentData(ecs, untrack(ufoEntityId), componentRegistry.Ufo));
+                  let ufoStage = createMemo(() => ufo()?.stage as UfoStage || undefined);
                   let ufoTransform = createMemo(() => entityGetComponentData(ecs, untrack(ufoEntityId), componentRegistry.Transform3D));
                   return (
                     <Ufo
@@ -629,6 +637,8 @@ export function createInGameSystemV2(
                         }
                         return [ transform.ox, transform.oy, transform.oz, ];
                       })()}
+                      showTractorBeam={ufoStage() === UfoStage.BEAMING_UP_KART || ufoStage() === UfoStage.BEAMING_DOWN_KART}
+                      time={ufo()?.timeout ?? 0.0}
                     />
                   );
                 }}
@@ -851,19 +861,35 @@ export function createInGameSystemV2(
         "z",
         angVel.z,
       );
-      // If the velocities are close to zero increase the still time, otherwise
-      // clear the still time.
+      // If the transform is close to the last transform, then increase the
+      // still time, otherwise clear the still time and set the last transform
+      // to the current transform.
       let isUfoTarget = ecs.entity(entityId).hasComponent(componentRegistry.UfoTarget);
       if (!isUfoTarget) {
+        let lastOx = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "ox");
+        let lastOy = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "oy");
+        let lastOz = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "oz");
+        let lastQx = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qx");
+        let lastQy = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qy");
+        let lastQz = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qz");
+        let lastQw = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qw");
         let movementTest =
-          Math.abs(vel.x)
-          + Math.abs(vel.y)
-          + Math.abs(vel.z)
-          + Math.abs(angVel.x)
-          + Math.abs(angVel.y)
-          + Math.abs(angVel.z);
-        if (movementTest > 0.001) {
+          Math.abs(pos.x - lastOx)
+          + Math.abs(pos.y - lastOy)
+          + Math.abs(pos.z - lastOz)
+          + Math.abs(rot.x - lastQx)
+          + Math.abs(rot.y - lastQy)
+          + Math.abs(rot.z - lastQz)
+          + Math.abs(rot.w - lastQw);
+        if (movementTest > 0.01) {
           ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "ox", pos.x);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "oy", pos.y);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "oz", pos.z);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qx", rot.x);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qy", rot.y);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qz", rot.z);
+          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qw", rot.w);
         } else {
           let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
           if (stillTime >= 5.0) {
@@ -1015,11 +1041,15 @@ export function createInGameSystemV2(
               timeout -= dt;
               let a = Math.max(0, 1 - timeout / UFO_BEAMING_TIMEOUT);
               targetPosX += a * (ufoPosX - targetPosX);
-              targetPosY += a * (ufoPosY - 3.0 - targetPosY);
+              targetPosY += a * (ufoPosY - 2.0 - targetPosY);
               targetPosZ += a * (ufoPosZ - targetPosZ);
               ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
               ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
               ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
+              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qx", 0);
+              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qy", 0);
+              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qz", 0);
+              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qw", 1);
               ecs.set_field(targetEntityId, componentRegistry.Velocity, "x", 0.0);
               ecs.set_field(targetEntityId, componentRegistry.Velocity, "y", 0.0);
               ecs.set_field(targetEntityId, componentRegistry.Velocity, "z", 0.0);
@@ -1029,7 +1059,9 @@ export function createInGameSystemV2(
               if (timeout > 0.0) {
                 ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
               } else {
-                ecs.destroy_entity_deferred(ufoEntityId);
+                //ecs.destroy_entity_deferred(ufoEntityId);
+                ecs.remove_component(ufoEntityId, componentRegistry.Ufo);
+                ecs.remove_component(ufoEntityId, componentRegistry.Transform3D);
                 ecs.remove_component(targetEntityId, componentRegistry.UfoTarget);
               }
               break;

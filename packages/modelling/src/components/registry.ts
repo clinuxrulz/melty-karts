@@ -14,6 +14,7 @@ import { mkLastAngularVelocityComponent } from "./last-angular-velocity-componen
 import { mkLastVelocityComponent } from "./last-velocity-component";
 import { mkStillTimeComponent } from "./still-time-component";
 import { mkUfoTargetComponent } from "./ufo-target-component";
+import { mkLastTransform3DComponent } from "./last-transform-3d-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -47,6 +48,7 @@ export function registerComponents(ecs: ECS) {
     Child: mkChildComponent(proxiedEcs),
     Id: mkId(proxiedEcs),
     LastAngularVelocity: mkLastAngularVelocityComponent(proxiedEcs),
+    LastTransform3D: mkLastTransform3DComponent(proxiedEcs),
     LastVelocity: mkLastVelocityComponent(proxiedEcs),
     LoopDaLoop: mkLoopDaLoopComponent(proxiedEcs),
     Parent: mkParentComponent(proxiedEcs),
