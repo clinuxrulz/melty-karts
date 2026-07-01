@@ -1038,32 +1038,44 @@ export function createInGameSystemV2(
               break;
             }
             case UfoStage.BEAMING_DOWN_KART: {
-              let timeout = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "timeout");
-              timeout -= dt;
-              let a = Math.max(0, 1 - timeout / UFO_BEAMING_TIMEOUT);
-              targetPosX += a * (ufoPosX - targetPosX);
-              targetPosY += a * (ufoPosY - 2.0 - targetPosY);
-              targetPosZ += a * (ufoPosZ - targetPosZ);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qx", 0);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qy", 0);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qz", 0);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qw", 1);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "x", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "y", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "z", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
-              if (timeout > 0.0) {
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
-              } else {
-                ecs.remove_component(ufoEntityId, componentRegistry.Ufo);
-                ecs.remove_component(ufoEntityId, componentRegistry.Transform3D);
-                ecs.add_component(ufoEntityId, RegisteredFreeEntity);
-                ecs.remove_component(targetEntityId, componentRegistry.UfoTarget);
+              let trackEval = curve()?.trackEval;
+              if (trackEval !== undefined) {
+                let frame = trackEval.getFrameAt(0);
+                let right = frame.right.clone().multiplyScalar(-1.0);
+                let up = frame.up;
+                let matrix = new THREE.Matrix4().makeBasis(
+                  right,
+                  up,
+                  new THREE.Vector3().crossVectors(right, up),
+                );
+                let rot = new THREE.Quaternion().setFromRotationMatrix(matrix);
+                let timeout = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "timeout");
+                timeout -= dt;
+                let a = Math.max(0, 1 - timeout / UFO_BEAMING_TIMEOUT);
+                targetPosX += a * (ufoPosX - targetPosX);
+                targetPosY += a * (ufoPosY - 2.0 - targetPosY);
+                targetPosZ += a * (ufoPosZ - targetPosZ);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qx", rot.x);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qy", rot.y);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qz", rot.z);
+                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qw", rot.z);
+                ecs.set_field(targetEntityId, componentRegistry.Velocity, "x", 0.0);
+                ecs.set_field(targetEntityId, componentRegistry.Velocity, "y", 0.0);
+                ecs.set_field(targetEntityId, componentRegistry.Velocity, "z", 0.0);
+                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
+                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
+                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
+                if (timeout > 0.0) {
+                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
+                } else {
+                  ecs.remove_component(ufoEntityId, componentRegistry.Ufo);
+                  ecs.remove_component(ufoEntityId, componentRegistry.Transform3D);
+                  ecs.add_component(ufoEntityId, RegisteredFreeEntity);
+                  ecs.remove_component(targetEntityId, componentRegistry.UfoTarget);
+                }
               }
               break;
             }
