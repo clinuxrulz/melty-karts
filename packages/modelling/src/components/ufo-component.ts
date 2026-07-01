@@ -6,9 +6,11 @@ export enum UfoStage {
   BEAMING_UP_KART = 1,
   MOVING_KART = 2,
   BEAMING_DOWN_KART = 3,
+  FLY_OFF = 4,
 }
 
 export const UFO_BEAMING_TIMEOUT = 2.0;
+export const UFO_FLY_OFF_TIMEOUT = 5.0;
 
 export function mkUfoComponent(ecs: ECS) {
   return ecs.register_component({
