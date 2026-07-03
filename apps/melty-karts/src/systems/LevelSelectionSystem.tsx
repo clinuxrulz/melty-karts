@@ -12,7 +12,9 @@ export function createLevelSelectionSystem(
     ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME, });
   };
   let loadNewLevel = async () => {
-    let level = await fetch(/* @vite-ignore */"./levels/test-level.melty-karts-level");
+    let level = await fetch(/* @vite-ignore */"./levels/test-level.melty-karts-level", {
+      cache: "no-cache",
+    });
     let levelData = await level.text();
     loadEcsFromXml(
       componentRegistry,
