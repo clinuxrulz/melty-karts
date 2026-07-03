@@ -225,22 +225,33 @@ export function generateTrackCurve(params: {
     }
   }
   let loopDaLoopRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3, right: THREE.Vector3, }[] = [];
-  if (additionalPoints.length !== 0) {
+  let spiralRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[] = [];
+  if (additionalPoints.length !== 0 || spiralAdditionalPoints.length !== 0) {
     let trackPts: {
       value: THREE.Vector4,
       loopDaLoopIdx: number | undefined,
+      spiralIdx: number | undefined,
     }[] = trackPtNodes
       .map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist))
       .flatMap((value, idx) => {
-        let extraPointsIndex = additionalPoints.findIndex(({ afterIdx }) => afterIdx === idx);
-        if (extraPointsIndex == -1) {
-          return [ { value, loopDaLoopIdx: undefined, }, ];
-        }
-        let extraPoints = additionalPoints[extraPointsIndex].pts;
-        return [
-          { value, loopDaLoopIdx: undefined, },
-          ...extraPoints.map((x) => ({ value: x, loopDaLoopIdx: extraPointsIndex, })),
+        let loopExtraPointsIndex = additionalPoints.findIndex(({ afterIdx }) => afterIdx === idx);
+        let spiralExtraPointsIndex = spiralAdditionalPoints.findIndex(({ afterIdx }) => afterIdx === idx);
+        let result: { value: THREE.Vector4, loopDaLoopIdx: number | undefined, spiralIdx: number | undefined }[] = [
+          { value, loopDaLoopIdx: undefined, spiralIdx: undefined },
         ];
+        if (loopExtraPointsIndex !== -1) {
+          let extraPoints = additionalPoints[loopExtraPointsIndex].pts;
+          for (let x of extraPoints) {
+            result.push({ value: x, loopDaLoopIdx: loopExtraPointsIndex, spiralIdx: undefined });
+          }
+        }
+        if (spiralExtraPointsIndex !== -1) {
+          let extraPoints = spiralAdditionalPoints[spiralExtraPointsIndex].pts;
+          for (let x of extraPoints) {
+            result.push({ value: x, loopDaLoopIdx: undefined, spiralIdx: spiralExtraPointsIndex });
+          }
+        }
+        return result;
       });
     curve = new CatmullRomCurve4(
       trackPts.map((x) => x.value),
@@ -271,29 +282,6 @@ export function generateTrackCurve(params: {
     for (let x of loopDaLoopIndexToRangeMap.values()) {
       loopDaLoopRanges.push(x);
     }
-  }
-  let spiralRanges: { fromT: number, toT: number, centrePoint: THREE.Vector3 }[] = [];
-  if (spiralAdditionalPoints.length !== 0) {
-    let trackPts: {
-      value: THREE.Vector4,
-      spiralIdx: number | undefined,
-    }[] = trackPtNodes
-      .map(({ pt, twist }) => new THREE.Vector4(pt.x, pt.y, pt.z, twist))
-      .flatMap((value, idx) => {
-        let extraPointsIndex = spiralAdditionalPoints.findIndex(({ afterIdx }) => afterIdx === idx);
-        if (extraPointsIndex == -1) {
-          return [ { value, spiralIdx: undefined, }, ];
-        }
-        let extraPoints = spiralAdditionalPoints[extraPointsIndex].pts;
-        return [
-          { value, spiralIdx: undefined, },
-          ...extraPoints.map((x) => ({ value: x, spiralIdx: extraPointsIndex, })),
-        ];
-      });
-    curve = new CatmullRomCurve4(
-      trackPts.map((x) => x.value),
-      true,
-    );
     let spiralIndexToRangeMap = new Map<number,{ fromT: number, toT: number, centrePoint: THREE.Vector3 }>();
     for (let i = 0; i < trackPts.length; ++i) {
       let trackPt = trackPts[i];
