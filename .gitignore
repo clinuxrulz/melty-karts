@@ -4,6 +4,7 @@ dist
 .vercel
 .netlify
 .vinxi
+.pnpm-store
 app.config.timestamp_*.js
 
 # Environment

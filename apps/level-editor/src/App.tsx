@@ -23,7 +23,7 @@ import { Operation } from "./model/operation";
 import { createEditTrackPtNodesMode } from "./model/modes/edit-track-pt-nodes-mode";
 import { Command } from "./model/commands";
 import { loadEcsFromXml, saveEcsToXml } from "@melty-karts/modelling";
-import * as FileSaver from "file-saver";
+import { fileOpen, fileSave } from "browser-fs-access";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 
 // @ts-ignore
@@ -38,6 +38,8 @@ const App: Component = () => {
   let [ scene, setScene, ] = createSignal<THREE.Scene>();
   let [ camera, setCamera, ] = createSignal<THREE.Camera>();
   let [ orbitControls, setOrbitControls ] = createSignal<OrbitControls>();
+  let [ fileHandle, setFileHandle, ] = createSignal<FileSystemFileHandle>();
+  let [ fileName, setFileName, ] = createSignal<string>();
   let [ mousePos, setMousePos, ] = createSignal<THREE.Vector2>();
   let [ mkMode, setMkMode, ] = createSignal<() => Mode>();
   let [ selectedNodesByIdSetAccessor, setSelectedNodesByIdSetAccessor, ] = createSignal<Accessor<Set<string>>>();
@@ -489,60 +491,94 @@ const App: Component = () => {
                 Redo
               </button>
             </div>
+            {(() => {
+              let name = fileName();
+              if (name) {
+                return (
+                  <span class="ml-2 text-sm text-base-content/70 max-w-40 truncate inline-block align-middle">
+                    {name}
+                  </span>
+                );
+              }
+            })()}
             <button
               class="btn btn-primary ml-2"
-              onClick={() => {
+              onClick={async () => {
                 let xmlData = saveEcsToXml(
                   componentRegistry,
                   modelNodeRegistry.primaryComponentTypes,
                   ecs,
                 );
                 let blob = new Blob([ xmlData ], { type: "application/xml", });
-                FileSaver.saveAs(
-                  blob,
-                  "level.melty-karts-level",
-                );
+                let existingHandle = fileHandle();
+                if (existingHandle) {
+                  await fileSave(
+                    blob,
+                    { fileName: "level.melty-karts-level.xml" },
+                    existingHandle,
+                  );
+                } else {
+                  await fileSave(blob, {
+                    fileName: "level.melty-karts-level.xml",
+                    extensions: [".xml"],
+                  });
+                }
               }}
             >
               Save
             </button>
+            <button
+              class="btn btn-outline btn-primary ml-1"
+              onClick={async () => {
+                let xmlData = saveEcsToXml(
+                  componentRegistry,
+                  modelNodeRegistry.primaryComponentTypes,
+                  ecs,
+                );
+                let blob = new Blob([ xmlData ], { type: "application/xml", });
+                await fileSave(blob, {
+                  fileName: "level.melty-karts-level.xml",
+                  extensions: [".xml"],
+                });
+              }}
+            >
+              Save As
+            </button>
             {untrack(() => {
-              let [ inputElement, setInputElement, ] = createSignal<HTMLInputElement>();
               return (
-                <>
-                  <button
-                    class="btn btn-primary ml-1"
-                    onClick={() => {
-                      inputElement()?.click();
-                    }}
-                  >
-                    Load
-                  </button>
-                  <input
-                    ref={setInputElement}
-                    type="file"
-                    hidden
-                    onInput={async (e) => {
-                      if (e.currentTarget.files?.length !== 1) {
-                        return;
+                <button
+                  class="btn btn-primary ml-1"
+                  onClick={async () => {
+                    let blob;
+                    try {
+                      blob = await fileOpen({
+                        extensions: [".xml"],
+                        description: "Melty Karts Level",
+                      });
+                    } catch {
+                      return;
+                    }
+                    let handle = (blob as any).handle as FileSystemFileHandle | undefined;
+                    let xmlData = await blob.text();
+                    try {
+                      loadEcsFromXml(
+                        componentRegistry,
+                        ecs,
+                        xmlData,
+                      );
+                      undoRedoManager.clear();
+                      if (handle) {
+                        setFileHandle(handle);
+                        setFileName(blob.name || "Untitled");
                       }
-                      let file = e.currentTarget.files[0];
-                      let xmlData = await file.text();
-                      try {
-                        loadEcsFromXml(
-                          componentRegistry,
-                          ecs,
-                          xmlData,
-                        );
-                        undoRedoManager.clear();
-                      } catch (e) {
-                        console.error(e);
-                        alert("Failed to load file.");
-                      }
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                </>
+                    } catch (e) {
+                      console.error(e);
+                      alert("Failed to load file.");
+                    }
+                  }}
+                >
+                  Load
+                </button>
               );
             })}
           </div>
