@@ -300,6 +300,20 @@ export function createEditTrackPtNodesMode(params: {
           },
         );
       });
+      let spiral = createMemo(() => {
+        let entity = modeParams.ecs.entity(trackPtNode().trackPtNode.entityId);
+        if (!entity.hasComponent(componentRegistry.Spiral)) {
+          return undefined;
+        }
+        return new Proxy<FieldValues<ComponentDefGetSchemaType<typeof componentRegistry.Spiral>>>(
+          {} as any,
+          {
+            get(target, p, receiver) {
+              return entity.getField(componentRegistry.Spiral, p as any);
+            },
+          },
+        );
+      });
       return (
         <div>
           <table>
@@ -562,6 +576,133 @@ export function createEditTrackPtNodesMode(params: {
                                       ),
                                       true,
                                       "Edit Loop-da-loop exit offset",
+                                    );
+                                  },
+                                }),
+                              )
+                            }
+                            class="input"
+                            type="text"
+                          />
+                        </td>
+                      </tr>
+                    </>
+                  );
+                }}
+              </Show>
+              <Show when={spiral() === undefined}>
+                <tr>
+                  <td colspan={2}>
+                    <button
+                      class="btn btn-primary"
+                      style="margin-top: 5px;"
+                      onClick={() => {
+                        let entityId = trackPtNode().trackPtNode.entityId;
+                        modeParams.doCommand(
+                          Command.addComponent(
+                            entityId,
+                            componentRegistry.Spiral,
+                            {
+                              radius: 10,
+                              totalAngle: 6.2832,
+                              exitOffset: 10,
+                            },
+                          ),
+                          true,
+                          "Add Spiral",
+                        );
+                      }}
+                    >
+                      Add Spiral
+                    </button>
+                  </td>
+                </tr>
+              </Show>
+              <Show when={spiral()}>
+                {(spiral) => {
+                  let owner = getOwner();
+                  return (
+                    <>
+                      <tr>
+                        <td style="margin-right: 5px;">Radius:</td>
+                        <td>
+                          <input
+                            ref={(input) =>
+                              runWithOwner(
+                                owner,
+                                () => bidirectionalBindForInputNumber({
+                                  input,
+                                  value: () => spiral().radius,
+                                  setValue: (x) => {
+                                    modeParams.doCommand(
+                                      Command.setField(
+                                        trackPtNode().trackPtNode.entityId,
+                                        componentRegistry.Spiral,
+                                        "radius",
+                                        x,
+                                      ),
+                                      true,
+                                      "Edit Spiral radius",
+                                    );
+                                  },
+                                }),
+                              )
+                            }
+                            class="input"
+                            type="text"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="margin-right: 5px;">Total Angle (deg):</td>
+                        <td>
+                          <input
+                            ref={(input) =>
+                              runWithOwner(
+                                owner,
+                                () => bidirectionalBindForInputNumber({
+                                  input,
+                                  value: () => spiral().totalAngle * 180.0 / Math.PI,
+                                  setValue: (x) => {
+                                    modeParams.doCommand(
+                                      Command.setField(
+                                        trackPtNode().trackPtNode.entityId,
+                                        componentRegistry.Spiral,
+                                        "totalAngle",
+                                        x * Math.PI / 180.0,
+                                      ),
+                                      true,
+                                      "Edit Spiral total angle",
+                                    );
+                                  },
+                                }),
+                              )
+                            }
+                            class="input"
+                            type="text"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="margin-right: 5px;">Exit Offset:</td>
+                        <td>
+                          <input
+                            ref={(input) =>
+                              runWithOwner(
+                                owner,
+                                () => bidirectionalBindForInputNumber({
+                                  input,
+                                  value: () => spiral().exitOffset,
+                                  setValue: (x) => {
+                                    modeParams.doCommand(
+                                      Command.setField(
+                                        trackPtNode().trackPtNode.entityId,
+                                        componentRegistry.Spiral,
+                                        "exitOffset",
+                                        x,
+                                      ),
+                                      true,
+                                      "Edit Spiral exit offset",
                                     );
                                   },
                                 }),

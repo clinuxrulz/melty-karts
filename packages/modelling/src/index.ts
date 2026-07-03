@@ -2,6 +2,7 @@ export { type ChildState } from "./components/child-component";
 export { getOrCreateId } from "./components/id-component";
 export { type LoopDaLoopState } from "./components/loop-da-loop-component";
 export { type ParentState, entityAddChild, entityRemoveChild, entityAddChildBeforeChild } from "./components/parent-component";
+export { type SpiralState } from "./components/spiral-component";
 export { type TrackSchema, type TrackState } from "./components/track-component";
 export { type TrackPathPtSchema, type TrackPathPtState } from "./components/track-path-pt-component";
 export { type TransformState, transformGetMatrix, transformPointFromSpace, transformPointToSpace } from "./components/transform3d-component";

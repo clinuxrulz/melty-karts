@@ -13,6 +13,7 @@ import { mkUfoComponent } from "./ufo-component";
 import { mkLastAngularVelocityComponent } from "./last-angular-velocity-component";
 import { mkLastVelocityComponent } from "./last-velocity-component";
 import { mkStillTimeComponent } from "./still-time-component";
+import { mkSpiralComponent } from "./spiral-component";
 import { mkUfoTargetComponent } from "./ufo-target-component";
 import { mkLastTransform3DComponent } from "./last-transform-3d-component";
 import { mkCoyoteTimeComponent } from "./coyote-time-component";
@@ -52,6 +53,7 @@ export function registerComponents(ecs: ECS) {
     LastVelocity: mkLastVelocityComponent(proxiedEcs),
     LoopDaLoop: mkLoopDaLoopComponent(proxiedEcs),
     Parent: mkParentComponent(proxiedEcs),
+    Spiral: mkSpiralComponent(proxiedEcs),
     StillTime: mkStillTimeComponent(proxiedEcs),
     Track: mkTrackComponent(proxiedEcs),
     TrackPathPt: mkTrackPathPtComponent(proxiedEcs),
