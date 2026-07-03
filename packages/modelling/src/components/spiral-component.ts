@@ -3,7 +3,7 @@ import { ComponentDefGetDataType } from "./util";
 
 export function mkSpiralComponent(ecs: ECS) {
   return ecs.registerComponent({
-    radius: "f32",
+    diameter: "f32",
     totalAngle: "f32",
     exitOffset: "f32",
   });

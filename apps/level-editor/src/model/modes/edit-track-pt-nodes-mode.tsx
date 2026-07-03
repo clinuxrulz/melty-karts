@@ -603,7 +603,7 @@ export function createEditTrackPtNodesMode(params: {
                             entityId,
                             componentRegistry.Spiral,
                             {
-                              radius: 10,
+                              diameter: 20,
                               totalAngle: 6.2832,
                               exitOffset: 10,
                             },
@@ -624,7 +624,7 @@ export function createEditTrackPtNodesMode(params: {
                   return (
                     <>
                       <tr>
-                        <td style="margin-right: 5px;">Radius:</td>
+                        <td style="margin-right: 5px;">Diameter:</td>
                         <td>
                           <input
                             ref={(input) =>
@@ -632,17 +632,17 @@ export function createEditTrackPtNodesMode(params: {
                                 owner,
                                 () => bidirectionalBindForInputNumber({
                                   input,
-                                  value: () => spiral().radius,
+                                  value: () => spiral().diameter,
                                   setValue: (x) => {
                                     modeParams.doCommand(
                                       Command.setField(
                                         trackPtNode().trackPtNode.entityId,
                                         componentRegistry.Spiral,
-                                        "radius",
+                                        "diameter",
                                         x,
                                       ),
                                       true,
-                                      "Edit Spiral radius",
+                                      "Edit Spiral diameter",
                                     );
                                   },
                                 }),

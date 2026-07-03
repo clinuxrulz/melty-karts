@@ -17,11 +17,11 @@ export function obtainTrackPtNodes(params: {
       diameter: number;
       exitOffset: number;
   } | undefined;
-  spiral: {
-      radius: number;
-      totalAngle: number;
-      exitOffset: number;
-  } | undefined;
+    spiral: {
+      diameter: number,
+      totalAngle: number,
+      exitOffset: number,
+    } | undefined;
 }[] | undefined {
   let componentRegistry = params.componentRegistry;
   let parent = entityGetComponentData(params.ecs, params.trackId, componentRegistry.Parent);
@@ -40,7 +40,7 @@ export function obtainTrackPtNodes(params: {
       exitOffset: number,
     } | undefined,
     spiral: {
-      radius: number,
+      diameter: number,
       totalAngle: number,
       exitOffset: number,
     } | undefined,
@@ -77,16 +77,16 @@ export function obtainTrackPtNodes(params: {
         loopDaLoop = undefined;
       }
       let spiral: {
-        radius: number,
+        diameter: number,
         totalAngle: number,
         exitOffset: number,
       } | undefined;
       if (node.hasComponent(componentRegistry.Spiral)) {
-        let radius = node.getField(componentRegistry.Spiral, "radius");
+        let diameter = node.getField(componentRegistry.Spiral, "diameter");
         let totalAngle = node.getField(componentRegistry.Spiral, "totalAngle");
         let exitOffset = node.getField(componentRegistry.Spiral, "exitOffset");
         spiral = {
-          radius,
+          diameter,
           totalAngle,
           exitOffset,
         };
@@ -120,7 +120,7 @@ export function generateTrackCurve(params: {
         exitOffset: number;
     } | undefined;
     spiral: {
-        radius: number;
+        diameter: number;
         totalAngle: number;
         exitOffset: number;
     } | undefined;
@@ -196,9 +196,9 @@ export function generateTrackCurve(params: {
       let right = new THREE.Vector3().crossVectors(forward, up).normalize();
       up.crossVectors(right, forward);
       let centre = new THREE.Vector3(
-        pt.x - spiral.radius * right.x,
-        pt.y - spiral.radius * right.y,
-        pt.z - spiral.radius * right.z,
+        pt.x - spiral.diameter / 2 * right.x,
+        pt.y - spiral.diameter / 2 * right.y,
+        pt.z - spiral.diameter / 2 * right.z,
       );
       let entry: { afterIdx: number, centre: THREE.Vector3, pts: THREE.Vector4[], } = {
         afterIdx: i,
@@ -210,8 +210,8 @@ export function generateTrackCurve(params: {
         let a = j * spiral.totalAngle / numSpiralSegments;
         let ca = Math.cos(a);
         let sa = Math.sin(a);
-        let lx = spiral.radius * sa;
-        let ly = spiral.radius * ca;
+        let lx = spiral.diameter / 2 * sa;
+        let ly = spiral.diameter / 2 * ca;
         let lz = j * spiral.exitOffset / numSpiralSegments;
         let pt2 = new THREE.Vector4(
           centre.x + ly * right.x + lx * forward.x + lz * up.x,
