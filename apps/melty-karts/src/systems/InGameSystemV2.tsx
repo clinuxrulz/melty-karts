@@ -663,7 +663,7 @@ export function createInGameSystemV2(
   let tmpV1 = new THREE.Vector3();
   let tmpV2 = new THREE.Vector3();
   let tmpQ1 = new THREE.Quaternion();
-  let maxSteerDeg = 30 * Math.PI / 180;
+  let maxSteerDeg = 15 * Math.PI / 180;
   let currentSteering = 0;
   let steeringLerpSpeed = 8.0;
   let joystick = Joystick({
