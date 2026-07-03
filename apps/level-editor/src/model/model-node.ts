@@ -32,14 +32,14 @@ export class ModelNodeSpec {
   findComponentData<S extends ComponentSchema>(ecs: ReactiveECS, componentDef: ComponentDef<S>): FieldValues<S> | undefined {
     if (this.entityId !== undefined) {
       let entity = ecs.entity(this.entityId);
-      if (!entity.hasComponent(componentDef)) {
+      if (!entity.hasComponent(componentDef as ComponentDef)) {
         return undefined;
       }
       return new Proxy(
         {},
         {
           get(target, p, receiver) {
-            return entity.getField(componentDef, p as any);
+            return entity.getField(componentDef as ComponentDef, p as any);
           },
         },
       ) as FieldValues<S>;
@@ -125,14 +125,14 @@ export class ResolvedModelNode {
   findComponentData<S extends ComponentSchema>(ecs: ReactiveECS, componentDef: ComponentDef<S>): FieldValues<S> | undefined {
     if (this.entityId !== undefined) {
       let entity = ecs.entity(this.entityId);
-      if (!entity.hasComponent(componentDef)) {
+      if (!entity.hasComponent(componentDef as ComponentDef)) {
         return undefined;
       }
       return new Proxy(
         {},
         {
           get(target, p, receiver) {
-            return entity.getField(componentDef, p as any);
+            return entity.getField(componentDef as ComponentDef, p as any);
           },
         },
       ) as FieldValues<S>;

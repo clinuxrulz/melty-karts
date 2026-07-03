@@ -40,10 +40,10 @@ export class ModelNodeRegistry {
         break;
       }
     }
-    this.modelNodeTypeByComponentType.set(modelNodeType.componentType, modelNodeType);
+    this.modelNodeTypeByComponentType.set(modelNodeType.componentType as any, modelNodeType);
     if (!found) {
       this.modelNodeTypes.push(modelNodeType);
-      this.primaryComponentTypes.push(modelNodeType.componentType);
+      this.primaryComponentTypes.push(modelNodeType.componentType as any);
     }
   }
 
@@ -92,6 +92,6 @@ export function findComponentData<S extends ComponentSchema>(
   componentType: ComponentDef<S>,
 ): EcsComponentData<S> | undefined {
   return components.find(
-    (component): component is EcsComponentData<S> => component.def === componentType,
-  );
+    (component): component is EcsComponentData<any> => component.def === componentType,
+  ) as EcsComponentData<S> | undefined;
 }

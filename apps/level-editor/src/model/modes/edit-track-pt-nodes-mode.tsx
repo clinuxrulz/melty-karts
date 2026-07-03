@@ -819,7 +819,7 @@ export function createEditTrackPtNodesMode(params: {
         }
         let idx = addTrackPtNode.insertAtIndex;
         let beforeEntityId = trackPtNodes2[idx].entityId;
-        let parentEntityId = modeParams.ecs.ecs.get_field(
+        let parentEntityId = modeParams.ecs.ecs.getField(
           beforeEntityId,
           componentRegistry.Child,
           "parent",

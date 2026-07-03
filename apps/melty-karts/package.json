@@ -24,7 +24,7 @@
     "@dimforge/rapier3d": "^0.19.3",
     "@melty-karts/modelling": "workspace: *",
     "@melty-karts/reactive-ecs": "workspace:*",
-    "@oasys/oecs": "0.3.1",
+    "@oasys/oecs": "0.4.0",
     "@solidjs/signals": "2.0.0-beta.10",
     "@solidjs/web": "2.0.0-beta.10",
     "howler": "^2.2.4",

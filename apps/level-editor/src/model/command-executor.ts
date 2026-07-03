@@ -45,7 +45,7 @@ export class CommandExecutor {
       case "createEntity": {
         let entityId = this.getFreeEntityId();
         if (entityId === undefined) {
-          entityId = this.ecs.create_entity();
+          entityId = this.ecs.createEntity();
         }
         let nextCommand = command.fn(entityId);
         return Command.seq([
@@ -69,20 +69,20 @@ export class CommandExecutor {
             this.componentDefToFieldsMap.set(command.componentType, fields);
           }
         }
-        this.ecs.add_component(command.entityId, command.componentType, command.component);
+        this.ecs.addComponent(command.entityId, command.componentType, command.component);
         return Command.removeComponent(command.entityId, command.componentType);
       }
       case "removeComponent": {
         let oldComponent: any = {};
         for (let field of this.componentDefToFieldsMap.get(command.componentType) ?? []) {
-          oldComponent[field] = this.ecs.ecs.get_field(command.entityId, command.componentType, field);
+          oldComponent[field] = this.ecs.ecs.getField(command.entityId, command.componentType, field);
         }
-        this.ecs.remove_component(command.entityId, command.componentType);
+        this.ecs.removeComponent(command.entityId, command.componentType);
         return Command.addComponent(command.entityId, command.componentType, oldComponent);
       }
       case "setField": {
-        let oldValue = this.ecs.ecs.get_field(command.entityId, command.componentType, command.field);
-        this.ecs.set_field(command.entityId, command.componentType, command.field, command.value);
+        let oldValue = this.ecs.ecs.getField(command.entityId, command.componentType, command.field);
+        this.ecs.setField(command.entityId, command.componentType, command.field, command.value);
         return Command.setField(command.entityId, command.componentType, command.field, oldValue);
       }
       case "addChild": {
@@ -105,12 +105,12 @@ export class CommandExecutor {
         return Command.removeChild(command.childEntityId);
       }
       case "removeChild": {
-        let beforeChildEntityId = this.ecs.ecs.get_field(
+        let beforeChildEntityId = this.ecs.ecs.getField(
           command.childEntityId,
           this.componentRegistry.Child,
           "next"
         ) as EntityID | -1;
-        let parentEntityId = this.ecs.ecs.get_field(
+        let parentEntityId = this.ecs.ecs.getField(
           command.childEntityId,
           this.componentRegistry.Child,
           "parent"

@@ -15,23 +15,23 @@ export function createKart(params: {
 }): EntityID {
   const ecs = params.reactiveEcs;
   
-  const entityId = ecs.create_entity();
-  ecs.add_component(entityId, RegisteredPosition, { x: params.position.x, y: params.position.y, z: params.position.z });
-  ecs.add_component(entityId, RegisteredVelocity, { x: params.velocity.x, y: params.velocity.y, z: params.velocity.z });
-  ecs.add_component(entityId, RegisteredOrientation, { x: 0.0, y: 0.0, z: 0.0, w: 1.0, });
+  const entityId = ecs.createEntity();
+  ecs.addComponent(entityId, RegisteredPosition, { x: params.position.x, y: params.position.y, z: params.position.z });
+  ecs.addComponent(entityId, RegisteredVelocity, { x: params.velocity.x, y: params.velocity.y, z: params.velocity.z });
+  ecs.addComponent(entityId, RegisteredOrientation, { x: 0.0, y: 0.0, z: 0.0, w: 1.0, });
   const playerTypeNum: PlayerTypeEnum = params.playerType === "Melty" ? 0 : params.playerType === "Cubey" ? 1 : 2;
   const facingForwardNum: 0 | 1 = params.facingForward ? 1 : 0;
-  ecs.add_component(entityId, RegisteredPlayerConfig, { playerType: playerTypeNum, facingForward: facingForwardNum, useItemWasDown: 0 });
-  ecs.add_component(entityId, RegisteredKartConfig, { speed: 0.0 });
-  ecs.add_component(entityId, RegisteredKartRuntime, {
+  ecs.addComponent(entityId, RegisteredPlayerConfig, { playerType: playerTypeNum, facingForward: facingForwardNum, useItemWasDown: 0 });
+  ecs.addComponent(entityId, RegisteredKartConfig, { speed: 0.0 });
+  ecs.addComponent(entityId, RegisteredKartRuntime, {
     driftCharge: 0.0,
     isDrifting: 0,
     driftDirection: 0,
     verticalVelocity: 0.0,
   });
-  ecs.add_component(entityId, RegisteredInputControlled, { useItemDown: 0, upDown: 0, });
+  ecs.addComponent(entityId, RegisteredInputControlled, { useItemDown: 0, upDown: 0, });
   if (params.networkSlot !== undefined) {
-    ecs.add_component(entityId, RegisteredNetworkSlot, { slot: params.networkSlot });
+    ecs.addComponent(entityId, RegisteredNetworkSlot, { slot: params.networkSlot });
   }
   
   return entityId;

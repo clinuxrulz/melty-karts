@@ -2,7 +2,7 @@ import { ECS } from "@oasys/oecs";
 import { ComponentDefGetDataType } from "./util";
 
 export function mkLastTransform3DComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     ox: "f32",
     oy: "f32",
     oz: "f32",

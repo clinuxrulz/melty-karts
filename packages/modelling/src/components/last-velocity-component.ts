@@ -2,7 +2,7 @@ import { ECS } from "@oasys/oecs";
 import { ComponentDefGetDataType } from "./util";
 
 export function mkLastVelocityComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     x: "f32",
     y: "f32",
     z: "f32",

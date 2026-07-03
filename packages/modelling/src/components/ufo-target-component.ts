@@ -2,7 +2,7 @@ import { ECS } from "@oasys/oecs";
 import { ComponentDefGetDataType } from "./util";
 
 export function mkUfoTargetComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     ufo: "i32",
   });
 }

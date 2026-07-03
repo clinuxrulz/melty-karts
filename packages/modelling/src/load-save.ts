@@ -12,10 +12,10 @@ export function loadEcsFromXml(
   let parser = new DOMParser();
   let xmlDoc = parser.parseFromString(xmlData, "application/xml");
   if (clearExisting) {
-    ecs.ecs.query().for_each((arch) => {
-      for (let i = 0; i < arch.entity_count; ++i) {
-        let entityId = arch.entity_ids[i] as EntityID;
-        ecs.destroy_entity_deferred(entityId);
+    ecs.ecs.query().forEach((arch) => {
+      for (let i = 0; i < arch.entityCount; ++i) {
+        let entityId = arch.entityIds[i] as EntityID;
+        ecs.destroyEntity(entityId);
       }
     });
     ecs.ecs.flush();
@@ -27,7 +27,7 @@ export function loadEcsFromXml(
     if (componentSchema === undefined) {
       return;
     }
-    let entityId = ecs.create_entity();
+    let entityId = ecs.createEntity();
     let object: Record<string,number> = {};
     for (let fieldName in componentSchema) {
       let attrValue = element.getAttribute(fieldName);
@@ -42,7 +42,7 @@ export function loadEcsFromXml(
       }
       object[fieldName] = value;
     }
-    ecs.add_component(
+    ecs.addComponent(
       entityId,
       primaryComponentDef,
       object,
@@ -78,7 +78,7 @@ export function loadEcsFromXml(
         }
         obj[fieldName] = value;
       }
-      ecs.add_component(
+      ecs.addComponent(
         entityId,
         componentType,
         obj,
@@ -111,7 +111,7 @@ export function saveEcsToXml(
   let writeEntity = (parent: HTMLElement, entityId: EntityID) => {
     let primaryComponentType: ComponentDef | undefined = undefined;
     for (let componentType of primaryComponentTypes) {
-      if (ecs.ecs.has_component(entityId, componentType)) {
+      if (ecs.ecs.hasComponent(entityId, componentType)) {
         primaryComponentType = componentType;
         break;
       }
@@ -134,7 +134,7 @@ export function saveEcsToXml(
       let schema = componentRegistery.componentTypeToSchemaMap.get(primaryComponentType);
       if (schema !== undefined) {
         for (let fieldName in schema) {
-          let fieldValue = ecs.ecs.get_field(
+          let fieldValue = ecs.ecs.getField(
             entityId,
             primaryComponentType,
             fieldName,
@@ -155,11 +155,11 @@ export function saveEcsToXml(
       ) {
         continue;
       }
-      if (ecs.ecs.has_component(entityId, componentType)) {
+      if (ecs.ecs.hasComponent(entityId, componentType)) {
         let schema = componentRegistery.componentTypeToSchemaMap.get(componentType);
         if (schema !== undefined) {
           for (let fieldName in schema) {
-            let fieldValue = ecs.ecs.get_field(
+            let fieldValue = ecs.ecs.getField(
               entityId,
               componentType,
               fieldName,
@@ -170,8 +170,8 @@ export function saveEcsToXml(
       }
     }
     parent.appendChild(element);
-    if (ecs.ecs.has_component(entityId, componentRegistery.Parent)) {
-      let headId = ecs.ecs.get_field(
+    if (ecs.ecs.hasComponent(entityId, componentRegistery.Parent)) {
+      let headId = ecs.ecs.getField(
         entityId,
         componentRegistery.Parent,
         "head",
@@ -180,7 +180,7 @@ export function saveEcsToXml(
       while (atId !== -1) {
         let childId = atId;
         writeEntity(element, childId);
-        atId = ecs.ecs.get_field(
+        atId = ecs.ecs.getField(
           childId,
           componentRegistery.Child,
           "next",
@@ -188,10 +188,10 @@ export function saveEcsToXml(
       }
     }
   };
-  ecs.ecs.query().for_each((arch) => {
-    for (let i = 0; i < arch.entity_count; ++i) {
-      let entityId = arch.entity_ids[i] as EntityID;
-      if (ecs.ecs.has_component(entityId, componentRegistery.Child)) {
+  ecs.ecs.query().forEach((arch) => {
+    for (let i = 0; i < arch.entityCount; ++i) {
+      let entityId = arch.entityIds[i] as EntityID;
+      if (ecs.ecs.hasComponent(entityId, componentRegistery.Child)) {
         continue;
       }
       writeEntity(root, entityId);

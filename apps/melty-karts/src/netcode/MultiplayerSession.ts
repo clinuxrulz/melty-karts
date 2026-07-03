@@ -119,7 +119,7 @@ class MultiplayerSessionController {
 
   async host(ecs: ReactiveECS): Promise<void> {
     this.leave();
-    ecs.set_resource(RegisteredGameMode, { mode: 1 });
+    ecs.setResource(RegisteredGameMode, { mode: 1 });
     this.#setSnapshot({ status: "hosting", error: null });
     
     const inviteCode = makeInviteCode();
@@ -164,7 +164,7 @@ class MultiplayerSessionController {
 
   async join(ecs: ReactiveECS, invite: InvitePayload): Promise<void> {
     this.leave();
-    ecs.set_resource(RegisteredGameMode, { mode: 1 });
+    ecs.setResource(RegisteredGameMode, { mode: 1 });
     this.#setSnapshot({ status: "joining", error: null, inviteCode: invite.roomId, invitePayload: invite.roomId });
     const localPeerId = `melty-${Math.random().toString(36).slice(2, 10)}`;
     const transport = new PeerJsTransport(localPeerId);
@@ -195,7 +195,7 @@ class MultiplayerSessionController {
       return;
     }
     this.prepareRace(ecs);
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
     this.#session.start();
     this.#setSnapshot({ status: "playing" });
   }
@@ -270,8 +270,8 @@ class MultiplayerSessionController {
         reactiveEcs: ecs,
         networkSlot: slot,
       });
-      ecs.add_component(kartEntityId as never, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
-      ecs.add_component(kartEntityId as never, RegisteredLocalPlayerPosition, { rank: 0 });
+      ecs.addComponent(kartEntityId as never, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
+      ecs.addComponent(kartEntityId as never, RegisteredLocalPlayerPosition, { rank: 0 });
     }
 
     // Add 2 AI players in multiplayer
@@ -302,13 +302,13 @@ class MultiplayerSessionController {
         new THREE.Vector3(0,1,0)
       );
       const q = new THREE.Quaternion().setFromRotationMatrix(lookMat);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "x", q.x);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "y", q.y);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "z", q.z);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
+      ecs.setField(aiEntityId, RegisteredOrientation, "x", q.x);
+      ecs.setField(aiEntityId, RegisteredOrientation, "y", q.y);
+      ecs.setField(aiEntityId, RegisteredOrientation, "z", q.z);
+      ecs.setField(aiEntityId, RegisteredOrientation, "w", q.w);
 
-      ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
-      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
+      ecs.addComponent(aiEntityId, RegisteredAIControlled, { targetT: aiT });
+      ecs.addComponent(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
 
     // add mystery boxes
@@ -341,9 +341,9 @@ class MultiplayerSessionController {
       step: (inputs) => {
         const slotMap = new Map<number, number>();
         for (const arch of ecs.query(RegisteredNetworkSlot)) {
-          const slots = arch.get_column(RegisteredNetworkSlot, "slot") as Uint8Array;
-          for (let i = 0; i < arch.entity_count; i++) {
-            slotMap.set(slots[i], Number(arch.entity_ids[i]));
+          const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+          for (let i = 0; i < arch.entityCount; i++) {
+            slotMap.set(slots[i], Number(arch.entityIds[i]));
           }
         }
 
@@ -364,8 +364,8 @@ class MultiplayerSessionController {
           const upDown = (mask & 0b100000) !== 0;
 
           if (ecs.entity(entityId).hasComponent(RegisteredInputControlled)) {
-            ecs.set_field(entityId, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
-            ecs.set_field(entityId, RegisteredInputControlled, "upDown", upDown ? 1 : 0);
+            ecs.setField(entityId, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
+            ecs.setField(entityId, RegisteredInputControlled, "upDown", upDown ? 1 : 0);
           }
 
           simulateKartStep({
@@ -410,7 +410,7 @@ class MultiplayerSessionController {
       this.#syncPlayers();
     });
     session.on("gameStart", () => {
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+      ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
       this.#setSnapshot({ status: "playing" });
     });
     session.on("error", (error) => {

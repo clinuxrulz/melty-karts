@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createRoot, createMemo, flush } from "solid-js";
-import { ECS, resource_key } from "@oasys/oecs";
+import { ECS, resourceKey } from "@oasys/oecs";
 import { ReactiveECS } from "./ReactiveECS";
 
 describe("ReactiveECS", () => {
@@ -14,21 +14,21 @@ describe("ReactiveECS", () => {
 
   describe("query", () => {
     it("returns raw query results outside reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const q = reactive.query(Pos);
       const results = [...q];
       expect(results.length).toBe(1);
-      expect(results[0].entity_count).toBe(1);
+      expect(results[0].entityCount).toBe(1);
     });
 
     it("tracks query count in reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -38,8 +38,8 @@ describe("ReactiveECS", () => {
         expect(countMemo()).toBe(1);
 
         // Manually dirty to trigger re-evaluation
-        const e2 = ecs.create_entity();
-        ecs.add_component(e2, Pos, { x: 3, y: 4 });
+        const e2 = ecs.createEntity();
+        ecs.addComponent(e2, Pos, { x: 3, y: 4 });
         reactive.dirty(`${q.queryKey}:count`);
         
         flush();
@@ -51,14 +51,14 @@ describe("ReactiveECS", () => {
     });
 
     it("tracks archetype count in reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
         const q = reactive.query(Pos);
-        const archMemo = createMemo(() => q.archetype_count);
+        const archMemo = createMemo(() => q.archetypeCount);
         
         expect(archMemo()).toBe(1);
         
@@ -67,22 +67,22 @@ describe("ReactiveECS", () => {
     });
 
     it("iterating returns raw archetypes outside reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const q = reactive.query(Pos);
       // Outside reactive - returns raw archetypes
       for (const arch of q) {
-        expect(arch.entity_count).toBe(1);
+        expect(arch.entityCount).toBe(1);
       }
     });
 
     it("iterating returns reactive archetypes in reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -90,7 +90,7 @@ describe("ReactiveECS", () => {
         const countMemo = createMemo(() => {
           let total = 0;
           for (const arch of q) {
-            total += arch.entity_count;
+            total += arch.entityCount;
           }
           return total;
         });
@@ -104,12 +104,12 @@ describe("ReactiveECS", () => {
 
   describe("resource", () => {
     it("returns raw resource values outside reactive scope", () => {
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0,
         elapsed: 0,
       });
-      ecs.set_resource(Time, { delta: 0.016, elapsed: 1.0 });
+      ecs.setResource(Time, { delta: 0.016, elapsed: 1.0 });
       ecs.startup();
 
       const time = reactive.resource(Time);
@@ -118,8 +118,8 @@ describe("ReactiveECS", () => {
     });
 
     it("tracks resource field in reactive scope", () => {
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -132,7 +132,7 @@ describe("ReactiveECS", () => {
         expect(deltaMemo()).toBe(0);
 
         // Update resource and dirty
-        ecs.set_resource(Time, { delta: 0.016, elapsed: 1.0 });
+        ecs.setResource(Time, { delta: 0.016, elapsed: 1.0 });
         reactive.dirty(`${time.resourceKey}:delta`);
         
         flush();
@@ -144,8 +144,8 @@ describe("ReactiveECS", () => {
     });
 
     it("get method works outside reactive scope", () => {
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
@@ -159,10 +159,10 @@ describe("ReactiveECS", () => {
 
   describe("entity", () => {
     it("returns raw component status outside reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const Tag = ecs.register_tag();
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const Tag = ecs.registerTag();
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const entity = reactive.entity(e);
@@ -171,9 +171,9 @@ describe("ReactiveECS", () => {
     });
 
     it("tracks component status in reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -183,7 +183,7 @@ describe("ReactiveECS", () => {
         expect(hasPosMemo()).toBe(true);
 
         // Dirty to trigger re-evaluation
-        reactive.dirty(`entity:${e}:has:${Pos}`);
+        reactive.dirty(`entity:${e}:has:${Pos.id}`);
         
         flush();
         
@@ -194,9 +194,9 @@ describe("ReactiveECS", () => {
     });
 
     it("returns raw field values outside reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1.5, y: 2.5 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1.5, y: 2.5 });
       ecs.startup();
 
       const entity = reactive.entity(e);
@@ -205,9 +205,9 @@ describe("ReactiveECS", () => {
     });
 
     it("tracks field values in reactive scope", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -217,7 +217,7 @@ describe("ReactiveECS", () => {
         expect(xMemo()).toBe(1);
 
         // Dirty to trigger re-evaluation
-        reactive.dirty(`entity:${e}:${Pos}:x`);
+        reactive.dirty(`entity:${e}:${Pos.id}:x`);
         
         flush();
         
@@ -228,9 +228,9 @@ describe("ReactiveECS", () => {
     });
 
     it("returns entity id", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const entity = reactive.entity(e);
@@ -240,9 +240,9 @@ describe("ReactiveECS", () => {
 
   describe("performance - no map allocations outside reactive scope", () => {
     it("query does not populate internal maps when read outside reactive", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const q = reactive.query(Pos);
@@ -252,8 +252,8 @@ describe("ReactiveECS", () => {
     });
 
     it("resource does not populate internal maps when read outside reactive", () => {
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
@@ -265,9 +265,9 @@ describe("ReactiveECS", () => {
     });
 
     it("entity does not populate internal maps when read outside reactive", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       const entity = reactive.entity(e);
@@ -277,14 +277,14 @@ describe("ReactiveECS", () => {
     });
 
     it("maps are cleaned up when reference count hits zero", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0.016,
         elapsed: 1.0,
       });
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -315,7 +315,7 @@ describe("ReactiveECS", () => {
 
   describe("auto-dirty on write methods", () => {
     it("create_entity triggers query reactivity", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
+      const Pos = ecs.registerComponent(["x", "y"] as const);
       ecs.startup();
 
       createRoot((dispose) => {
@@ -325,8 +325,8 @@ describe("ReactiveECS", () => {
         expect(countMemo()).toBe(0);
 
         // Create entity via reactive wrapper - should auto-trigger
-        const e = reactive.create_entity();
-        reactive.add_component(e, Pos, { x: 1, y: 2 });
+        const e = reactive.createEntity();
+        reactive.addComponent(e, Pos, { x: 1, y: 2 });
         
         flush();
         
@@ -337,9 +337,9 @@ describe("ReactiveECS", () => {
     });
 
     it("add_component triggers entity and query reactivity", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const Tag = ecs.register_tag();
-      const e = ecs.create_entity();
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const Tag = ecs.registerTag();
+      const e = ecs.createEntity();
       ecs.startup();
 
       createRoot((dispose) => {
@@ -351,8 +351,8 @@ describe("ReactiveECS", () => {
         expect(hasTagMemo()).toBe(false);
 
         // Add component via reactive wrapper - should auto-trigger
-        reactive.add_component(e, Pos, { x: 1, y: 2 });
-        reactive.add_component(e, Tag);
+        reactive.addComponent(e, Pos, { x: 1, y: 2 });
+        reactive.addComponent(e, Tag);
         
         flush();
         
@@ -364,9 +364,9 @@ describe("ReactiveECS", () => {
     });
 
     it("set_field triggers entity field reactivity", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 0, y: 0 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 0, y: 0 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -376,7 +376,7 @@ describe("ReactiveECS", () => {
         expect(xMemo()).toBe(0);
 
         // Set field via reactive wrapper - should auto-trigger
-        reactive.set_field(e, Pos, "x", 5);
+        reactive.setField(e, Pos, "x", 5);
         
         flush();
         
@@ -387,8 +387,8 @@ describe("ReactiveECS", () => {
     });
 
     it("set_resource triggers resource reactivity", () => {
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0,
         elapsed: 0,
       });
@@ -401,7 +401,7 @@ describe("ReactiveECS", () => {
         expect(deltaMemo()).toBe(0);
 
         // Set resource via reactive wrapper - should auto-trigger
-        reactive.set_resource(Time, { delta: 0.016, elapsed: 1.0 });
+        reactive.setResource(Time, { delta: 0.016, elapsed: 1.0 });
         
         flush();
         
@@ -412,9 +412,9 @@ describe("ReactiveECS", () => {
     });
 
     it("remove_component triggers entity reactivity", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const e = ecs.create_entity();
-      ecs.add_component(e, Pos, { x: 1, y: 2 });
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const e = ecs.createEntity();
+      ecs.addComponent(e, Pos, { x: 1, y: 2 });
       ecs.startup();
 
       createRoot((dispose) => {
@@ -424,7 +424,7 @@ describe("ReactiveECS", () => {
         expect(hasPosMemo()).toBe(true);
 
         // Remove component via reactive wrapper - should auto-trigger
-        reactive.remove_component(e, Pos);
+        reactive.removeComponent(e, Pos);
         
         flush();
         
@@ -437,26 +437,26 @@ describe("ReactiveECS", () => {
 
   describe("serialization", () => {
     it("serializes, deserializes, and hashes deterministically", () => {
-      const Pos = ecs.register_component(["x", "y"] as const);
-      const Tag = ecs.register_tag();
-      const Time = resource_key<{ delta: number; elapsed: number }>("Time");
-      ecs.register_resource(Time, {
+      const Pos = ecs.registerComponent(["x", "y"] as const);
+      const Tag = ecs.registerTag();
+      const Time = resourceKey<{ delta: number; elapsed: number }>("Time");
+      ecs.registerResource(Time, {
         delta: 0,
         elapsed: 0,
       });
 
-      const entity = reactive.create_entity();
-      reactive.add_component(entity, Pos, { x: 3.5, y: 7.25 });
-      reactive.add_component(entity, Tag);
-      reactive.set_resource(Time, { delta: 0.016, elapsed: 12 });
+      const entity = reactive.createEntity();
+      reactive.addComponent(entity, Pos, { x: 3.5, y: 7.25 });
+      reactive.addComponent(entity, Tag);
+      reactive.setResource(Time, { delta: 0.016, elapsed: 12 });
       ecs.startup();
 
       const snapshot = reactive.serialize();
       const hashBefore = reactive.hash();
 
-      reactive.set_field(entity, Pos, "x", 99);
-      reactive.remove_component(entity, Tag);
-      reactive.set_resource(Time, { delta: 1, elapsed: 2 });
+      reactive.setField(entity, Pos, "x", 99);
+      reactive.removeComponent(entity, Tag);
+      reactive.setResource(Time, { delta: 1, elapsed: 2 });
 
       reactive.deserialize(snapshot);
 

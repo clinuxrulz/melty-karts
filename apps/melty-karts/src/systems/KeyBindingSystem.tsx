@@ -8,7 +8,7 @@ import { untrack } from "@solidjs/web";
 
 export function createKeyBindingSystem(ecs: ReactiveECS): System {
   let goBack = () => {
-    ecs.set_resource(
+    ecs.setResource(
       RegisteredMasterState,
       {
         masterState: MasterState.INTRO_SCREEN,
@@ -38,7 +38,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
         useItemKey: keyBindings2.get("useItemKey"),
       };
       newKeyBindings[k] = newKeyId;
-      ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
+      ecs.setResource(RegisteredKeyBindings, newKeyBindings);
       freeStringId(oldKeyId);
       let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>]: string } = {
         upKey: lookupString(newKeyBindings.upKey),
@@ -68,7 +68,7 @@ export function createKeyBindingSystem(ecs: ReactiveECS): System {
       driftKey: keyBindings2.get("driftKey"),
       useItemKey: allocStringId("Enter"),
     };
-    ecs.set_resource(RegisteredKeyBindings, newKeyBindings);
+    ecs.setResource(RegisteredKeyBindings, newKeyBindings);
     let toSave: { [k in GetKeys<typeof RegisteredKeyBindings>]: string } = {
       upKey: lookupString(newKeyBindings.upKey),
       downKey: lookupString(newKeyBindings.downKey),

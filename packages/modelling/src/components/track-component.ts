@@ -8,7 +8,7 @@ import { ComponentDefGetDataType, ComponentDefGetSchemaType } from "./util";
  * @returns 
  */
 export function mkTrackComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     width: "f32",
   });
 }

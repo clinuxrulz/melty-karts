@@ -4,17 +4,17 @@ import { IdGenResource } from "./id-gen-resource";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 
 export function mkId(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     id: "i32",
   });
 }
 
 export function getOrCreateId(registry: ComponentRegistry, ecs: ReactiveECS, entityId: EntityID): number {
-  if (ecs.ecs.has_component(entityId, registry.Id)) {
-    return ecs.ecs.get_field(entityId, registry.Id, "id");
+  if (ecs.ecs.hasComponent(entityId, registry.Id)) {
+    return ecs.ecs.getField(entityId, registry.Id, "id");
   }
   let idGen = ecs.ecs.resource(IdGenResource);
   let id = idGen.nextId++;
-  ecs.add_component(entityId, registry.Id, { "id": id, });
+  ecs.addComponent(entityId, registry.Id, { "id": id, });
   return id;
 }

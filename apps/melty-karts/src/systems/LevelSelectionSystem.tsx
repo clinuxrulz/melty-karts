@@ -9,7 +9,7 @@ export function createLevelSelectionSystem(
   ecs: ReactiveECS,
 ): System {
   let loadProceduralLevel = () => {
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME, });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME, });
   };
   let loadNewLevel = async () => {
     let level = await fetch(/* @vite-ignore */"./levels/test-level.melty-karts-level");
@@ -19,7 +19,7 @@ export function createLevelSelectionSystem(
       ecs,
       levelData,
     );
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME_V2, });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME_V2, });
   };
   const UI: Component = () => {
     return (

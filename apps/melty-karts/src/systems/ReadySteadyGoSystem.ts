@@ -17,7 +17,7 @@ export function createReadySteadyGoSystem(ecs: ReactiveECS): System {
       readySteadyGoStage: res.get("readySteadyGoStage"),
       readySteadyGoCurrentTimeout: res.get("readySteadyGoCurrentTimeout"),
     });
-    ecs.set_resource(RegisteredInGameState, newState);
+    ecs.setResource(RegisteredInGameState, newState);
   };
   return {
     update(dt) {

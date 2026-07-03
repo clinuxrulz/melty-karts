@@ -18,10 +18,10 @@ export function createAISystem(ecs: ReactiveECS): System {
       if (!trackCurve) return;
 
       for (const arch of ecs.query(RegisteredAIControlled)) {
-        const entityIds = arch.entity_ids;
-        const targetTs = arch.get_column(RegisteredAIControlled, "targetT") as Float64Array;
+        const entityIds = arch.entityIds;
+        const targetTs = arch.getColumnRead(RegisteredAIControlled, "targetT") as Float64Array;
 
-        for (let i = 0; i < arch.entity_count; i++) {
+        for (let i = 0; i < arch.entityCount; i++) {
           const entityId = entityIds[i] as EntityID;
           let currentT = targetTs[i];
 
@@ -45,7 +45,7 @@ export function createAISystem(ecs: ReactiveECS): System {
             }
           }
           currentT = bestT;
-          ecs.set_field(entityId, RegisteredAIControlled, "targetT", currentT);
+          ecs.setField(entityId, RegisteredAIControlled, "targetT", currentT);
 
           // Aim for a point further ahead (increasing T)
           const lookAheadT = (currentT + 0.01) % 1;

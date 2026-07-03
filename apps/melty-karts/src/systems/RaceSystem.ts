@@ -23,8 +23,8 @@ export function createRaceSystem(ecs: ReactiveECS): System {
       let allFinished = true;
 
       for (const arch of ecs.query(RegisteredRaceStats, RegisteredPosition)) {
-        const entityIds = arch.entity_ids;
-        for (let i = 0; i < arch.entity_count; i++) {
+        const entityIds = arch.entityIds;
+        for (let i = 0; i < arch.entityCount; i++) {
           const entityId = entityIds[i] as EntityID;
           const entity = ecs.entity(entityId);
           
@@ -51,7 +51,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
                 finished = 1;
                 // Once finished, ensure AI takes over
                 if (!ecs.entity(entityId).hasComponent(RegisteredAIControlled)) {
-                  ecs.add_component(entityId, RegisteredAIControlled, { targetT: currentT });
+                  ecs.addComponent(entityId, RegisteredAIControlled, { targetT: currentT });
                 }
               }
             } else if (lastT < 0.2 && currentT > 0.8) {
@@ -62,10 +62,10 @@ export function createRaceSystem(ecs: ReactiveECS): System {
 
           const progress = finished ? MAX_LAPS : laps + currentT;
 
-          ecs.set_field(entityId, RegisteredRaceStats, "laps", laps);
-          ecs.set_field(entityId, RegisteredRaceStats, "lastT", currentT);
-          ecs.set_field(entityId, RegisteredRaceStats, "progress", progress);
-          ecs.set_field(entityId, RegisteredRaceStats, "finished", finished);
+          ecs.setField(entityId, RegisteredRaceStats, "laps", laps);
+          ecs.setField(entityId, RegisteredRaceStats, "lastT", currentT);
+          ecs.setField(entityId, RegisteredRaceStats, "progress", progress);
+          ecs.setField(entityId, RegisteredRaceStats, "finished", finished);
 
           entities.push({ id: entityId, progress, finished, rank });
         }
@@ -82,7 +82,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
           const takenRanks = entities.map(e => e.rank).filter(r => r > 0);
           const nextRank = takenRanks.length > 0 ? Math.max(...takenRanks) + 1 : 1;
           ent.rank = nextRank;
-          ecs.set_field(ent.id, RegisteredRaceStats, "rank", nextRank);
+          ecs.setField(ent.id, RegisteredRaceStats, "rank", nextRank);
         }
       });
 
@@ -104,11 +104,11 @@ export function createRaceSystem(ecs: ReactiveECS): System {
         
         // Update individual rank if it has LocalPlayerPosition component
         if (ecs.entity(ent.id).hasComponent(RegisteredLocalPlayerPosition)) {
-          ecs.set_field(ent.id, RegisteredLocalPlayerPosition, "rank", currentRank);
+          ecs.setField(ent.id, RegisteredLocalPlayerPosition, "rank", currentRank);
         }
       });
 
-       ecs.set_resource(RegisteredRaceRankings, {
+       ecs.setResource(RegisteredRaceRankings, {
         rank1: rankings.rank1 ?? -1,
         rank2: rankings.rank2 ?? -1,
         rank3: rankings.rank3 ?? -1,
@@ -123,7 +123,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
       if (allFinished && entities.length > 0) {
         const results = ecs.resource(RegisteredRaceResults);
         if (results.get("finished") === 0) {
-          ecs.set_resource(RegisteredRaceResults, { finished: 1 });
+          ecs.setResource(RegisteredRaceResults, { finished: 1 });
         }
       }
     },

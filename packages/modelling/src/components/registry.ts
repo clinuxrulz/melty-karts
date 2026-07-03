@@ -19,13 +19,11 @@ import { mkCoyoteTimeComponent } from "./coyote-time-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
-  let componentTypeToSchemaMap = new Map<ComponentDef<ComponentSchema>,ComponentSchema>();
-  // schema grabber
-  // <S extends Record<string, TypedArrayTag>>(schema: S): ComponentDef<S>
-  function register_component<S extends ComponentSchema>(schema: S): ComponentDef<S> {
-    let componentDef = ecs.register_component(schema);
+  let componentTypeToSchemaMap = new Map<ComponentDef, ComponentSchema>();
+  function registerComponent<S extends ComponentSchema>(schema: S): ComponentDef<S> {
+    let componentDef = ecs.registerComponent(schema);
     componentTypeToSchemaMap.set(
-      componentDef,
+      componentDef as ComponentDef,
       schema,
     );
     return componentDef;
@@ -34,8 +32,8 @@ export function registerComponents(ecs: ECS) {
     ecs,
     {
       get(target, p, receiver) {
-        if (p === "register_component") {
-          return register_component;
+        if (p === "registerComponent") {
+          return registerComponent;
         } else {
           return Reflect.get(target, p, receiver);
         }

@@ -7,7 +7,7 @@ export function rng(ecs: ReactiveECS): number {
   let seed = ecs.ecs.resource(RegisteredRng).seed;
   mulberry32v2(seed, _rnd_result);
   seed = _rnd_result[0];
-  ecs.set_resource(RegisteredRng, { seed, });
+  ecs.setResource(RegisteredRng, { seed, });
   return _rnd_result[1];
 }
 
@@ -23,13 +23,13 @@ export function mulberry32v2(seed: number, out: [ seed: number, value: number, ]
 
 export function getFreeEntityOrCreate(ecs: ReactiveECS): EntityID {
   let query = ecs.ecs.query(RegisteredFreeEntity);
-  for (let i = 0; i < query.archetype_count; ++i) {
+  for (let i = 0; i < query.archetypeCount; ++i) {
     let arch = query.archetypes[i];
-    for (let j = 0; j < arch.entity_count; ++j) {
-      let entityId = arch.entity_ids[j] as EntityID;
-      ecs.remove_component(entityId, RegisteredFreeEntity);
+    for (let j = 0; j < arch.entityCount; ++j) {
+      let entityId = arch.entityIds[j] as EntityID;
+      ecs.removeComponent(entityId, RegisteredFreeEntity);
       return entityId;
     }
   }
-  return ecs.create_entity();
+  return ecs.createEntity();
 }

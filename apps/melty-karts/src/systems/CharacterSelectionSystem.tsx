@@ -89,13 +89,13 @@ export function createCharacterSelectionSystem(ecs: ReactiveECS): System {
 
   const onConfirm = () => {
     setConfirmed(true);
-    ecs.set_resource(RegisteredLocalPlayerConfig, { playerType: selectedCharacter() });
+    ecs.setResource(RegisteredLocalPlayerConfig, { playerType: selectedCharacter() });
     const mode = ecs.resource(RegisteredGameMode).get("mode");
     if (mode === 1) {
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
+      ecs.setResource(RegisteredMasterState, { masterState: MasterState.MULTIPLAYER_LOBBY });
     } else {
-      //ecs.set_resource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
-      ecs.set_resource(RegisteredMasterState, { masterState: MasterState.LEVEL_SELECTION, });
+      //ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+      ecs.setResource(RegisteredMasterState, { masterState: MasterState.LEVEL_SELECTION, });
     }
   };
 

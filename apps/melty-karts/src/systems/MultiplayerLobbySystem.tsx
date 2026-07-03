@@ -192,8 +192,8 @@ export function createMultiplayerLobbySystem(ecs: ReactiveECS): System {
             <button
               onClick={() => {
                 multiplayerSession.leave();
-                ecs.set_resource(RegisteredGameMode, { mode: 0 });
-                ecs.set_resource(RegisteredMasterState, { masterState: MasterState.INTRO_SCREEN });
+                ecs.setResource(RegisteredGameMode, { mode: 0 });
+                ecs.setResource(RegisteredMasterState, { masterState: MasterState.INTRO_SCREEN });
               }}
               style={{ ...btnStyle("#222", "#fff"), flex: 1, "font-size": "14px" }}
             >

@@ -13,7 +13,7 @@ export const UFO_BEAMING_TIMEOUT = 2.0;
 export const UFO_FLY_OFF_TIMEOUT = 5.0;
 
 export function mkUfoComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     /**
      * The current `UfoStage`.
      */

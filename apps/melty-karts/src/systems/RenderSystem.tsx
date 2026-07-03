@@ -107,13 +107,13 @@ export function createRenderSystem(
           }
         }
         for (let arch of ecs.query(RegisteredMysteryBox)) {
-          let entityIds = arch.entity_ids;
-          for (let i = 0; i < arch.entity_count; ++i) {
+          let entityIds = arch.entityIds;
+          for (let i = 0; i < arch.entityCount; ++i) {
             let mysteryBoxId = entityIds[i] as EntityID;
             let mysteryBox = ecs.entity(mysteryBoxId);
             let angle = mysteryBox.getField(RegisteredMysteryBox, "angle");
             angle += 2.0 * dt;
-            ecs.set_field(mysteryBoxId, RegisteredMysteryBox, "angle", angle);
+            ecs.setField(mysteryBoxId, RegisteredMysteryBox, "angle", angle);
           }
         }
         updateListeners.forEach((u) => u(dt));
@@ -127,8 +127,8 @@ export function createRenderSystem(
             <For each={(() => {
               let result: EntityID[] = [];
               for (let arch of ecs.query(RegisteredPosition, RegisteredOrientation, RegisteredPlayerConfig)) {
-                let entityIds = arch.entity_ids;
-                for (let i = 0; i < arch.entity_count; ++i) {
+                let entityIds = arch.entityIds;
+                for (let i = 0; i < arch.entityCount; ++i) {
                   result.push(entityIds[i] as EntityID);
                 }
               }
@@ -198,8 +198,8 @@ export function createRenderSystem(
             <For each={(() => {
               let result: EntityID[] = [];
               for (let arch of ecs.query(RegisteredPosition, RegisteredMysteryBox)) {
-                let entityIds = arch.entity_ids;
-                for (let i = 0; i < arch.entity_count; ++i) {
+                let entityIds = arch.entityIds;
+                for (let i = 0; i < arch.entityCount; ++i) {
                   result.push(entityIds[i] as EntityID);
                 }
               }
@@ -233,8 +233,8 @@ export function createRenderSystem(
               each={(() => {
                 let result: EntityID[] = [];
                 for (let arch of ecs.query(RegisteredCarriedItem, RegisteredPosition)) {
-                  for (let i = 0; i < arch.entity_count; ++i) {
-                    let entityId: EntityID = arch.entity_ids[i] as EntityID;
+                  for (let i = 0; i < arch.entityCount; ++i) {
+                    let entityId: EntityID = arch.entityIds[i] as EntityID;
                     result.push(entityId);
                   }
                 }

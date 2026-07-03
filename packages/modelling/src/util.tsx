@@ -5,14 +5,14 @@ import { JSX } from "@solidjs/web";
 
 export function entityGetComponentData<S extends ComponentSchema>(ecs: ReactiveECS, entityId: EntityID, componentDef: ComponentDef<S>): FieldValues<S> | undefined {
   let entity = ecs.entity(entityId);
-  if (!entity.hasComponent(componentDef)) {
+  if (!entity.hasComponent(componentDef as ComponentDef)) {
     return undefined;
   }
   return new Proxy<FieldValues<S>>(
     {} as any,
     {
       get(target, p, receiver) {
-        return entity.getField(componentDef, p as any);
+        return entity.getField(componentDef as ComponentDef, p as any);
       },
     },
   );

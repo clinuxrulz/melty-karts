@@ -15,17 +15,17 @@ export function createTitleScreenSystem(ecs: ReactiveECS): System {
   }
   const startSinglePlayer = () => {
     multiplayerSession.leave();
-    ecs.set_resource(RegisteredGameMode, { mode: 0 });
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
+    ecs.setResource(RegisteredGameMode, { mode: 0 });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
   };
 
   const startMultiplayer = () => {
-    ecs.set_resource(RegisteredGameMode, { mode: 1 });
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
+    ecs.setResource(RegisteredGameMode, { mode: 1 });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.CHARACTER_SELECTION_SCREEN });
   };
 
   const startKeyBindings = () => {
-    ecs.set_resource(RegisteredMasterState, { masterState: MasterState.KEY_BINDINGS, });
+    ecs.setResource(RegisteredMasterState, { masterState: MasterState.KEY_BINDINGS, });
   };
 
   const UI: Component = () => {

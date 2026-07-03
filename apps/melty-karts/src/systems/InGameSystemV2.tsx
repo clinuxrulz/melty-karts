@@ -325,7 +325,7 @@ export function createInGameSystemV2(
     if (params.leftDown !== undefined) s.leftDown = params.leftDown ? 1 : 0;
     if (params.rightDown !== undefined) s.rightDown = params.rightDown ? 1 : 0;
     if (params.actionDown !== undefined) s.actionDown = params.actionDown ? 1 : 0;
-    ecs.set_resource(RegisteredKeyboardInput, s);
+    ecs.setResource(RegisteredKeyboardInput, s);
   };
   let keyDownListener = (e: KeyboardEvent) => {
     if (e.key === "ArrowUp") updateKeyboardInput({ upDown: true });
@@ -371,7 +371,7 @@ export function createInGameSystemV2(
         frame.forward.clone().multiplyScalar(-1.0),
       );
       let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
-      let playerId2 = ecs.create_entity();
+      let playerId2 = ecs.createEntity();
       {
         let ox = frame.position.x;
         let oy = frame.position.y + 0.5;
@@ -380,28 +380,28 @@ export function createInGameSystemV2(
         let qy = q.y;
         let qz = q.z;
         let qw = q.w;
-        ecs.add_component(playerId2, componentRegistry.Transform3D, {
+        ecs.addComponent(playerId2, componentRegistry.Transform3D, {
           ox, oy, oz, qx, qy, qz, qw,
         });
-        ecs.add_component(playerId2, componentRegistry.LastTransform3D, {
+        ecs.addComponent(playerId2, componentRegistry.LastTransform3D, {
           ox, oy, oz, qx, qy, qz, qw,
         });
       }
-      ecs.add_component(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.add_component(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.add_component(playerId2, componentRegistry.StillTime, { time: 0.0, });
-      ecs.add_component(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
-      ecs.add_component(playerId2, RegisteredPlayerConfig, {
+      ecs.addComponent(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
+      ecs.addComponent(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
+      ecs.addComponent(playerId2, componentRegistry.StillTime, { time: 0.0, });
+      ecs.addComponent(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
+      ecs.addComponent(playerId2, RegisteredPlayerConfig, {
         playerType: 0,
         facingForward: 1,
         useItemWasDown: 0,
       });
-      ecs.add_component(playerId2, RegisteredKartConfig, {
+      ecs.addComponent(playerId2, RegisteredKartConfig, {
         speed: 0.0,
       });
       setPlayerId(playerId2);
       onCleanup(() => {
-        ecs.destroy_entity_deferred(playerId2);
+        ecs.destroyEntity(playerId2);
       });
     },
   );
@@ -768,7 +768,7 @@ export function createInGameSystemV2(
       }
       steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
 
-      let coyoteTime = ecs.ecs.get_field(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout");
+      let coyoteTime = ecs.ecs.getField(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout");
       if (
         vehicle.wheelIsInContact(2) ||
         vehicle.wheelIsInContact(3)
@@ -789,7 +789,7 @@ export function createInGameSystemV2(
       } else {
         coyoteTime = 0.0;
       }
-      ecs.set_field(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout", coyoteTime);
+      ecs.setField(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout", coyoteTime);
       // Apply steering to front wheels (0 and 1)
       for (let i = 0; i <= 1; i++) {
         vehicle.setWheelSteering(i, steering);
@@ -813,79 +813,79 @@ export function createInGameSystemV2(
       let rot = chassisBody.rotation();
       let vel = chassisBody.linvel();
       let angVel = chassisBody.angvel();
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "ox",
         pos.x,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "oy",
         pos.y,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "oz",
         pos.z,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "qx",
         rot.x,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "qy",
         rot.y,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "qz",
         rot.z,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Transform3D,
         "qw",
         rot.w,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Velocity,
         "x",
         vel.x,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Velocity,
         "y",
         vel.y,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.Velocity,
         "z",
         vel.z,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.AngularVelocity,
         "x",
         angVel.x,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.AngularVelocity,
         "y",
         angVel.y,
       );
-      ecs.set_field(
+      ecs.setField(
         entityId,
         componentRegistry.AngularVelocity,
         "z",
@@ -896,13 +896,13 @@ export function createInGameSystemV2(
       // to the current transform.
       let isUfoTarget = ecs.entity(entityId).hasComponent(componentRegistry.UfoTarget);
       if (!isUfoTarget) {
-        let lastOx = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "ox");
-        let lastOy = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "oy");
-        let lastOz = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "oz");
-        let lastQx = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qx");
-        let lastQy = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qy");
-        let lastQz = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qz");
-        let lastQw = ecs.ecs.get_field(entityId, componentRegistry.LastTransform3D, "qw");
+        let lastOx = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "ox");
+        let lastOy = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "oy");
+        let lastOz = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "oz");
+        let lastQx = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "qx");
+        let lastQy = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "qy");
+        let lastQz = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "qz");
+        let lastQw = ecs.ecs.getField(entityId, componentRegistry.LastTransform3D, "qw");
         let movementTest =
           Math.abs(pos.x - lastOx)
           + Math.abs(pos.y - lastOy)
@@ -916,31 +916,31 @@ export function createInGameSystemV2(
           sendUfo = true;
         }
         if (movementTest > 0.01) {
-          ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "ox", pos.x);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "oy", pos.y);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "oz", pos.z);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qx", rot.x);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qy", rot.y);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qz", rot.z);
-          ecs.set_field(entityId, componentRegistry.LastTransform3D, "qw", rot.w);
+          ecs.setField(entityId, componentRegistry.StillTime, "time", 0.0);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "ox", pos.x);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "oy", pos.y);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "oz", pos.z);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "qx", rot.x);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "qy", rot.y);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "qz", rot.z);
+          ecs.setField(entityId, componentRegistry.LastTransform3D, "qw", rot.w);
         } else {
-          let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
+          let stillTime = ecs.ecs.getField(entityId, componentRegistry.StillTime, "time");
           if (stillTime >= 5.0) {
             sendUfo = true;
           } else {
             stillTime += dt;
-            ecs.set_field(entityId, componentRegistry.StillTime, "time", stillTime);
+            ecs.setField(entityId, componentRegistry.StillTime, "time", stillTime);
           }
         }
         if (sendUfo) {
           console.log("Send the UFO!");
           let ufoEntityId = getFreeEntityOrCreate(ecs);
-          ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
-          ecs.add_component(entityId, componentRegistry.UfoTarget, {
+          ecs.setField(entityId, componentRegistry.StillTime, "time", 0.0);
+          ecs.addComponent(entityId, componentRegistry.UfoTarget, {
             ufo: ufoEntityId,
           });
-          ecs.add_component(
+          ecs.addComponent(
             ufoEntityId,
             componentRegistry.Ufo,
             {
@@ -949,7 +949,7 @@ export function createInGameSystemV2(
               timeout: 0,
             },
           );
-          ecs.add_component(
+          ecs.addComponent(
             ufoEntityId,
             componentRegistry.Transform3D,
             {
@@ -965,9 +965,9 @@ export function createInGameSystemV2(
         }
       } else {
         if (pos.y < trackMinY - 100.0) {
-          ecs.set_field(entityId, componentRegistry.Velocity, "x", 0.0);
-          ecs.set_field(entityId, componentRegistry.Velocity, "y", 0.0);
-          ecs.set_field(entityId, componentRegistry.Velocity, "z", 0.0);
+          ecs.setField(entityId, componentRegistry.Velocity, "x", 0.0);
+          ecs.setField(entityId, componentRegistry.Velocity, "y", 0.0);
+          ecs.setField(entityId, componentRegistry.Velocity, "z", 0.0);
         }
       }
     }
@@ -998,18 +998,18 @@ export function createInGameSystemV2(
     // Ufo
     {
       let query = ecs.ecs.query(componentRegistry.Ufo, componentRegistry.Transform3D);
-      for (let i = 0; i < query.archetype_count; ++i) {
+      for (let i = 0; i < query.archetypeCount; ++i) {
         let arch = query.archetypes[i];
-        for (let j = 0; j < arch.entity_count; ++j) {
-          let ufoEntityId = arch.entity_ids[j] as EntityID;
-          let ufoStage = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "stage") as UfoStage;
-          let targetEntityId = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "target") as EntityID;
-          let ufoPosX = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "ox");
-          let ufoPosY = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oy");
-          let ufoPosZ = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "oz");
-          let targetPosX = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "ox");
-          let targetPosY = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "oy");
-          let targetPosZ = ecs.ecs.get_field(targetEntityId, componentRegistry.Transform3D, "oz");
+        for (let j = 0; j < arch.entityCount; ++j) {
+          let ufoEntityId = arch.entityIds[j] as EntityID;
+          let ufoStage = ecs.ecs.getField(ufoEntityId, componentRegistry.Ufo, "stage") as UfoStage;
+          let targetEntityId = ecs.ecs.getField(ufoEntityId, componentRegistry.Ufo, "target") as EntityID;
+          let ufoPosX = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "ox");
+          let ufoPosY = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "oy");
+          let ufoPosZ = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "oz");
+          let targetPosX = ecs.ecs.getField(targetEntityId, componentRegistry.Transform3D, "ox");
+          let targetPosY = ecs.ecs.getField(targetEntityId, componentRegistry.Transform3D, "oy");
+          let targetPosZ = ecs.ecs.getField(targetEntityId, componentRegistry.Transform3D, "oz");
           switch (ufoStage) {
             case UfoStage.CHASING_KART: {
               let dx = (targetPosX - ufoPosX);
@@ -1018,37 +1018,37 @@ export function createInGameSystemV2(
               ufoPosX += dx * 0.02;
               ufoPosY += dy * 0.02;
               ufoPosZ += dz * 0.02;
-              ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
-              ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
-              ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
+              ecs.setField(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
+              ecs.setField(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
+              ecs.setField(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
               let d = dx * dx + dy * dy + dz * dz;
               if (d <= 0.1 * 0.1) {
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.BEAMING_UP_KART);
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_BEAMING_TIMEOUT);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.BEAMING_UP_KART);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_BEAMING_TIMEOUT);
               }
               break;
             }
             case UfoStage.BEAMING_UP_KART: {
-              let timeout = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "timeout");
+              let timeout = ecs.ecs.getField(ufoEntityId, componentRegistry.Ufo, "timeout");
               timeout -= dt;
               let a = Math.max(0, 1 - timeout / UFO_BEAMING_TIMEOUT);
               targetPosX += a * (ufoPosX - targetPosX);
               targetPosY += a * (ufoPosY - targetPosY);
               targetPosZ += a * (ufoPosZ - targetPosZ);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
-              ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "x", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "y", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.Velocity, "z", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
-              ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
+              ecs.setField(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
+              ecs.setField(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
+              ecs.setField(targetEntityId, componentRegistry.Velocity, "x", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.Velocity, "y", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.Velocity, "z", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
+              ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
               if (timeout > 0.0) {
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
               } else {
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", 0.0);
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.MOVING_KART);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", 0.0);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.MOVING_KART);
               }
               break;
             }
@@ -1065,16 +1065,16 @@ export function createInGameSystemV2(
                 targetPosX = ufoPosX;
                 targetPosY = ufoPosY;
                 targetPosZ = ufoPosZ;
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "ox", ufoPosX);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "oz", ufoPosZ);
                 let d = dx * dx + dy * dy + dz * dz;
                 if (d <= 0.1 * 0.1) {
-                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.BEAMING_DOWN_KART);
-                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_BEAMING_TIMEOUT);
+                  ecs.setField(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.BEAMING_DOWN_KART);
+                  ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_BEAMING_TIMEOUT);
                 }
               }
               break;
@@ -1091,60 +1091,60 @@ export function createInGameSystemV2(
                   new THREE.Vector3().crossVectors(right, up),
                 );
                 let rot = new THREE.Quaternion().setFromRotationMatrix(matrix);
-                let timeout = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "timeout");
+                let timeout = ecs.ecs.getField(ufoEntityId, componentRegistry.Ufo, "timeout");
                 timeout -= dt;
                 let a = Math.max(0, 1 - timeout / UFO_BEAMING_TIMEOUT);
                 targetPosX += a * (ufoPosX - targetPosX);
                 targetPosY += a * (ufoPosY - 2.0 - targetPosY);
                 targetPosZ += a * (ufoPosZ - targetPosZ);
-                let ufoRotX = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "qx");
-                let ufoRotY = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "qy");
-                let ufoRotZ = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "qz");
-                let ufoRotW = ecs.ecs.get_field(ufoEntityId, componentRegistry.Transform3D, "qw");
+                let ufoRotX = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "qx");
+                let ufoRotY = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "qy");
+                let ufoRotZ = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "qz");
+                let ufoRotW = ecs.ecs.getField(ufoEntityId, componentRegistry.Transform3D, "qw");
                 let q = new THREE.Quaternion(ufoRotX, ufoRotY, ufoRotZ, ufoRotW);
                 q.slerp(rot, Math.min(1.0, 3.0 * dt));
                 ufoRotX = q.x;
                 ufoRotY = q.y;
                 ufoRotZ = q.z;
                 ufoRotW = q.w;
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "qx", ufoRotX);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "qy", ufoRotY);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "qz", ufoRotZ);
-                ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "qw", ufoRotW);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qx", rot.x);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qy", rot.y);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qz", rot.z);
-                ecs.set_field(targetEntityId, componentRegistry.Transform3D, "qw", rot.w);
-                ecs.set_field(targetEntityId, componentRegistry.Velocity, "x", 0.0);
-                ecs.set_field(targetEntityId, componentRegistry.Velocity, "y", 0.0);
-                ecs.set_field(targetEntityId, componentRegistry.Velocity, "z", 0.0);
-                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
-                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
-                ecs.set_field(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "qx", ufoRotX);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "qy", ufoRotY);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "qz", ufoRotZ);
+                ecs.setField(ufoEntityId, componentRegistry.Transform3D, "qw", ufoRotW);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "ox", targetPosX);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "oy", targetPosY);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "oz", targetPosZ);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "qx", rot.x);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "qy", rot.y);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "qz", rot.z);
+                ecs.setField(targetEntityId, componentRegistry.Transform3D, "qw", rot.w);
+                ecs.setField(targetEntityId, componentRegistry.Velocity, "x", 0.0);
+                ecs.setField(targetEntityId, componentRegistry.Velocity, "y", 0.0);
+                ecs.setField(targetEntityId, componentRegistry.Velocity, "z", 0.0);
+                ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "x", 0.0);
+                ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "y", 0.0);
+                ecs.setField(targetEntityId, componentRegistry.AngularVelocity, "z", 0.0);
                 if (timeout > 0.0) {
-                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
+                  ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
                 } else {
-                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.FLY_OFF);
-                  ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_FLY_OFF_TIMEOUT);
-                  ecs.remove_component(targetEntityId, componentRegistry.UfoTarget);
+                  ecs.setField(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.FLY_OFF);
+                  ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_FLY_OFF_TIMEOUT);
+                  ecs.removeComponent(targetEntityId, componentRegistry.UfoTarget);
                 }
               }
               break;
             }
             case UfoStage.FLY_OFF: {
-              let timeout = ecs.ecs.get_field(ufoEntityId, componentRegistry.Ufo, "timeout");
+              let timeout = ecs.ecs.getField(ufoEntityId, componentRegistry.Ufo, "timeout");
               timeout -= dt;
               ufoPosY += 20.0 * dt;
-              ecs.set_field(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
+              ecs.setField(ufoEntityId, componentRegistry.Transform3D, "oy", ufoPosY);
               if (timeout > 0.0) {
-                ecs.set_field(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
+                ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
               } else {
-                ecs.remove_component(ufoEntityId, componentRegistry.Ufo);
-                ecs.remove_component(ufoEntityId, componentRegistry.Transform3D);
-                ecs.add_component(ufoEntityId, RegisteredFreeEntity);
+                ecs.removeComponent(ufoEntityId, componentRegistry.Ufo);
+                ecs.removeComponent(ufoEntityId, componentRegistry.Transform3D);
+                ecs.addComponent(ufoEntityId, RegisteredFreeEntity);
               }
               break;
             }
@@ -1156,50 +1156,50 @@ export function createInGameSystemV2(
     let camera2 = camera();
     let playerId2 = playerId();
     if (camera2 !== undefined && playerId2 !== undefined) {
-      let playerPosX = ecs.ecs.get_field(
+      let playerPosX = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "ox",
       );
-      let playerPosY = ecs.ecs.get_field(
+      let playerPosY = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "oy",
       );
-      let playerPosZ = ecs.ecs.get_field(
+      let playerPosZ = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "oz",
       );
-      let playerOrientX = ecs.ecs.get_field(
+      let playerOrientX = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "qx",
       );
-      let playerOrientY = ecs.ecs.get_field(
+      let playerOrientY = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "qy",
       );
-      let playerOrientZ = ecs.ecs.get_field(
+      let playerOrientZ = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "qz",
       );
-      let playerOrientW = ecs.ecs.get_field(
+      let playerOrientW = ecs.ecs.getField(
         playerId2,
         componentRegistry.Transform3D,
         "qw",
       );
-      if (ecs.ecs.has_component(playerId2, componentRegistry.UfoTarget)) {
-        let ufoId = ecs.ecs.get_field(playerId2, componentRegistry.UfoTarget, "ufo") as EntityID;
-        let ufoPosX = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "ox");
-        let ufoPosY = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "oy");
-        let ufoPosZ = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "oz");
-        let ufoOrientX = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qx");
-        let ufoOrientY = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qy");
-        let ufoOrientZ = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qz");
-        let ufoOrientW = ecs.ecs.get_field(ufoId, componentRegistry.Transform3D, "qw");
+      if (ecs.ecs.hasComponent(playerId2, componentRegistry.UfoTarget)) {
+        let ufoId = ecs.ecs.getField(playerId2, componentRegistry.UfoTarget, "ufo") as EntityID;
+        let ufoPosX = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "ox");
+        let ufoPosY = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "oy");
+        let ufoPosZ = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "oz");
+        let ufoOrientX = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "qx");
+        let ufoOrientY = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "qy");
+        let ufoOrientZ = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "qz");
+        let ufoOrientW = ecs.ecs.getField(ufoId, componentRegistry.Transform3D, "qw");
         tmpV1.set(ufoPosX, ufoPosY, ufoPosZ);
         tmpQ1.set(ufoOrientX, ufoOrientY, ufoOrientZ, ufoOrientW);
         tmpV2.set(0, 0, -10).applyQuaternion(tmpQ1).add(tmpV1);

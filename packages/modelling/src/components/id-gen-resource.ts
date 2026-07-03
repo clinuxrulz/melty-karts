@@ -1,11 +1,11 @@
-import { ECS, resource_key } from "@oasys/oecs";
+import { ECS, resourceKey } from "@oasys/oecs";
 
-export const IdGenResource = resource_key<{
+export const IdGenResource = resourceKey<{
   nextId: number,
 }>("IdGen");
 
 export function registerIdGenResource(ecs: ECS) {
-  ecs.register_resource(
+  ecs.registerResource(
     IdGenResource,
     {
       nextId: 0,

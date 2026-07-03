@@ -1,4 +1,4 @@
-import { ECS, resource_key } from "@oasys/oecs";
+import { ECS, resourceKey } from "@oasys/oecs";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import {
   Position,
@@ -25,10 +25,10 @@ const reactiveEcs = new ReactiveECS(baseEcs);
 /**
  * A tag to say an entity is not in use and can be re-used.
  * This is so we do not delete entities involved in rollback netcode, because
- * we can not control what `EntityID` gets returned by `create_entity` for the\
+ * we can not control what `EntityID` gets returned by `createEntity` for the\
  * case where entities reference other entities to form relations.
  */
-export const RegisteredFreeEntity = baseEcs.register_tag();
+export const RegisteredFreeEntity = baseEcs.registerTag();
 
 export const enum MasterState {
   INTRO_SCREEN = 0,
@@ -39,13 +39,13 @@ export const enum MasterState {
   IN_GAME = 5,
   IN_GAME_V2 = 6,
 };
-export const RegisteredMasterState = resource_key<{ masterState: MasterState }>("MasterState");
-baseEcs.register_resource(RegisteredMasterState, {
+export const RegisteredMasterState = resourceKey<{ masterState: MasterState }>("MasterState");
+baseEcs.registerResource(RegisteredMasterState, {
   "masterState": MasterState.INTRO_SCREEN,
 });
 
-export const RegisteredTime = resource_key<{ time: number }>("Time");
-baseEcs.register_resource(RegisteredTime, { time: 0.0 });
+export const RegisteredTime = resourceKey<{ time: number }>("Time");
+baseEcs.registerResource(RegisteredTime, { time: 0.0 });
 
 // For Handling the Ready-Steady-Go state at the start of the race
 export const enum ReadySteadyGoStage {
@@ -54,51 +54,51 @@ export const enum ReadySteadyGoStage {
   GO = 2,
 };
 
-export const RegisteredInGameState = resource_key<{
+export const RegisteredInGameState = resourceKey<{
   isReadySteadyGo: number;
   readySteadyGoStage: ReadySteadyGoStage;
   readySteadyGoCurrentTimeout: number;
 }>("InGameState");
-baseEcs.register_resource(RegisteredInGameState, {
+baseEcs.registerResource(RegisteredInGameState, {
   isReadySteadyGo: 0,
   readySteadyGoStage: ReadySteadyGoStage.READY,
   readySteadyGoCurrentTimeout: defaultReadySteadyGoConfig.readyBeep.duration,
 });
 
-export const RegisteredPreReadySteadyGoDelay = resource_key<{ delay: number }>("PreReadySteadyGoDelay");
-baseEcs.register_resource(RegisteredPreReadySteadyGoDelay, {
+export const RegisteredPreReadySteadyGoDelay = resourceKey<{ delay: number }>("PreReadySteadyGoDelay");
+baseEcs.registerResource(RegisteredPreReadySteadyGoDelay, {
   delay: 1.0,
 });
 
-export const RegisteredPreReadySteadyGoDelayFinished = resource_key<{ value: number }>("PreReadySteadyGoDelayFinished");
-baseEcs.register_resource(RegisteredPreReadySteadyGoDelayFinished, {
+export const RegisteredPreReadySteadyGoDelayFinished = resourceKey<{ value: number }>("PreReadySteadyGoDelayFinished");
+baseEcs.registerResource(RegisteredPreReadySteadyGoDelayFinished, {
   value: 0,
 });
 //
 
-export const RegisteredPosition = baseEcs.register_component(Position.def);
-export const RegisteredVelocity = baseEcs.register_component(Velocity.def);
-export const RegisteredOrientation = baseEcs.register_component(Orientation.def);
-export const RegisteredPlayerConfig = baseEcs.register_component(PlayerConfig.def);
-export const RegisteredInputControlled = baseEcs.register_component(InputControlled.def);
-export const RegisteredAIControlled = baseEcs.register_component(AIControlled.def);
-export const RegisteredRenderable = baseEcs.register_component(Renderable.def);
-export const RegisteredKartConfig = baseEcs.register_component(KartConfig.def);
-export const RegisteredKartRuntime = baseEcs.register_component(KartRuntime.def);
-export const RegisteredNetworkSlot = baseEcs.register_component(NetworkSlot.def);
-export const RegisteredRaceStats = baseEcs.register_component(RaceStats.def);
-export const RegisteredLocalPlayerPosition = baseEcs.register_component(LocalPlayerPosition.def);
+export const RegisteredPosition = baseEcs.registerComponent(Position.def);
+export const RegisteredVelocity = baseEcs.registerComponent(Velocity.def);
+export const RegisteredOrientation = baseEcs.registerComponent(Orientation.def);
+export const RegisteredPlayerConfig = baseEcs.registerComponent(PlayerConfig.def);
+export const RegisteredInputControlled = baseEcs.registerComponent(InputControlled.def);
+export const RegisteredAIControlled = baseEcs.registerComponent(AIControlled.def);
+export const RegisteredRenderable = baseEcs.registerComponent(Renderable.def);
+export const RegisteredKartConfig = baseEcs.registerComponent(KartConfig.def);
+export const RegisteredKartRuntime = baseEcs.registerComponent(KartRuntime.def);
+export const RegisteredNetworkSlot = baseEcs.registerComponent(NetworkSlot.def);
+export const RegisteredRaceStats = baseEcs.registerComponent(RaceStats.def);
+export const RegisteredLocalPlayerPosition = baseEcs.registerComponent(LocalPlayerPosition.def);
 
 export enum ObsticleType {
   Banana = 0,
   Rock = 1,
 }
-export const RegisteredObsticle = baseEcs.register_component({
+export const RegisteredObsticle = baseEcs.registerComponent({
   type: "u32"
 });
 
 export const MYSTERY_BOX_RESPAWN_TIMEOUT = 5.0;
-export const RegisteredMysteryBox = baseEcs.register_component({
+export const RegisteredMysteryBox = baseEcs.registerComponent({
   /**
    * Rotation angle about the Y-axis in radians
    */
@@ -126,7 +126,7 @@ export enum SlotMachinePhase {
  * This component gets attached to a player to represent the state of the slot
  * machine after the player collects a mystery box.
  */
-export const RegisteredSlotMachine = baseEcs.register_component({
+export const RegisteredSlotMachine = baseEcs.registerComponent({
   /**
    * Current phase of the slot machine.
    * See: `SlotMachinePhase`
@@ -142,7 +142,7 @@ export const RegisteredSlotMachine = baseEcs.register_component({
   "spinningOffset": "f32",
 });
 
-export const RegisteredHasCarriedItems = baseEcs.register_component({
+export const RegisteredHasCarriedItems = baseEcs.registerComponent({
   /**
    * Entity ID of the first carried item in the link list
    */
@@ -165,7 +165,7 @@ export enum Item {
   Banana = 4,
 }
 
-export const RegisteredCarriedItem = baseEcs.register_component({
+export const RegisteredCarriedItem = baseEcs.registerComponent({
   /**
    * Entity ID of the owner carrying the item
    */
@@ -191,19 +191,19 @@ export const RegisteredCarriedItem = baseEcs.register_component({
   maxDistance: "f32",
 });
 
-export const RegisteredBanana = baseEcs.register_tag();
+export const RegisteredBanana = baseEcs.registerTag();
 
 export const BOMB_INITIAL_TIMEOUT_UNTIL_EXPLOSION = 5.0;
-export const RegisteredBomb = baseEcs.register_component({
+export const RegisteredBomb = baseEcs.registerComponent({
   timeoutUntilExplosion: "f32",
 });
 
 export const EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE = 1.0;
-export const RegisteredExplosion = baseEcs.register_component({
+export const RegisteredExplosion = baseEcs.registerComponent({
   timeoutUntilGone: "f32",
 });
 
-export const Projectile = baseEcs.register_tag();
+export const Projectile = baseEcs.registerTag();
 
 let localStorageKeyBindings: object | null = null;
 {
@@ -237,7 +237,7 @@ function readStoredKeyBinding(
   return allocStringId(value);
 }
 
-export const RegisteredKeyBindings = resource_key<{
+export const RegisteredKeyBindings = resourceKey<{
   upKey: number;
   downKey: number;
   leftKey: number;
@@ -246,7 +246,7 @@ export const RegisteredKeyBindings = resource_key<{
   driftKey: number;
   useItemKey: number;
 }>("KeyBindings");
-baseEcs.register_resource(RegisteredKeyBindings, {
+baseEcs.registerResource(RegisteredKeyBindings, {
   upKey: readStoredKeyBinding("upKey", "ArrowUp"),
   downKey: readStoredKeyBinding("downKey", "ArrowDown"),
   leftKey: readStoredKeyBinding("leftKey", "ArrowLeft"),
@@ -256,22 +256,22 @@ baseEcs.register_resource(RegisteredKeyBindings, {
   useItemKey: readStoredKeyBinding("useItemKey", "Enter"),
 });
 
-export const RegisteredGlobalGravity = resource_key<{ x: number; y: number; z: number }>("GlobalGravity");
-baseEcs.register_resource(RegisteredGlobalGravity, GlobalGravity.schema);
+export const RegisteredGlobalGravity = resourceKey<{ x: number; y: number; z: number }>("GlobalGravity");
+baseEcs.registerResource(RegisteredGlobalGravity, GlobalGravity.schema);
 
-export const RegisteredSoundEnabled = resource_key<{ enabled: number }>("SoundEnabled");
-baseEcs.register_resource(RegisteredSoundEnabled, { enabled: 1 });
+export const RegisteredSoundEnabled = resourceKey<{ enabled: number }>("SoundEnabled");
+baseEcs.registerResource(RegisteredSoundEnabled, { enabled: 1 });
 
-export const RegisteredOrbitEnabled = resource_key<{ enabled: number }>("OrbitEnabled");
-baseEcs.register_resource(RegisteredOrbitEnabled, { enabled: 0 });
+export const RegisteredOrbitEnabled = resourceKey<{ enabled: number }>("OrbitEnabled");
+baseEcs.registerResource(RegisteredOrbitEnabled, { enabled: 0 });
 
-export const RegisteredGameMode = resource_key<{ mode: number }>("GameMode");
-baseEcs.register_resource(RegisteredGameMode, { mode: 0 });
+export const RegisteredGameMode = resourceKey<{ mode: number }>("GameMode");
+baseEcs.registerResource(RegisteredGameMode, { mode: 0 });
 
-export const RegisteredLocalPlayerConfig = resource_key<{ playerType: PlayerTypeEnum }>("LocalPlayerConfig");
-baseEcs.register_resource(RegisteredLocalPlayerConfig, { playerType: 0 as PlayerTypeEnum });
+export const RegisteredLocalPlayerConfig = resourceKey<{ playerType: PlayerTypeEnum }>("LocalPlayerConfig");
+baseEcs.registerResource(RegisteredLocalPlayerConfig, { playerType: 0 as PlayerTypeEnum });
 
-export const RegisteredKeyboardInput = resource_key<{
+export const RegisteredKeyboardInput = resourceKey<{
   upDown: number;
   downDown: number;
   leftDown: number;
@@ -280,7 +280,7 @@ export const RegisteredKeyboardInput = resource_key<{
   driftDown: number;
   useItemDown: number;
 }>("KeyboardInput");
-baseEcs.register_resource(RegisteredKeyboardInput, {
+baseEcs.registerResource(RegisteredKeyboardInput, {
   upDown: 0,
   downDown: 0,
   leftDown: 0,
@@ -290,20 +290,20 @@ baseEcs.register_resource(RegisteredKeyboardInput, {
   useItemDown: 0,
 });
 
-export const RegisteredJoystickInput = resource_key<{ joystickX: number; joystickY: number }>("JoystickInput");
-baseEcs.register_resource(RegisteredJoystickInput, {
+export const RegisteredJoystickInput = resourceKey<{ joystickX: number; joystickY: number }>("JoystickInput");
+baseEcs.registerResource(RegisteredJoystickInput, {
   joystickX: 0.0,
   joystickY: 0.0,
 });
 
 export const MAX_LAPS = 3;
 
-export const RegisteredRaceResults = resource_key<{ finished: number }>("RaceResults");
-baseEcs.register_resource(RegisteredRaceResults, {
+export const RegisteredRaceResults = resourceKey<{ finished: number }>("RaceResults");
+baseEcs.registerResource(RegisteredRaceResults, {
   finished: 0, // 0: in progress, 1: results ready
 });
 
-export const RegisteredRaceRankings = resource_key<{
+export const RegisteredRaceRankings = resourceKey<{
   rank1: number;
   rank2: number;
   rank3: number;
@@ -311,7 +311,7 @@ export const RegisteredRaceRankings = resource_key<{
   rank5: number;
   rank6: number;
 }>("RaceRankings");
-baseEcs.register_resource(RegisteredRaceRankings, {
+baseEcs.registerResource(RegisteredRaceRankings, {
   rank1: -1, // EntityIDs or -1
   rank2: -1,
   rank3: -1,
@@ -320,8 +320,8 @@ baseEcs.register_resource(RegisteredRaceRankings, {
   rank6: -1,
 });
 
-export const RegisteredRng = resource_key<{ seed: number }>("Rng");
-baseEcs.register_resource(RegisteredRng, {
+export const RegisteredRng = resourceKey<{ seed: number }>("Rng");
+baseEcs.registerResource(RegisteredRng, {
   seed: 42,
 });
 
@@ -330,9 +330,9 @@ export function World(): {
 } {
   baseEcs.startup();
   
-  //baseEcs.set_resource(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
-  baseEcs.set_resource(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
-  baseEcs.set_resource(RegisteredJoystickInput, { joystickX: 0.0, joystickY: 0.0, });
+  //baseEcs.setResource(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
+  baseEcs.setResource(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
+  baseEcs.setResource(RegisteredJoystickInput, { joystickX: 0.0, joystickY: 0.0, });
   
   return {
     ecs: reactiveEcs,

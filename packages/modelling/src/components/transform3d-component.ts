@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { ComponentDefGetDataType } from "./util";
 
 export function mkTransform3DComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     ox: "f32",
     oy: "f32",
     oz: "f32",

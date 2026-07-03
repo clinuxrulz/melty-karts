@@ -97,7 +97,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     ecs.resource(RegisteredSoundEnabled).get("enabled") != 0
   );
   let setSoundEnabled = (x: boolean) => {
-    ecs.set_resource(
+    ecs.setResource(
       RegisteredSoundEnabled,
       {
         enabled: x ? 1 : 0,
@@ -108,7 +108,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     ecs.resource(RegisteredOrbitEnabled).get("enabled") != 0
   );
   let setOrbitEnabled = (x: boolean) => {
-    ecs.set_resource(
+    ecs.setResource(
       RegisteredOrbitEnabled,
       {
         enabled: x ? 1 : 0,
@@ -148,14 +148,14 @@ export function createInGameSystem(ecs: ReactiveECS): System {
     if (params.useItemDown !== undefined) {
       s.useItemDown = params.useItemDown ? 1 : 0;
     }
-    ecs.set_resource(RegisteredKeyboardInput, s);
+    ecs.setResource(RegisteredKeyboardInput, s);
 
     // Update local InputControlled component if it exists
     if (thisDevicePlayerEntityId() !== undefined) {
       let entId = thisDevicePlayerEntityId()!;
-      if (ecs.ecs.has_component(entId, RegisteredInputControlled)) {
-        ecs.set_field(entId, RegisteredInputControlled, "useItemDown", s.useItemDown);
-        ecs.set_field(entId, RegisteredInputControlled, "upDown", s.upDown);
+      if (ecs.ecs.hasComponent(entId, RegisteredInputControlled)) {
+        ecs.setField(entId, RegisteredInputControlled, "useItemDown", s.useItemDown);
+        ecs.setField(entId, RegisteredInputControlled, "upDown", s.upDown);
       }
     }
   };
@@ -275,7 +275,7 @@ export function createInGameSystem(ecs: ReactiveECS): System {
   createEffect(
     joystick.value,
     (joyVal) => {
-      ecs.set_resource(RegisteredJoystickInput, {
+      ecs.setResource(RegisteredJoystickInput, {
         joystickX: joyVal.x,
         joystickY: joyVal.y,
       });
@@ -390,8 +390,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             setThisDevicePlayerEntityId(thisDevicePlayerEntityId2);
             setRenderSystem(renderSystem);
             setLoading(false);
-            ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
-            ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay: 3.0, });
+            ecs.setResource(RegisteredPreReadySteadyGoDelayFinished, { value: 0, });
+            ecs.setResource(RegisteredPreReadySteadyGoDelay, { delay: 3.0, });
           });
         }}
         style={{ width: "100%", height: "100%", display: "block", "touch-action": "none" }}
@@ -610,11 +610,11 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         let delay = ecs.resource(RegisteredPreReadySteadyGoDelay).get("delay");
         delay -= dt;
         if (delay >= 0.0) {
-          ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay, });
+          ecs.setResource(RegisteredPreReadySteadyGoDelay, { delay, });
         } else {
-          ecs.set_resource(RegisteredPreReadySteadyGoDelay, { delay: 0.0, });
-          ecs.set_resource(RegisteredPreReadySteadyGoDelayFinished, { value: 1, });
-          ecs.set_resource(
+          ecs.setResource(RegisteredPreReadySteadyGoDelay, { delay: 0.0, });
+          ecs.setResource(RegisteredPreReadySteadyGoDelayFinished, { value: 1, });
+          ecs.setResource(
             RegisteredInGameState,
             {
               isReadySteadyGo: 1,
@@ -647,9 +647,9 @@ export function createInGameSystem(ecs: ReactiveECS): System {
         }
       }
       // Mystery Box Respawn
-      ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).for_each((mysteryBoxArch) => {
-        let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
-        for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
+      ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).forEach((mysteryBoxArch) => {
+        let mysteryBoxEntityIds = mysteryBoxArch.entityIds;
+        for (let j = 0; j < mysteryBoxArch.entityCount; ++j) {
           let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
           let mysteryBoxEntity = ecs.entity(mysteryBoxEntityId);
           if (mysteryBoxEntity.getField(RegisteredMysteryBox, "spawned")) {
@@ -658,17 +658,17 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           let timeout = mysteryBoxEntity.getField(RegisteredMysteryBox, "timeUntilRespawn");
           timeout -= dt;
           if (timeout <= 0.0) {
-            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", MYSTERY_BOX_RESPAWN_TIMEOUT);
-            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 1);
+            ecs.setField(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", MYSTERY_BOX_RESPAWN_TIMEOUT);
+            ecs.setField(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 1);
           } else {
-            ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", timeout);
+            ecs.setField(mysteryBoxEntityId, RegisteredMysteryBox, "timeUntilRespawn", timeout);
           }
         }
       });
       // Simulate Slot Machines
-      ecs.ecs.query(RegisteredSlotMachine).for_each((slotMachineArch) => {
-        let slotMachineIds = slotMachineArch.entity_ids;
-        for (let i = 0; i < slotMachineArch.entity_count; ++i) {
+      ecs.ecs.query(RegisteredSlotMachine).forEach((slotMachineArch) => {
+        let slotMachineIds = slotMachineArch.entityIds;
+        for (let i = 0; i < slotMachineArch.entityCount; ++i) {
           let slotMachineId = slotMachineIds[i] as EntityID;
           let slotMachineEntity = ecs.entity(slotMachineId);
           let phase = slotMachineEntity.getField(RegisteredSlotMachine, "phase") as SlotMachinePhase;
@@ -677,40 +677,40 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
               phaseTimeout -= dt;
               if (phaseTimeout <= 0.0) {
-                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
-                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
+                ecs.setField(slotMachineId, RegisteredSlotMachine, "phase", SlotMachinePhase.DisplayResult);
+                ecs.setField(slotMachineId, RegisteredSlotMachine, "phaseTimeout", 0);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
                 spinningOffset = Math.round(spinningOffset) % 5;
-                ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
+                ecs.setField(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               } else {
-                ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
+                ecs.setField(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
                 let spinningOffset = slotMachineEntity.getField(RegisteredSlotMachine, "spinningOffset");
                 spinningOffset += 3.0 * dt;
-                ecs.set_field(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
+                ecs.setField(slotMachineId, RegisteredSlotMachine, "spinningOffset", spinningOffset);
               }
               break;
             }
             case SlotMachinePhase.DisplayResult: {
               let phaseTimeout = slotMachineEntity.getField(RegisteredSlotMachine, "phaseTimeout");
               phaseTimeout -= dt;
-              ecs.set_field(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
+              ecs.setField(slotMachineId, RegisteredSlotMachine, "phaseTimeout", phaseTimeout);
               break;
             }
           }
         }
       });
       // Kart Mystery Box collisions
-      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).for_each((playerArch) => {
-        let playerEntityIds = playerArch.entity_ids;
-        for (let i = 0; i < playerArch.entity_count; ++i) {
+      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).forEach((playerArch) => {
+        let playerEntityIds = playerArch.entityIds;
+        for (let i = 0; i < playerArch.entityCount; ++i) {
           let playerEntityId = playerEntityIds[i] as EntityID;
           let playerEntity = ecs.entity(playerEntityId);
           let playerX = playerEntity.getField(RegisteredPosition, "x");
           let playerY = playerEntity.getField(RegisteredPosition, "y");
           let playerZ = playerEntity.getField(RegisteredPosition, "z");
-          ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).for_each((mysteryBoxArch) => {
-            let mysteryBoxEntityIds = mysteryBoxArch.entity_ids;
-            for (let j = 0; j < mysteryBoxArch.entity_count; ++j) {
+          ecs.ecs.query(RegisteredMysteryBox, RegisteredPosition).forEach((mysteryBoxArch) => {
+            let mysteryBoxEntityIds = mysteryBoxArch.entityIds;
+            for (let j = 0; j < mysteryBoxArch.entityCount; ++j) {
               let mysteryBoxEntityId = mysteryBoxEntityIds[j] as EntityID;
               let mysteryBoxEntity = ecs.entity(mysteryBoxEntityId);
               if (!mysteryBoxEntity.getField(RegisteredMysteryBox, "spawned")) {
@@ -724,12 +724,12 @@ export function createInGameSystem(ecs: ReactiveECS): System {
               let dz = mysteryBoxZ - playerZ;
               let distSquared = dx*dx + dy*dy + dz*dz;
               if (distSquared <= 1.0*1.0) {
-                ecs.set_field(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 0);
-                if (!ecs.ecs.has_component(playerEntityId, RegisteredSlotMachine)) {
+                ecs.setField(mysteryBoxEntityId, RegisteredMysteryBox, "spawned", 0);
+                if (!ecs.ecs.hasComponent(playerEntityId, RegisteredSlotMachine)) {
                   if (playerEntityId === thisDevicePlayerEntityId()) {
                     powerupItemBox.play();
                   }
-                  ecs.add_component(
+                  ecs.addComponent(
                     playerEntityId,
                     RegisteredSlotMachine,
                     {
@@ -743,10 +743,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             }
           });
           // Handle use item
-          let useItemWasDown = ecs.ecs.get_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
+          let useItemWasDown = ecs.ecs.getField(playerEntityId, RegisteredPlayerConfig, "useItemWasDown");
           let useItemDown = false;
-          if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
-            useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
+          if (ecs.ecs.hasComponent(playerEntityId, RegisteredInputControlled)) {
+            useItemDown = ecs.ecs.getField(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
           } else {
             let keyboard = ecs.resource(RegisteredKeyboardInput);
             useItemDown = keyboard.get("useItemDown") !== 0;
@@ -755,15 +755,15 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             if (hasCarriedItem(ecs, playerEntityId)) {
               let itemEntityId = dropCarriedItem(ecs, playerEntityId);
               if (itemEntityId !== undefined) {
-                let upDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "upDown") !== 0;
+                let upDown = ecs.ecs.getField(playerEntityId, RegisteredInputControlled, "upDown") !== 0;
                 if (upDown) {
-                  let playerVx = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "x");
-                  let playerVy = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "y");
-                  let playerVz = ecs.ecs.get_field(playerEntityId, RegisteredVelocity, "z");
-                  let playerQx = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "x");
-                  let playerQy = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "y");
-                  let playerQz = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "z");
-                  let playerQw = ecs.ecs.get_field(playerEntityId, RegisteredOrientation, "w");
+                  let playerVx = ecs.ecs.getField(playerEntityId, RegisteredVelocity, "x");
+                  let playerVy = ecs.ecs.getField(playerEntityId, RegisteredVelocity, "y");
+                  let playerVz = ecs.ecs.getField(playerEntityId, RegisteredVelocity, "z");
+                  let playerQx = ecs.ecs.getField(playerEntityId, RegisteredOrientation, "x");
+                  let playerQy = ecs.ecs.getField(playerEntityId, RegisteredOrientation, "y");
+                  let playerQz = ecs.ecs.getField(playerEntityId, RegisteredOrientation, "z");
+                  let playerQw = ecs.ecs.getField(playerEntityId, RegisteredOrientation, "w");
                   let playerQ = new THREE.Quaternion(
                     playerQx,
                     playerQy,
@@ -771,8 +771,8 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                     playerQw,
                   );
                   let forward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerQ);
-                  ecs.add_component(itemEntityId, Projectile);
-                  ecs.add_component(itemEntityId, RegisteredVelocity, {
+                  ecs.addComponent(itemEntityId, Projectile);
+                  ecs.addComponent(itemEntityId, RegisteredVelocity, {
                     x: playerVx + 10.0 * forward.x + 0.0,
                     y: playerVy + 10.0 * forward.y + 10.0,
                     z: playerVz + 10.0 * forward.z + 0.0,
@@ -780,10 +780,10 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 }
               }
             } else if (
-              ecs.ecs.has_component(playerEntityId, RegisteredSlotMachine) &&
-              ecs.ecs.get_field(playerEntityId, RegisteredSlotMachine, "phase") === SlotMachinePhase.DisplayResult
+              ecs.ecs.hasComponent(playerEntityId, RegisteredSlotMachine) &&
+              ecs.ecs.getField(playerEntityId, RegisteredSlotMachine, "phase") === SlotMachinePhase.DisplayResult
             ) {
-              let item = Math.round(ecs.ecs.get_field(playerEntityId, RegisteredSlotMachine, "spinningOffset"));
+              let item = Math.round(ecs.ecs.getField(playerEntityId, RegisteredSlotMachine, "spinningOffset"));
               item = Math.max(0, Math.min(4, item)) as Item;
               if (item === Item.Banana || item === Item.Bomb) {
                 let item2 = item;
@@ -798,28 +798,28 @@ export function createInGameSystem(ecs: ReactiveECS): System {
                 addCarriedItem(ecs, playerEntityId, Item.Banana);
                 addCarriedItem(ecs, playerEntityId, Item.Banana);
               }
-              ecs.remove_component(playerEntityId, RegisteredSlotMachine);
+              ecs.removeComponent(playerEntityId, RegisteredSlotMachine);
             }
           }
           //
         }
       });
       // Animate carried items
-      ecs.ecs.query(RegisteredCarriedItem, RegisteredPosition).for_each((arch) => {
-        for (let i = 0; i < arch.entity_count; ++i) {
-          let entityId = arch.entity_ids[i] as EntityID;
-          let itemX = ecs.ecs.get_field(entityId, RegisteredPosition, "x");
-          let itemY = ecs.ecs.get_field(entityId, RegisteredPosition, "y");
-          let itemZ = ecs.ecs.get_field(entityId, RegisteredPosition, "z");
-          let ownerId = ecs.ecs.get_field(entityId, RegisteredCarriedItem, "owner") as EntityID;
-          let ownerX = ecs.ecs.get_field(ownerId, RegisteredPosition, "x");
-          let ownerY = ecs.ecs.get_field(ownerId, RegisteredPosition, "y");
-          let ownerZ = ecs.ecs.get_field(ownerId, RegisteredPosition, "z");
+      ecs.ecs.query(RegisteredCarriedItem, RegisteredPosition).forEach((arch) => {
+        for (let i = 0; i < arch.entityCount; ++i) {
+          let entityId = arch.entityIds[i] as EntityID;
+          let itemX = ecs.ecs.getField(entityId, RegisteredPosition, "x");
+          let itemY = ecs.ecs.getField(entityId, RegisteredPosition, "y");
+          let itemZ = ecs.ecs.getField(entityId, RegisteredPosition, "z");
+          let ownerId = ecs.ecs.getField(entityId, RegisteredCarriedItem, "owner") as EntityID;
+          let ownerX = ecs.ecs.getField(ownerId, RegisteredPosition, "x");
+          let ownerY = ecs.ecs.getField(ownerId, RegisteredPosition, "y");
+          let ownerZ = ecs.ecs.getField(ownerId, RegisteredPosition, "z");
           let dx = ownerX - itemX;
           let dy = ownerY - itemY;
           let dz = ownerZ - itemZ;
           let distSquared = dx * dx + dy * dy + dz * dz;
-          let maxDist = ecs.ecs.get_field(entityId, RegisteredCarriedItem, "maxDistance");
+          let maxDist = ecs.ecs.getField(entityId, RegisteredCarriedItem, "maxDistance");
           if (distSquared > maxDist * maxDist) {
             let dist = Math.sqrt(distSquared);
             let s = maxDist / dist;
@@ -829,23 +829,23 @@ export function createInGameSystem(ecs: ReactiveECS): System {
             let newX = ownerX - ux;
             let newY = ownerY - uy;
             let newZ = ownerZ - uz;
-            ecs.set_field(entityId, RegisteredPosition, "x", newX);
-            ecs.set_field(entityId, RegisteredPosition, "y", newY);
-            ecs.set_field(entityId, RegisteredPosition, "z", newZ);
+            ecs.setField(entityId, RegisteredPosition, "x", newX);
+            ecs.setField(entityId, RegisteredPosition, "y", newY);
+            ecs.setField(entityId, RegisteredPosition, "z", newZ);
           }
         }
       });
       // Step projectiles
-      ecs.ecs.query(Projectile, RegisteredPosition, RegisteredVelocity).for_each((arch) => {
-        for (let i = 0; i < arch.entity_count; ++i) {
+      ecs.ecs.query(Projectile, RegisteredPosition, RegisteredVelocity).forEach((arch) => {
+        for (let i = 0; i < arch.entityCount; ++i) {
           let gravity = ecs.ecs.resource(RegisteredGlobalGravity);
-          let entityId = arch.entity_ids[i] as EntityID;
-          let px = ecs.ecs.get_field(entityId, RegisteredPosition, "x");
-          let py = ecs.ecs.get_field(entityId, RegisteredPosition, "y");
-          let pz = ecs.ecs.get_field(entityId, RegisteredPosition, "z");
-          let vx = ecs.ecs.get_field(entityId, RegisteredVelocity, "x");
-          let vy = ecs.ecs.get_field(entityId, RegisteredVelocity, "y");
-          let vz = ecs.ecs.get_field(entityId, RegisteredVelocity, "z");
+          let entityId = arch.entityIds[i] as EntityID;
+          let px = ecs.ecs.getField(entityId, RegisteredPosition, "x");
+          let py = ecs.ecs.getField(entityId, RegisteredPosition, "y");
+          let pz = ecs.ecs.getField(entityId, RegisteredPosition, "z");
+          let vx = ecs.ecs.getField(entityId, RegisteredVelocity, "x");
+          let vy = ecs.ecs.getField(entityId, RegisteredVelocity, "y");
+          let vz = ecs.ecs.getField(entityId, RegisteredVelocity, "z");
           px += vx * dt;
           py += vy * dt;
           pz += vz * dt;
@@ -855,74 +855,74 @@ export function createInGameSystem(ecs: ReactiveECS): System {
           let height = getPreciseTrackHeightAtXZ(px, pz);
           if (vy <= 0.0 && height >= py) {
             py = height;
-            ecs.remove_component(entityId, Projectile);
-            ecs.remove_component(entityId, RegisteredVelocity);
+            ecs.removeComponent(entityId, Projectile);
+            ecs.removeComponent(entityId, RegisteredVelocity);
           } else {
-            ecs.set_field(entityId, RegisteredVelocity, "x", vx);
-            ecs.set_field(entityId, RegisteredVelocity, "y", vy);
-            ecs.set_field(entityId, RegisteredVelocity, "z", vz);
+            ecs.setField(entityId, RegisteredVelocity, "x", vx);
+            ecs.setField(entityId, RegisteredVelocity, "y", vy);
+            ecs.setField(entityId, RegisteredVelocity, "z", vz);
           }
-          ecs.set_field(entityId, RegisteredPosition, "x", px);
-          ecs.set_field(entityId, RegisteredPosition, "y", py);
-          ecs.set_field(entityId, RegisteredPosition, "z", pz);
+          ecs.setField(entityId, RegisteredPosition, "x", px);
+          ecs.setField(entityId, RegisteredPosition, "y", py);
+          ecs.setField(entityId, RegisteredPosition, "z", pz);
         }
       });
       // Step bombs
-      ecs.ecs.query(RegisteredBomb).for_each((arch) => {
-        for (let i = 0; i < arch.entity_count; ++i) {
-          let entity_id = arch.entity_ids[i] as EntityID;
-          let timeout = ecs.ecs.get_field(entity_id, RegisteredBomb, "timeoutUntilExplosion");
+      ecs.ecs.query(RegisteredBomb).forEach((arch) => {
+        for (let i = 0; i < arch.entityCount; ++i) {
+          let entity_id = arch.entityIds[i] as EntityID;
+          let timeout = ecs.ecs.getField(entity_id, RegisteredBomb, "timeoutUntilExplosion");
           timeout -= dt;
           if (timeout <= 0.0) {
-            ecs.remove_component(entity_id, RegisteredBomb);
-            if (ecs.ecs.has_component(entity_id, Projectile)) {
-              ecs.remove_component(entity_id, Projectile);
-              ecs.remove_component(entity_id, RegisteredVelocity);
+            ecs.removeComponent(entity_id, RegisteredBomb);
+            if (ecs.ecs.hasComponent(entity_id, Projectile)) {
+              ecs.removeComponent(entity_id, Projectile);
+              ecs.removeComponent(entity_id, RegisteredVelocity);
             }
-            ecs.add_component(entity_id, RegisteredExplosion, {
+            ecs.addComponent(entity_id, RegisteredExplosion, {
               timeoutUntilGone: EXPLOSION_INITIAL_TIMEOUT_UNTIL_GONE,
             });
           } else {
-            ecs.set_field(entity_id, RegisteredBomb, "timeoutUntilExplosion", timeout);
+            ecs.setField(entity_id, RegisteredBomb, "timeoutUntilExplosion", timeout);
           }
         }
       });
       // Step explosions
-      ecs.ecs.query(RegisteredExplosion).for_each((arch) => {
-        for (let i = 0; i < arch.entity_count; ++i) {
-          let entity_id = arch.entity_ids[i] as EntityID;
-          let timeout = ecs.ecs.get_field(entity_id, RegisteredExplosion, "timeoutUntilGone");
+      ecs.ecs.query(RegisteredExplosion).forEach((arch) => {
+        for (let i = 0; i < arch.entityCount; ++i) {
+          let entity_id = arch.entityIds[i] as EntityID;
+          let timeout = ecs.ecs.getField(entity_id, RegisteredExplosion, "timeoutUntilGone");
           timeout -= dt;
           if (timeout <= 0.0) {
-            ecs.remove_component(entity_id, RegisteredExplosion);
-            ecs.remove_component(entity_id, RegisteredPosition);
-            ecs.add_component(entity_id, RegisteredFreeEntity);
+            ecs.removeComponent(entity_id, RegisteredExplosion);
+            ecs.removeComponent(entity_id, RegisteredPosition);
+            ecs.addComponent(entity_id, RegisteredFreeEntity);
           } else {
-            ecs.set_field(entity_id, RegisteredExplosion, "timeoutUntilGone", timeout);
+            ecs.setField(entity_id, RegisteredExplosion, "timeoutUntilGone", timeout);
           }
         }
       });
       //
       renderSystem()?.update?.(dt);
       // remember if useItem was down last frame
-      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).for_each((playerArch) => {
-        let playerEntityIds = playerArch.entity_ids;
-        for (let i = 0; i < playerArch.entity_count; ++i) {
+      ecs.ecs.query(RegisteredPlayerConfig, RegisteredPosition).forEach((playerArch) => {
+        let playerEntityIds = playerArch.entityIds;
+        for (let i = 0; i < playerArch.entityCount; ++i) {
           let playerEntityId = playerEntityIds[i] as EntityID;
           let useItemDown = false;
-          if (ecs.ecs.has_component(playerEntityId, RegisteredInputControlled)) {
-            useItemDown = ecs.ecs.get_field(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
+          if (ecs.ecs.hasComponent(playerEntityId, RegisteredInputControlled)) {
+            useItemDown = ecs.ecs.getField(playerEntityId, RegisteredInputControlled, "useItemDown") !== 0;
           } else {
             let keyboard = ecs.resource(RegisteredKeyboardInput);
             useItemDown = keyboard.get("useItemDown") !== 0;
           }
-          ecs.set_field(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
+          ecs.setField(playerEntityId, RegisteredPlayerConfig, "useItemWasDown", useItemDown ? 1 : 0);
         }
       });
       // Keep time moving
       {
         let time = ecs.ecs.resource(RegisteredTime);
-        ecs.set_resource(RegisteredTime, {
+        ecs.setResource(RegisteredTime, {
           time: time.time + dt,
         });
       }
@@ -1025,8 +1025,8 @@ async function initScene(
       facingForward: true,
       reactiveEcs: ecs,
     });
-    ecs.add_component(kartEntityId as EntityID, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
-    ecs.add_component(kartEntityId as EntityID, RegisteredLocalPlayerPosition, { rank: 0 });
+    ecs.addComponent(kartEntityId as EntityID, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: t, rank: 0 });
+    ecs.addComponent(kartEntityId as EntityID, RegisteredLocalPlayerPosition, { rank: 0 });
 
     // Create AI karts
     const aiCount = 3;
@@ -1058,13 +1058,13 @@ async function initScene(
         new THREE.Vector3(0,1,0)
       );
       const q = new THREE.Quaternion().setFromRotationMatrix(lookMat);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "x", q.x);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "y", q.y);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "z", q.z);
-      ecs.set_field(aiEntityId, RegisteredOrientation, "w", q.w);
+      ecs.setField(aiEntityId, RegisteredOrientation, "x", q.x);
+      ecs.setField(aiEntityId, RegisteredOrientation, "y", q.y);
+      ecs.setField(aiEntityId, RegisteredOrientation, "z", q.z);
+      ecs.setField(aiEntityId, RegisteredOrientation, "w", q.w);
 
-      ecs.add_component(aiEntityId, RegisteredAIControlled, { targetT: aiT });
-      ecs.add_component(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
+      ecs.addComponent(aiEntityId, RegisteredAIControlled, { targetT: aiT });
+      ecs.addComponent(aiEntityId, RegisteredRaceStats, { laps: -1, progress: 0, finished: 0, lastT: aiT, rank: 0 });
     }
 
     // add mystery boxes
@@ -1398,10 +1398,10 @@ async function initScene(
 
 function findKartEntityForSlot(ecs: ReactiveECS, slot: number): number {
   for (const arch of ecs.query(RegisteredNetworkSlot)) {
-    const slots = arch.get_column(RegisteredNetworkSlot, "slot") as Uint8Array;
-    for (let i = 0; i < arch.entity_count; i++) {
+    const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+    for (let i = 0; i < arch.entityCount; i++) {
       if (slots[i] === slot) {
-        return arch.entity_ids[i] as number;
+        return arch.entityIds[i] as number;
       }
     }
   }

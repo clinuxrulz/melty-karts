@@ -106,8 +106,8 @@ export function simulateKartStep(params: {
   const posZ = ecs.entity(entityId).getField(RegisteredPosition, "z");
 
   let lastTrackT: number | undefined;
-  if (ecs.ecs.has_component(entityId, RegisteredRaceStats)) {
-    lastTrackT = ecs.ecs.get_field(entityId, RegisteredRaceStats, "lastT");
+  if (ecs.ecs.hasComponent(entityId, RegisteredRaceStats)) {
+    lastTrackT = ecs.ecs.getField(entityId, RegisteredRaceStats, "lastT");
   }
 
   const velX = ecs.entity(entityId).getField(RegisteredVelocity, "x");
@@ -321,19 +321,19 @@ export function simulateKartStep(params: {
   currentEuler.z = THREE.MathUtils.lerp(currentEuler.z, targetRoll, smoothFactor);
   q.setFromEuler(currentEuler);
 
-  ecs.set_field(entityId, RegisteredKartConfig, "speed", newSpeed);
-  ecs.set_field(entityId, RegisteredKartRuntime, "driftCharge", driftCharge);
-  ecs.set_field(entityId, RegisteredKartRuntime, "isDrifting", isDrifting ? 1 : 0);
-  ecs.set_field(entityId, RegisteredKartRuntime, "driftDirection", driftDirection);
-  ecs.set_field(entityId, RegisteredKartRuntime, "verticalVelocity", verticalVelocity);
-  ecs.set_field(entityId, RegisteredOrientation, "x", q.x);
-  ecs.set_field(entityId, RegisteredOrientation, "y", q.y);
-  ecs.set_field(entityId, RegisteredOrientation, "z", q.z);
-  ecs.set_field(entityId, RegisteredOrientation, "w", q.w);
-  ecs.set_field(entityId, RegisteredVelocity, "x", newVel.x);
-  ecs.set_field(entityId, RegisteredVelocity, "y", newVel.y);
-  ecs.set_field(entityId, RegisteredVelocity, "z", newVel.z);
-  ecs.set_field(entityId, RegisteredPosition, "x", newPos.x);
-  ecs.set_field(entityId, RegisteredPosition, "y", newPos.y);
-  ecs.set_field(entityId, RegisteredPosition, "z", newPos.z);
+  ecs.setField(entityId, RegisteredKartConfig, "speed", newSpeed);
+  ecs.setField(entityId, RegisteredKartRuntime, "driftCharge", driftCharge);
+  ecs.setField(entityId, RegisteredKartRuntime, "isDrifting", isDrifting ? 1 : 0);
+  ecs.setField(entityId, RegisteredKartRuntime, "driftDirection", driftDirection);
+  ecs.setField(entityId, RegisteredKartRuntime, "verticalVelocity", verticalVelocity);
+  ecs.setField(entityId, RegisteredOrientation, "x", q.x);
+  ecs.setField(entityId, RegisteredOrientation, "y", q.y);
+  ecs.setField(entityId, RegisteredOrientation, "z", q.z);
+  ecs.setField(entityId, RegisteredOrientation, "w", q.w);
+  ecs.setField(entityId, RegisteredVelocity, "x", newVel.x);
+  ecs.setField(entityId, RegisteredVelocity, "y", newVel.y);
+  ecs.setField(entityId, RegisteredVelocity, "z", newVel.z);
+  ecs.setField(entityId, RegisteredPosition, "x", newPos.x);
+  ecs.setField(entityId, RegisteredPosition, "y", newPos.y);
+  ecs.setField(entityId, RegisteredPosition, "z", newPos.z);
 }

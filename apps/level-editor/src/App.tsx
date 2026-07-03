@@ -101,10 +101,10 @@ const App: Component = () => {
     () => {
       let result: EntityID[] = [];
       let query = ecs.query();
-      for (let i = 0; i < query.archetype_count; ++i) {
+      for (let i = 0; i < query.archetypeCount; ++i) {
         let arch = query.archetypes[i];
-        for (let j = 0; j < arch.entity_count; ++j) {
-          let entityId = arch.entity_ids[j] as EntityID;
+        for (let j = 0; j < arch.entityCount; ++j) {
+          let entityId = arch.entityIds[j] as EntityID;
           result.push(entityId);
         }
       }

@@ -186,15 +186,15 @@ class ReactiveEntity {
   hasComponent(def: ComponentDef): boolean {
     const observer = getObserver();
     if (observer === null) {
-      return this.#ecs.has_component(this.#id, def);
+      return this.#ecs.hasComponent(this.#id, def);
     }
-    const key = `entity:${this.#id}:has:${def}`;
+    const key = `entity:${this.#id}:has:${def.id}`;
     let ref = this.#componentRefs.get(key);
     if (ref === undefined) {
       ref = new ReactiveRef(
         this.#triggerStore,
         key,
-        () => this.#ecs.has_component(this.#id, def),
+        () => this.#ecs.hasComponent(this.#id, def),
         () => this.#triggerStore.dirty(key),
         () => {
           this.#componentRefs.delete(key);
@@ -208,15 +208,15 @@ class ReactiveEntity {
   getField<S extends ComponentSchema>(def: ComponentDef<S>, field: string & keyof S): number {
     const observer = getObserver();
     if (observer === null) {
-      return this.#ecs.get_field(this.#id, def, field);
+      return this.#ecs.getField(this.#id, def, field);
     }
-    const key = `entity:${this.#id}:${def}:${field}`;
+    const key = `entity:${this.#id}:${def.id}:${field}`;
     let ref = this.#fieldRefs.get(key);
     if (ref === undefined) {
       ref = new ReactiveRef(
         this.#triggerStore,
         key,
-        () => this.#ecs.get_field(this.#id, def, field),
+        () => this.#ecs.getField(this.#id, def, field),
         () => this.#triggerStore.dirty(key),
         () => {
           this.#fieldRefs.delete(key);
@@ -247,14 +247,14 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
     return this.#queryKey;
   }
 
-  get archetype_count(): number {
+  get archetypeCount(): number {
     const observer = getObserver();
     if (observer === null) {
-      return this.#query.archetype_count;
+      return this.#query.archetypeCount;
     }
-    this.#triggerStore.track(`${this.#queryKey}:archetype_count`);
+    this.#triggerStore.track(`${this.#queryKey}:archetypeCount`);
     this.#triggerStore.track("world:entities");
-    return this.#query.archetype_count;
+    return this.#query.archetypeCount;
   }
 
   count(): number {
@@ -280,7 +280,7 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
   *[Symbol.iterator]() {
     const observer = getObserver();
     if (observer === null) {
-      for (let i = 0; i < this.#query.archetype_count; ++i) {
+      for (let i = 0; i < this.#query.archetypeCount; ++i) {
         let arch = this.#query.archetypes[i];
         yield arch;
       }
@@ -288,7 +288,7 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
     }
     this.#triggerStore.track(`${this.#queryKey}:archetypes`);
     this.#triggerStore.track("world:entities");
-    for (let i = 0; i < this.#query.archetype_count; ++i) {
+    for (let i = 0; i < this.#query.archetypeCount; ++i) {
       let arch = this.#query.archetypes[i];
       yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch as any, this.#queryKey);
     }
@@ -298,21 +298,21 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
     return new ReactiveQuery(this.#triggerStore, this.#ecs, [...this.#defs, ...comps], `${this.#queryKey}:and`);
   }
 
-  not(...comps: ComponentDef[]): ReactiveQuery<Defs> {
-    return new ReactiveQuery(this.#triggerStore, this.#ecs, this.#defs, `${this.#queryKey}:not`);
+  without(...comps: ComponentDef[]): ReactiveQuery<Defs> {
+    return new ReactiveQuery(this.#triggerStore, this.#ecs, this.#defs, `${this.#queryKey}:without`);
   }
 
-  any_of(...comps: ComponentDef[]): ReactiveQuery<Defs> {
-    return new ReactiveQuery(this.#triggerStore, this.#ecs, this.#defs, `${this.#queryKey}:any_of`);
+  anyOf(...comps: ComponentDef[]): ReactiveQuery<Defs> {
+    return new ReactiveQuery(this.#triggerStore, this.#ecs, this.#defs, `${this.#queryKey}:anyOf`);
   }
 }
 
 interface ArchetypeLike {
   readonly id: number;
-  readonly entity_ids: Uint32Array;
-  readonly entity_count: number;
-  has_component(id: number): boolean;
-  get_column<S extends ComponentSchema, K extends string & keyof S>(def: ComponentDef<S>, field: K): any;
+  readonly entityIds: Uint32Array;
+  readonly entityCount: number;
+  hasComponent(id: number): boolean;
+  getColumnRead<S extends ComponentSchema, K extends string & keyof S>(def: ComponentDef<S>, field: K): any;
 }
 
 class ReactiveArchetype {
@@ -328,44 +328,44 @@ class ReactiveArchetype {
     this.#queryKey = queryKey;
   }
 
-  get entity_ids(): Uint32Array {
+  get entityIds(): Uint32Array {
     const observer = getObserver();
     if (observer === null) {
-      return this.#archetype.entity_ids;
+      return this.#archetype.entityIds;
     }
-    const key = `arch:${this.#archetype.id}:entity_ids`;
+    const key = `arch:${this.#archetype.id}:entityIds`;
     this.#triggerStore.track(key);
-    return this.#archetype.entity_ids;
+    return this.#archetype.entityIds;
   }
 
-  get entity_count(): number {
+  get entityCount(): number {
     const observer = getObserver();
     if (observer === null) {
-      return this.#archetype.entity_count;
+      return this.#archetype.entityCount;
     }
     const key = `arch:${this.#archetype.id}:count`;
     this.#triggerStore.track(key);
-    return this.#archetype.entity_count;
+    return this.#archetype.entityCount;
   }
 
-  has_component(id: number): boolean {
+  hasComponent(id: number): boolean {
     const observer = getObserver();
     if (observer === null) {
-      return this.#archetype.has_component(id);
+      return this.#archetype.hasComponent(id);
     }
     const key = `arch:${this.#archetype.id}:has:${id}`;
     this.#triggerStore.track(key);
-    return this.#archetype.has_component(id);
+    return this.#archetype.hasComponent(id);
   }
 
-  get_column<S extends ComponentSchema, K extends string & keyof S>(def: ComponentDef<S>, field: K): any {
+  getColumnRead<S extends ComponentSchema, K extends string & keyof S>(def: ComponentDef<S>, field: K): any {
     const observer = getObserver();
     if (observer === null) {
-      return this.#archetype.get_column(def, field);
+      return this.#archetype.getColumnRead(def, field);
     }
     const key = `arch:${this.#archetype.id}:col`;
     this.#triggerStore.track(key);
-    return this.#archetype.get_column(def, field);
+    return this.#archetype.getColumnRead(def, field);
   }
 }
 
@@ -387,8 +387,8 @@ export class ReactiveECS {
   #instrumentEcs(): void {
     const ecs = this.#ecs as ECS & Record<string, any>;
 
-    const registerComponent = ecs.register_component.bind(ecs);
-    ecs.register_component = ((schemaOrFields: Record<string, any> | readonly string[], type?: string) => {
+    const registerComponent = ecs.registerComponent.bind(ecs);
+    ecs.registerComponent = ((schemaOrFields: Record<string, any> | readonly string[], type?: string) => {
       const def = (Array.isArray(schemaOrFields)) 
           ? registerComponent(schemaOrFields, type as any) 
           : registerComponent(schemaOrFields as any);
@@ -396,46 +396,46 @@ export class ReactiveECS {
         ? [...schemaOrFields]
         : Object.keys(schemaOrFields);
       this.#componentMetadata.set(def, { fields });
-      this.#componentsByKey.set(def.toString(), def);
+      this.#componentsByKey.set(def.id.toString(), def);
       return def;
-    }) as typeof ecs.register_component;
+    }) as typeof ecs.registerComponent;
 
-    const registerTag = ecs.register_tag.bind(ecs);
-    ecs.register_tag = (() => {
+    const registerTag = ecs.registerTag.bind(ecs);
+    ecs.registerTag = (() => {
       const def = registerTag();
       this.#componentMetadata.set(def, { fields: [] });
-      this.#componentsByKey.set(def.toString(), def);
+      this.#componentsByKey.set(def.id.toString(), def);
       return def;
-    }) as typeof ecs.register_tag;
+    }) as typeof ecs.registerTag;
 
-    const registerResource = ecs.register_resource.bind(ecs);
-    ecs.register_resource = (<T>(key: ResourceKey<T>, value: T) => {
+    const registerResource = ecs.registerResource.bind(ecs);
+    ecs.registerResource = (<T>(key: ResourceKey<T>, value: T) => {
       registerResource(key, value);
       const fields = Object.keys(value as any);
       this.#resourceMetadata.set(key, { fields: [...fields] });
       this.#resourcesByKey.set(key.toString(), key);
-    }) as typeof ecs.register_resource;
+    }) as typeof ecs.registerResource;
 
-    const setResource = ecs.set_resource.bind(ecs);
-    ecs.set_resource = (<T>(key: ResourceKey<T>, value: T) => {
+    const setResource = ecs.setResource.bind(ecs);
+    ecs.setResource = (<T>(key: ResourceKey<T>, value: T) => {
       setResource(key, value);
       for (const field of Object.keys(value as any)) {
         this.#triggers.dirty(`resource:${key.toString()}:${field}`);
       }
-    }) as typeof ecs.set_resource;
+    }) as typeof ecs.setResource;
 
-    const createEntity = ecs.create_entity.bind(ecs);
-    ecs.create_entity = (() => {
+    const createEntity = ecs.createEntity.bind(ecs);
+    ecs.createEntity = (() => {
       const id = createEntity();
       this.#aliveEntities.add(id);
       return id;
-    }) as typeof ecs.create_entity;
+    }) as typeof ecs.createEntity;
 
-    const destroyEntityDeferred = ecs.destroy_entity_deferred.bind(ecs);
-    ecs.destroy_entity_deferred = ((id: EntityID) => {
+    const destroyEntityDeferred = ecs.destroyEntity.bind(ecs);
+    ecs.destroyEntity = ((id: EntityID) => {
       this.#aliveEntities.delete(id);
       destroyEntityDeferred(id);
-    }) as typeof ecs.destroy_entity_deferred;
+    }) as typeof ecs.destroyEntity;
   }
 
   get ecs(): ECS {
@@ -447,7 +447,7 @@ export class ReactiveECS {
   }
 
   query<Defs extends ComponentDef[]>(...defs: Defs): ReactiveQuery<Defs> {
-    const queryKey = `query:${defs.map(d => d.toString()).join(",")}`;
+    const queryKey = `query:${defs.map(d => d.id.toString()).join(",")}`;
     return new ReactiveQuery(this.#triggers, this.#ecs, defs, queryKey);
   }
 
@@ -457,8 +457,8 @@ export class ReactiveECS {
       () => {
         let i = 0;
         for (let arch of this.query(...defs)) {
-          for (let j = 0; j < arch.entity_count; ++j) {
-            let entityId = arch.entity_ids[j] as EntityID;
+          for (let j = 0; j < arch.entityCount; ++j) {
+            let entityId = arch.entityIds[j] as EntityID;
             if (i < result.length) {
               result[i++] = entityId;
             } else {
@@ -486,22 +486,22 @@ export class ReactiveECS {
     return new ReactiveEntity(this.#triggers, this.#ecs, id);
   }
 
-  create_entity(): EntityID {
-    const id = this.#ecs.create_entity();
+  createEntity(): EntityID {
+    const id = this.#ecs.createEntity();
     untrack(() => this.#triggers.dirty("world:entities"));
     return id;
   }
 
-  destroy_entity_deferred(id: EntityID): void {
-    this.#ecs.destroy_entity_deferred(id);
+  destroyEntity(id: EntityID): void {
+    this.#ecs.destroyEntity(id);
     untrack(() => this.#triggers.dirty("world:entities"));
   }
 
-  add_component(entity_id: EntityID, def: ComponentDef<Record<string, never>>): this;
-  add_component<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, values: FieldValues<S>): this;
-  add_component(entity_id: EntityID, def: ComponentDef, values?: Record<string, number>): this {
-    const key = `entity:${entity_id}:has:${def}`;
-    this.#ecs.add_component(entity_id, def, values as any);
+  addComponent(entity_id: EntityID, def: ComponentDef<Record<string, never>>): this;
+  addComponent<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, values: FieldValues<S>): this;
+  addComponent(entity_id: EntityID, def: ComponentDef, values?: Record<string, number>): this {
+    const key = `entity:${entity_id}:has:${def.id}`;
+    this.#ecs.addComponent(entity_id, def, values as any);
     untrack(() => {
       this.#triggers.dirty(key);
       this.#triggers.dirty("world:entities");
@@ -509,9 +509,9 @@ export class ReactiveECS {
     return this;
   }
 
-  remove_component(entity_id: EntityID, def: ComponentDef): this {
-    const key = `entity:${entity_id}:has:${def}`;
-    this.#ecs.remove_component(entity_id, def);
+  removeComponent(entity_id: EntityID, def: ComponentDef): this {
+    const key = `entity:${entity_id}:has:${def.id}`;
+    this.#ecs.removeComponent(entity_id, def);
     untrack(() => {
       this.#triggers.dirty(key);
       this.#triggers.dirty("world:entities");
@@ -519,14 +519,14 @@ export class ReactiveECS {
     return this;
   }
 
-  set_field<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, field: string & keyof S, value: number): void {
-    const key = `entity:${entity_id}:${def}:${field}`;
-    this.#ecs.set_field(entity_id, def, field, value);
+  setField<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, field: string & keyof S, value: number): void {
+    const key = `entity:${entity_id}:${def.id}:${field}`;
+    this.#ecs.setField(entity_id, def, field, value);
     untrack(() => this.#triggers.dirty(key));
   }
 
-  set_resource<T>(key: ResourceKey<T>, values: T): void {
-    this.#ecs.set_resource(key, values);
+  setResource<T>(key: ResourceKey<T>, values: T): void {
+    this.#ecs.setResource(key, values);
   }
 
   serialize(ignoredResourceKeys: Set<string> = new Set()): ReactiveECSSnapshot {
@@ -546,19 +546,19 @@ export class ReactiveECS {
       });
 
     const entities = [...this.#aliveEntities]
-      .filter((id) => this.#ecs.is_alive(id))
+      .filter((id) => this.#ecs.isAlive(id))
       .sort((a, b) => Number(a) - Number(b))
       .map((id) => {
         const components = [...this.#componentMetadata.entries()]
-          .filter(([def]) => this.#ecs.has_component(id, def))
+          .filter(([def]) => this.#ecs.hasComponent(id, def))
           .sort(([a], [b]) => Number(a) - Number(b))
           .map(([def, metadata]) => {
             const values: Record<string, number> = {};
             for (const field of metadata.fields) {
-              values[field] = this.#ecs.get_field(id, def as ComponentDef<any>, field as never);
+              values[field] = this.#ecs.getField(id, def as ComponentDef<any>, field as never);
             }
             return {
-              componentKey: def.toString(),
+              componentKey: def.id.toString(),
               values,
             };
           });
@@ -578,8 +578,8 @@ export class ReactiveECS {
     const targetIds = new Set(snapshot.entities.map((entity) => entity.id as EntityID));
 
     for (const id of [...this.#aliveEntities]) {
-      if (!targetIds.has(id) && this.#ecs.is_alive(id)) {
-        this.destroy_entity_deferred(id);
+      if (!targetIds.has(id) && this.#ecs.isAlive(id)) {
+        this.destroyEntity(id);
       }
     }
     // Note: base ECS doesn't have flush() exposed in d.ts, but it might be internal or part of update.
@@ -591,13 +591,13 @@ export class ReactiveECS {
     for (const resource of snapshot.resources) {
       const key = this.#resourcesByKey.get(resource.resourceKey);
       if (key !== undefined) {
-        this.set_resource(key, resource.values as any);
+        this.setResource(key, resource.values as any);
       }
     }
 
     for (const entity of snapshot.entities.sort((a, b) => a.id - b.id)) {
-      while (!this.#ecs.is_alive(entity.id as EntityID)) {
-        const created = this.create_entity();
+      while (!this.#ecs.isAlive(entity.id as EntityID)) {
+        const created = this.createEntity();
         if (Number(created) > entity.id) {
           throw new Error(`Cannot recreate entity ${entity.id}; ECS entity sequence has advanced past snapshot`);
         }
@@ -607,8 +607,8 @@ export class ReactiveECS {
       const targetComponentKeys = new Set(entity.components.map((component) => component.componentKey));
 
       for (const [def] of this.#componentMetadata) {
-        if (this.#ecs.has_component(entityId, def) && !targetComponentKeys.has(def.toString())) {
-          this.remove_component(entityId, def);
+        if (this.#ecs.hasComponent(entityId, def) && !targetComponentKeys.has(def.id.toString())) {
+          this.removeComponent(entityId, def);
         }
       }
 
@@ -618,16 +618,16 @@ export class ReactiveECS {
           continue;
         }
         const metadata = this.#componentMetadata.get(def);
-        if (!this.#ecs.has_component(entityId, def)) {
+        if (!this.#ecs.hasComponent(entityId, def)) {
           if ((metadata?.fields.length ?? 0) === 0) {
-            this.add_component(entityId, def as ComponentDef<Record<string, never>>);
+            this.addComponent(entityId, def as ComponentDef<Record<string, never>>);
           } else {
-            this.add_component(entityId, def as ComponentDef<any>, component.values);
+            this.addComponent(entityId, def as ComponentDef<any>, component.values);
           }
           continue;
         }
         for (const field of metadata?.fields ?? []) {
-          this.set_field(entityId, def as ComponentDef<any>, field as never, component.values[field] ?? 0);
+          this.setField(entityId, def as ComponentDef<any>, field as never, component.values[field] ?? 0);
         }
       }
     }

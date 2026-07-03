@@ -2,7 +2,7 @@ import { ECS } from "@oasys/oecs";
 import { ComponentDefGetDataType, ComponentDefGetSchemaType } from "./util";
 
 export function mkTrackPathPtComponent(ecs: ECS) {
-  return ecs.register_component({
+  return ecs.registerComponent({
     px: "f32",
     py: "f32",
     pz: "f32",
