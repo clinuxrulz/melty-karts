@@ -225,22 +225,26 @@ function createTrackBody(
   trackWidth: number,
   numSegments: number,
   curve: CatmullRomCurve4,
-): RAPIER.RigidBody {
+): { body: RAPIER.RigidBody, minY: number, } {
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
   let arcWeights = computeArcWeights(curve);
   const numParts = 10;
   const segsPerPart = numSegments / numParts;
+  let minY = Number.POSITIVE_INFINITY;
   for (let p = 0; p < numParts; p++) {
     const segStart = Math.round(p * segsPerPart);
     const segEnd = Math.round((p + 1) * segsPerPart);
     const { vertices, indices } = generateTrackCollisionVerticesInRange(trackEval, trackWidth, numSegments, arcWeights, segStart, segEnd);
+    for (let i = 0; i < vertices.length; i += 3) {
+      minY = Math.min(minY, vertices[i + 1]);
+    }
     const collider = RAPIER.ColliderDesc.trimesh(
       new Float32Array(vertices),
       new Uint32Array(indices),
     );
     world.createCollider(collider, body);
   }
-  return body;
+  return { body, minY, };
 }
 
 export function createInGameSystemV2(
@@ -342,6 +346,7 @@ export function createInGameSystemV2(
     document.removeEventListener("keydown", keyDownListener);
     document.removeEventListener("keyup", keyUpListener);
   });
+  let trackMinY: number = Number.NEGATIVE_INFINITY;
   createEffect(
     () => [ track(), curve(), start() ] as const,
     ([ track, curve, start, ]) => {
@@ -355,7 +360,7 @@ export function createInGameSystemV2(
         return;
       }
       {
-        createTrackBody(world, curve.trackEval, track.track.width, 500, curve.curve);
+        trackMinY = createTrackBody(world, curve.trackEval, track.track.width, 500, curve.curve).minY;
       }
       let frame = curve.trackEval.getFrameAt(0.0);
       camera()?.position.set(2, 2, 2).add(frame.position);
@@ -728,21 +733,24 @@ export function createInGameSystemV2(
       const chassisBody = vehicle.chassis();
       let rot = chassisBody.rotation();
       tmpQ1.set(rot.x, rot.y, rot.z, rot.w);
+      let kartForward = new THREE.Vector3(0, 0, 1).applyQuaternion(rot);
+      let kartVel = new THREE.Vector3().copy(chassisBody.linvel());
+      let kartForwardSpeed = kartForward.dot(kartVel);
 
       let engineForce = 0.0;
       let steering = 0.0;
 
       let actionPressed = keyboard.actionDown !== 0 || actionButton.pressed() || actionButton2.pressed();
 
-      // Joystick analog control (overrides keyboard when active)
-      if (Math.abs(joystickAnalog.y) > 0.1) {
-        let joyForce = -joystickAnalog.y * 10.0;
-        engineForce = joyForce > 0 ? joyForce : Math.max(-2.5, joyForce);
-      } else if (keyboard.upDown !== 0 || actionPressed) {
-        engineForce = 40.0;
-      } else if (keyboard.downDown !== 0) {
-        engineForce = -10.0;
+      if (keyboard.upDown !== 0 || actionPressed) {
+        engineForce = 1.0;
+      } else if (keyboard.downDown !== 0 || joystickAnalog.y > 0.3) {
+        engineForce = -0.25;
       }
+
+      const KART_MAX_SPEED = 50.0;
+      let maxSpeedFactor = 1.0 - Math.max(0.0, Math.min(1.0, kartForwardSpeed / KART_MAX_SPEED));
+      engineForce *= maxSpeedFactor;
 
       let targetSteering = 0;
       if (Math.abs(joystickAnalog.x) > 0.1) {
@@ -757,9 +765,23 @@ export function createInGameSystemV2(
       }
       steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
 
+      /*
       // Apply engine force to rear wheels (2 and 3) for driving
       for (let i = 2; i < vehicle.numWheels(); i++) {
         vehicle.setWheelEngineForce(i, engineForce);
+      }*/
+      if (
+        vehicle.wheelIsInContact(2) ||
+        vehicle.wheelIsInContact(3)
+      ) {
+        vehicle.chassis().applyImpulse(
+          {
+            x: kartForward.x * engineForce,
+            y: kartForward.y * engineForce,
+            z: kartForward.z * engineForce,
+          },
+          true,
+        );
       }
       // Apply steering to front wheels (0 and 1)
       for (let i = 0; i <= 1; i++) {
@@ -882,6 +904,10 @@ export function createInGameSystemV2(
           + Math.abs(rot.y - lastQy)
           + Math.abs(rot.z - lastQz)
           + Math.abs(rot.w - lastQw);
+        let sendUfo = false;
+        if (pos.y < trackMinY - 100.0) {
+          sendUfo = true;
+        }
         if (movementTest > 0.01) {
           ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
           ecs.set_field(entityId, componentRegistry.LastTransform3D, "ox", pos.x);
@@ -894,38 +920,47 @@ export function createInGameSystemV2(
         } else {
           let stillTime = ecs.ecs.get_field(entityId, componentRegistry.StillTime, "time");
           if (stillTime >= 5.0) {
-            console.log("Send the UFO!");
-            let ufoEntityId = getFreeEntityOrCreate(ecs);
-            ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
-            ecs.add_component(entityId, componentRegistry.UfoTarget, {
-              ufo: ufoEntityId,
-            });
-            ecs.add_component(
-              ufoEntityId,
-              componentRegistry.Ufo,
-              {
-                stage: UfoStage.CHASING_KART,
-                target: entityId,
-                timeout: 0,
-              },
-            );
-            ecs.add_component(
-              ufoEntityId,
-              componentRegistry.Transform3D,
-              {
-                ox: 0.0,
-                oy: 0.0,
-                oz: 0.0,
-                qx: 0.0,
-                qy: 0.0,
-                qz: 0.0,
-                qw: 1.0,
-              },
-            );
+            sendUfo = true;
           } else {
             stillTime += dt;
             ecs.set_field(entityId, componentRegistry.StillTime, "time", stillTime);
           }
+        }
+        if (sendUfo) {
+          console.log("Send the UFO!");
+          let ufoEntityId = getFreeEntityOrCreate(ecs);
+          ecs.set_field(entityId, componentRegistry.StillTime, "time", 0.0);
+          ecs.add_component(entityId, componentRegistry.UfoTarget, {
+            ufo: ufoEntityId,
+          });
+          ecs.add_component(
+            ufoEntityId,
+            componentRegistry.Ufo,
+            {
+              stage: UfoStage.CHASING_KART,
+              target: entityId,
+              timeout: 0,
+            },
+          );
+          ecs.add_component(
+            ufoEntityId,
+            componentRegistry.Transform3D,
+            {
+              ox: 0.0,
+              oy: 0.0,
+              oz: 0.0,
+              qx: 0.0,
+              qy: 0.0,
+              qz: 0.0,
+              qw: 1.0,
+            },
+          );
+        }
+      } else {
+        if (pos.y < trackMinY - 100.0) {
+          ecs.set_field(entityId, componentRegistry.Velocity, "x", 0.0);
+          ecs.set_field(entityId, componentRegistry.Velocity, "y", 0.0);
+          ecs.set_field(entityId, componentRegistry.Velocity, "z", 0.0);
         }
       }
     }
