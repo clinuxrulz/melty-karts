@@ -14,3 +14,4 @@ export { entityGetComponentData } from "./util";
 export { ShowAll } from "./util";
 export { TrackEvaluator, type TrackFrame } from "./track-evaluator";
 export { CatmullRomCurve4 } from "./catmull-rom-curve4";
+import { COYOTE_TIMEOUT } from "./components/coyote-time-component";

@@ -1,0 +1,11 @@
+import { ECS } from "@oasys/oecs";
+import { ComponentDefGetDataType } from "./util";
+
+export const COYOTE_TIMEOUT = 0.1;
+export function mkCoyoteTimeComponent(ecs: ECS) {
+  return ecs.register_component({
+    timeout: "f32",
+  });
+}
+
+export type CoyoteTimeState = ComponentDefGetDataType<ReturnType<typeof mkCoyoteTimeComponent>>;

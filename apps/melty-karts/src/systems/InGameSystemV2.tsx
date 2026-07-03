@@ -22,6 +22,7 @@ import { raceMusicRainbowWay } from "../Music";
 import Ufo from "../models/Ufo";
 import { UFO_BEAMING_TIMEOUT, UFO_FLY_OFF_TIMEOUT, UfoStage } from "@melty-karts/modelling/src/components/ufo-component";
 import { getFreeEntityOrCreate } from "../util";
+import { COYOTE_TIMEOUT } from "@melty-karts/modelling/src/components/coyote-time-component";
 
 const SHOW_DEBUG_MESH = false;
 
@@ -389,6 +390,7 @@ export function createInGameSystemV2(
       ecs.add_component(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
       ecs.add_component(playerId2, componentRegistry.StillTime, { time: 0.0, });
+      ecs.add_component(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
       ecs.add_component(playerId2, RegisteredPlayerConfig, {
         playerType: 0,
         facingForward: 1,
@@ -409,6 +411,7 @@ export function createInGameSystemV2(
     componentRegistry.Transform3D,
     componentRegistry.Velocity,
     componentRegistry.AngularVelocity,
+    componentRegistry.CoyoteTime,
   );
   let kartsWithPhysics = createMemo(mapArray(
     kartEntityIds,
@@ -765,15 +768,16 @@ export function createInGameSystemV2(
       }
       steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
 
-      /*
-      // Apply engine force to rear wheels (2 and 3) for driving
-      for (let i = 2; i < vehicle.numWheels(); i++) {
-        vehicle.setWheelEngineForce(i, engineForce);
-      }*/
+      let coyoteTime = ecs.ecs.get_field(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout");
       if (
         vehicle.wheelIsInContact(2) ||
         vehicle.wheelIsInContact(3)
       ) {
+        coyoteTime = COYOTE_TIMEOUT;
+      } else {
+        coyoteTime -= dt;
+      }
+      if (coyoteTime > 0.0) {
         vehicle.chassis().applyImpulse(
           {
             x: kartForward.x * engineForce,
@@ -782,7 +786,10 @@ export function createInGameSystemV2(
           },
           true,
         );
+      } else {
+        coyoteTime = 0.0;
       }
+      ecs.set_field(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout", coyoteTime);
       // Apply steering to front wheels (0 and 1)
       for (let i = 0; i <= 1; i++) {
         vehicle.setWheelSteering(i, steering);
