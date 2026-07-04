@@ -777,6 +777,7 @@ export function createInGameSystemV2(
       } else {
         coyoteTime -= dt;
       }
+      let rearOnGround = vehicle.wheelIsInContact(2) || vehicle.wheelIsInContact(3);
       if (coyoteTime > 0.0) {
         vehicle.chassis().applyImpulse(
           {
@@ -786,6 +787,12 @@ export function createInGameSystemV2(
           },
           true,
         );
+        // Apply steering torque when airborne during coyote time
+        if (!rearOnGround) {
+          let steerTorque = steering * 0.8;
+          let localTorque = new THREE.Vector3(0, steerTorque, 0).applyQuaternion(tmpQ1);
+          chassisBody.applyTorqueImpulse(localTorque, true);
+        }
       } else {
         coyoteTime = 0.0;
       }
