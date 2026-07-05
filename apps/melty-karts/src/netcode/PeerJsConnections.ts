@@ -24,16 +24,19 @@ export class PeerJsConnections {
   private connectedPeers = new Set<string>();
   private buffer = new Uint8Array(1024);
   private onPeerToPeerMessage: (peer: string, message: Uint8Array) => void;
+  private onConnect: (peer: string) => void;
   readonly ready: Promise<string>;
   readonly transport: TransportAdapter;
 
   constructor(params: {
     localPeerId: string,
     onMessage: (peer: string, message: Uint8Array) => void,
+    onConnect: (peer: string) => void,
   }) {
     this.localPeerId = params.localPeerId;
     this.peer = new Peer(params.localPeerId);
     this.onPeerToPeerMessage = params.onMessage;
+    this.onConnect = params.onConnect;
     this.ready = new Promise((resolve, reject) => {
       this.peer.on("open", resolve);
       this.peer.on("error", reject);
@@ -108,6 +111,7 @@ export class PeerJsConnections {
     connection.on("open", () => {
       this.connectedPeers.add(connection.peer);
       onOpen?.();
+      this.onConnect(connection.peer);
       this.transport.onConnect?.(connection.peer);
     });
     connection.on("data", (data) => {

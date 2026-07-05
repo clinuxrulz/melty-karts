@@ -24,6 +24,11 @@ import { makeInviteCode, inviteCodeToId } from "./InviteCode";
 import { placeMysteryBoxesAlongTrack } from "../systems/track-util";
 import { EntityID } from "@oasys/oecs";
 import { PeerJsConnections } from "./PeerJsConnections";
+import { Accessor, createSignal, Setter } from "solid-js";
+
+enum MessageType {
+  SelectLevel = 0,
+};
 
 type MultiplayerSnapshot = {
   status: "idle" | "hosting" | "joining" | "lobby" | "playing" | "error";
@@ -41,6 +46,8 @@ type InvitePayload = {
 };
 
 class MultiplayerSessionController {
+  readonly level: Accessor<"Procedural" | "NewLevel">;
+  private setLevel: Setter<"Procedural" | "NewLevel">;
   #peerJsConnections: PeerJsConnections | null = null;
   #session: Session | null = null;
   #listeners = new Set<() => void>();
@@ -54,6 +61,12 @@ class MultiplayerSessionController {
     error: null,
   };
   #update: ((dt: number) => void) | undefined = undefined;
+
+  constructor() {
+    let [ level, setLevel, ] = createSignal<"Procedural" | "NewLevel">("Procedural");
+    this.level = level;
+    this.setLevel = setLevel;
+  }
 
   set update(fn: ((dt: number) => void) | undefined) {
     this.#update = fn;
@@ -117,6 +130,48 @@ class MultiplayerSessionController {
     window.history.replaceState({}, "", url.toString());
   }
 
+  private makeSelectLevelMessage(level: "Procedural" | "NewLevel"): Uint8Array {
+    let message = new Uint8Array(2);
+    message[0] = MessageType.SelectLevel;
+    message[1] = level === "Procedural" ? 0 : 1;
+    return message;
+  }
+
+  selectLevel(level: "Procedural" | "NewLevel") {
+    let message = this.makeSelectLevelMessage(level);
+    this.#peerJsConnections?.broadcast(message);
+    this.setLevel(level);
+  }
+
+  private onMessage(peer: string, message: Uint8Array): void {
+    let messageType = message[0] as MessageType;
+    switch (messageType) {
+      case MessageType.SelectLevel: {
+        let level = message[1];
+        let level2: "Procedural" | "NewLevel";
+        switch (level) {
+          case 0:
+            level2 = "Procedural";
+            break;
+          case 1:
+            level2 = "NewLevel";
+            break;
+          default:
+            return;
+        }
+        this.setLevel(level2);
+        break;
+      }
+    }
+  }
+
+  private onConnect(peer: string): void {
+    if (this.#session?.isHost) {
+      let message = this.makeSelectLevelMessage(this.level());
+      this.#peerJsConnections?.sendMessage(peer, message);
+    }
+  }
+
   async host(ecs: ReactiveECS): Promise<void> {
     this.leave();
     ecs.setResource(RegisteredGameMode, { mode: 1 });
@@ -127,8 +182,11 @@ class MultiplayerSessionController {
     
     const peerJsConnections = new PeerJsConnections({
       localPeerId: hostPeerId,
-      onMessage(peer, message) {
-        
+      onMessage: (peer, message) => {
+        this.onMessage(peer, message);
+      },
+      onConnect: (peer) => {
+        this.onConnect(peer);
       },
     });
     await peerJsConnections.ready;
@@ -175,7 +233,10 @@ class MultiplayerSessionController {
     const peerJsConnections = new PeerJsConnections({
       localPeerId,
       onMessage: (peer, message) => {
-        
+        this.onMessage(peer, message);
+      },
+      onConnect: (peer) => {
+        this.onConnect(peer);
       },
     });
     await peerJsConnections.ready;

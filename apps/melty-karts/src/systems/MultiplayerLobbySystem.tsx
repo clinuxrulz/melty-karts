@@ -1,5 +1,4 @@
-import { createEffect, createSignal, onCleanup, onSettled, type Component, For, Show } from "solid-js";
-import { JSX as SolidJSX } from "@solidjs/web";
+import { createEffect, createSignal, onCleanup, onSettled, type Component, For, Show, Switch, Match } from "solid-js";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
 import QRCode from "qrcode";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
@@ -93,29 +92,47 @@ const UI: Component<{
           </div>
           {snapshot().error && <div style={{ color: "#ff5555", "margin-top": "8px" }}>{snapshot().error}</div>}
           {!isReady() && isActive() && <div style={{ "margin-top": "8px", opacity: 0.6 }}>Loading...</div>}
-          <Show when={isHost()}>
-            <label
-              style={{
-                "display": "flex",
-                "padding-top": "20px",
-                "flex-direction": "row",
-                "align-items": "center",
-              }}
-            >
-              <span style={{
-                "font-size": "32px",
-                "padding-right": "10px",
-              }}>
-                Level:
-              </span>
-              <select
-                style={{ "padding": "10px", "border-radius": "15px", "font-size": "20px", }}
-              >
-                <option value="ProceduralLevel">Procedural Level</option>
-                <option value="NewLevel">New Level</option>
-              </select>
-            </label>
-          </Show>
+          <label
+            style={{
+              "display": "flex",
+              "padding-top": "20px",
+              "flex-direction": "row",
+              "align-items": "center",
+            }}
+          >
+            <span style={{
+              "font-size": "32px",
+              "padding-right": "10px",
+            }}>
+              Level:
+            </span>
+            <Switch>
+              <Match when={isHost()}>
+                <select
+                  style={{ "padding": "10px", "border-radius": "15px", "font-size": "20px", }}
+                  onChange={(e) => {
+                    if (e.currentTarget.selectedOptions.length !== 1) {
+                      return;
+                    }
+                    let value = e.currentTarget.selectedOptions[0].value as any;
+                    multiplayerSession.selectLevel(value);
+                  }}
+                >
+                  <option value="Procedural" selected={multiplayerSession.level() === "Procedural"}>Procedural Level</option>
+                  <option value="NewLevel" selected={multiplayerSession.level() === "NewLevel"}>New Level</option>
+                </select>
+              </Match>
+              <Match when={isReady()}>
+                <span style={{
+                  "font-size": "32px",
+                  "padding-right": "10px",
+                  "color": "blue",
+                }}>
+                  {multiplayerSession.level() === "Procedural" ? "Procedural Level" : "New Level"}
+                </span>
+              </Match>
+            </Switch>
+          </label>
         </div>
 
         <Show when={isReady()}>
