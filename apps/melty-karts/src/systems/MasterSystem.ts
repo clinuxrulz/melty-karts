@@ -32,7 +32,7 @@ export function createMasterSystem(ecs: ReactiveECS): System {
         ];
       case MasterState.MULTIPLAYER_LOBBY:
         return [
-          createMultiplayerLobbySystem(ecs),
+          createMultiplayerLobbySystem(ecs, componentRegistry),
         ];
       case MasterState.LEVEL_SELECTION:
         return [

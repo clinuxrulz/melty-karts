@@ -1,14 +1,16 @@
 import { createEffect, createSignal, onCleanup, onSettled, type Component, For, Show, Switch, Match } from "solid-js";
 import { ReactiveECS } from "@melty-karts/reactive-ecs";
+import { ComponentRegistry } from "@melty-karts/modelling";
 import QRCode from "qrcode";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { MasterState, RegisteredGameMode, RegisteredMasterState } from "../World";
 import { System } from "./System";
 
-export function createMultiplayerLobbySystem(ecs: ReactiveECS): System {
+export function createMultiplayerLobbySystem(ecs: ReactiveECS, componentRegistry: ComponentRegistry): System {
   let UI2 = () => (
     <UI
       ecs={ecs}
+      componentRegistry={componentRegistry}
     />
   );
 
@@ -19,6 +21,7 @@ export function createMultiplayerLobbySystem(ecs: ReactiveECS): System {
 
 const UI: Component<{
   ecs: ReactiveECS,
+  componentRegistry: ComponentRegistry,
 }> = (props) => {
   const [snapshot, setSnapshot] = createSignal(multiplayerSession.getSnapshot());
   const [qrCode, setQrCode] = createSignal<string>();
@@ -256,7 +259,7 @@ const UI: Component<{
           <Show when={isHost() && isReady()}>
             <button
               disabled={snapshot().players.length === 0}
-              onClick={() => multiplayerSession.startGame(ecs)}
+              onClick={async () => { await multiplayerSession.startGame(ecs, props.componentRegistry); }}
               style={{ ...btnStyle("#ffffff", "#000"), flex: 2, opacity: snapshot().players.length === 0 ? 0.5 : 1 }}
             >
               START RACE

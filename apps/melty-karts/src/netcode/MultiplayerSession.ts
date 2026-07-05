@@ -1,11 +1,14 @@
 import { createSession, Session, type Game, type PlayerId, SessionState } from "rollback-netcode";
 import * as THREE from "three";
 import type { ReactiveECS, ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
+import { ComponentRegistry, loadEcsFromXml, obtainTrackPtNodes, generateTrackCurve } from "@melty-karts/modelling";
 import { createKart } from "../Kart";
 import {
   RegisteredGameMode,
   RegisteredMasterState,
   RegisteredNetworkSlot,
+  RegisteredKartConfig,
+  RegisteredPlayerConfig,
   MasterState,
   RegisteredKeyboardInput,
   RegisteredJoystickInput,
@@ -61,6 +64,7 @@ class MultiplayerSessionController {
     error: null,
   };
   #update: ((dt: number) => void) | undefined = undefined;
+  v2RemoteInputs: Map<number, number> = new Map();
 
   constructor() {
     let [ level, setLevel, ] = createSignal<"Procedural" | "NewLevel">("Procedural");
@@ -261,12 +265,15 @@ class MultiplayerSessionController {
     await this.join(ecs, invite);
   }
 
-  startGame(ecs: ReactiveECS): void {
+  async startGame(ecs: ReactiveECS, componentRegistry?: ComponentRegistry): Promise<void> {
     if (!this.#session?.isHost) {
       return;
     }
-    this.prepareRace(ecs);
-    ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+    if (this.level() === "NewLevel") {
+      await this.prepareNewLevelRace(ecs, componentRegistry!);
+    } else {
+      this.prepareRace(ecs);
+    }
     this.#session.start();
     this.#setSnapshot({ status: "playing" });
   }
@@ -386,7 +393,45 @@ class MultiplayerSessionController {
     placeMysteryBoxesAlongTrack(ecs, curve);
   }
 
+  async prepareNewLevelRace(ecs: ReactiveECS, componentRegistry: ComponentRegistry): Promise<void> {
+    const levelResponse = await fetch(/* @vite-ignore */"./levels/test-level.melty-karts-level", {
+      cache: "no-cache",
+    });
+    const levelData = await levelResponse.text();
+    loadEcsFromXml(componentRegistry, ecs, levelData);
+
+    const playerIds = this.getOrderedPlayerIds();
+    for (let slot = 0; slot < playerIds.length; slot++) {
+      const playerTypeIdx = slot % 3;
+      let entityId = ecs.createEntity();
+      ecs.addComponent(entityId, componentRegistry.Transform3D, {
+        ox: 0, oy: 2 + slot, oz: 0, qx: 0, qy: 0, qz: 0, qw: 1,
+      });
+      ecs.addComponent(entityId, componentRegistry.Velocity, { x: 0, y: 0, z: 0 });
+      ecs.addComponent(entityId, componentRegistry.AngularVelocity, { x: 0, y: 0, z: 0 });
+      ecs.addComponent(entityId, componentRegistry.CoyoteTime, { timeout: 0 });
+      ecs.addComponent(entityId, componentRegistry.LastTransform3D, {
+        ox: 0, oy: 2 + slot, oz: 0, qx: 0, qy: 0, qz: 0, qw: 1,
+      });
+      ecs.addComponent(entityId, componentRegistry.StillTime, { time: 0 });
+      ecs.addComponent(entityId, RegisteredKartConfig, { speed: 0.0 });
+      ecs.addComponent(entityId, RegisteredPlayerConfig, { playerType: playerTypeIdx, facingForward: 1, useItemWasDown: 0 });
+      ecs.addComponent(entityId, RegisteredInputControlled, { useItemDown: 0, upDown: 0 });
+      ecs.addComponent(entityId, RegisteredNetworkSlot, { slot });
+    }
+  }
+
   buildLocalInput(ecs: ReactiveECS): Uint8Array {
+    if (this.level() === "NewLevel") {
+      const keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
+      let mask = 0;
+      if (keyboard.upDown !== 0) mask |= 0b00001;
+      if (keyboard.downDown !== 0) mask |= 0b00010;
+      if (keyboard.leftDown !== 0) mask |= 0b00100;
+      if (keyboard.rightDown !== 0) mask |= 0b01000;
+      if (keyboard.actionDown !== 0) mask |= 0b10000;
+      return new Uint8Array([mask]);
+    }
     const keyboard = ecs.ecs.resource((RegisteredGameMode as unknown) as never);
     void keyboard;
     return new Uint8Array([]);
@@ -410,52 +455,74 @@ class MultiplayerSessionController {
         ecs.deserialize(snapshot);
       },
       step: (inputs) => {
-        const slotMap = new Map<number, number>();
-        for (const arch of ecs.query(RegisteredNetworkSlot)) {
-          const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
-          for (let i = 0; i < arch.entityCount; i++) {
-            slotMap.set(slots[i], Number(arch.entityIds[i]));
+        if (this.level() === "NewLevel") {
+          const slotMap = new Map<number, number>();
+          for (const arch of ecs.query(RegisteredNetworkSlot)) {
+            const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+            for (let i = 0; i < arch.entityCount; i++) {
+              slotMap.set(slots[i], Number(arch.entityIds[i]));
+            }
           }
+
+          const playerIds = this.getOrderedPlayerIds();
+          for (let slot = 0; slot < playerIds.length; slot++) {
+            const entityId = slotMap.get(slot) as EntityID;
+            if (entityId === undefined) continue;
+
+            const input = inputs.get(playerIds[slot] as PlayerId);
+            const mask = input?.[0] ?? 0;
+            this.v2RemoteInputs.set(Number(entityId), mask);
+          }
+
+          this.#update?.(1 / 60);
+        } else {
+          const slotMap = new Map<number, number>();
+          for (const arch of ecs.query(RegisteredNetworkSlot)) {
+            const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+            for (let i = 0; i < arch.entityCount; i++) {
+              slotMap.set(slots[i], Number(arch.entityIds[i]));
+            }
+          }
+
+          const playerIds = this.getOrderedPlayerIds();
+          for (let slot = 0; slot < playerIds.length; slot++) {
+            const entityId = slotMap.get(slot) as EntityID;
+            if (entityId === undefined) {
+              continue;
+            }
+
+            if (ecs.entity(entityId as never).hasComponent(RegisteredAIControlled)) {
+              continue;
+            }
+
+            const input = inputs.get(playerIds[slot] as PlayerId);
+            const mask = input?.[0] ?? 0;
+            const useItemDown = (mask & 0b010000) !== 0;
+            const upDown = (mask & 0b100000) !== 0;
+
+            if (ecs.entity(entityId).hasComponent(RegisteredInputControlled)) {
+              ecs.setField(entityId, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
+              ecs.setField(entityId, RegisteredInputControlled, "upDown", upDown ? 1 : 0);
+            }
+
+            simulateKartStep({
+              ecs,
+              entityId: entityId as never,
+              dt: 1 / 60,
+              turnAmount: ((mask & 0b0100) ? -1 : 0) + ((mask & 0b1000) ? 1 : 0),
+              upDown: false,
+              downDown: false,
+              actionDown: (mask & 0b0001) !== 0,
+              driftDown: (mask & 0b0010) !== 0,
+            });
+          }
+
+          // Simulate AI players deterministically
+          const aiSystem = createAISystem(ecs);
+          aiSystem.update?.(1 / 60);
+
+          this.#update?.(1 / 60);
         }
-
-        const playerIds = this.getOrderedPlayerIds();
-        for (let slot = 0; slot < playerIds.length; slot++) {
-          const entityId = slotMap.get(slot) as EntityID;
-          if (entityId === undefined) {
-            continue;
-          }
-
-          if (ecs.entity(entityId as never).hasComponent(RegisteredAIControlled)) {
-            continue;
-          }
-
-          const input = inputs.get(playerIds[slot] as PlayerId);
-          const mask = input?.[0] ?? 0;
-          const useItemDown = (mask & 0b010000) !== 0;
-          const upDown = (mask & 0b100000) !== 0;
-
-          if (ecs.entity(entityId).hasComponent(RegisteredInputControlled)) {
-            ecs.setField(entityId, RegisteredInputControlled, "useItemDown", useItemDown ? 1 : 0);
-            ecs.setField(entityId, RegisteredInputControlled, "upDown", upDown ? 1 : 0);
-          }
-
-          simulateKartStep({
-            ecs,
-            entityId: entityId as never,
-            dt: 1 / 60,
-            turnAmount: ((mask & 0b0100) ? -1 : 0) + ((mask & 0b1000) ? 1 : 0),
-            upDown: false,
-            downDown: false,
-            actionDown: (mask & 0b0001) !== 0,
-            driftDown: (mask & 0b0010) !== 0,
-          });
-        }
-
-        // Simulate AI players deterministically
-        const aiSystem = createAISystem(ecs);
-        aiSystem.update?.(1 / 60);
-
-        this.#update?.(1 / 60);
       },
       hash: () => ecs.hash(ignoredResources),
     };
@@ -481,7 +548,8 @@ class MultiplayerSessionController {
       this.#syncPlayers();
     });
     session.on("gameStart", () => {
-      ecs.setResource(RegisteredMasterState, { masterState: MasterState.IN_GAME });
+      const state = this.level() === "NewLevel" ? MasterState.IN_GAME_V2 : MasterState.IN_GAME;
+      ecs.setResource(RegisteredMasterState, { masterState: state });
       this.#setSnapshot({ status: "playing" });
     });
     session.on("error", (error) => {

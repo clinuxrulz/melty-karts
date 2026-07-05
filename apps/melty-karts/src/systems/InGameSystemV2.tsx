@@ -10,7 +10,8 @@ import RAPIER from "@dimforge/rapier3d";
 import { DynamicRayCastVehicleController } from "@dimforge/rapier3d/control";
 import { T } from "../t";
 import { createKart } from "../Kart";
-import { RegisteredFreeEntity, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { RegisteredFreeEntity, RegisteredGameMode, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { loadKartModel } from "../models/Kart";
 import Melty from "../models/melty";
 import { createCubey } from "../models/cubey";
@@ -25,6 +26,18 @@ import { getFreeEntityOrCreate } from "../util";
 import { COYOTE_TIMEOUT } from "@melty-karts/modelling/src/components/coyote-time-component";
 
 const SHOW_DEBUG_MESH = false;
+
+function findKartEntityForSlot(ecs: ReactiveECS, slot: number): number {
+  for (const arch of ecs.query(RegisteredNetworkSlot)) {
+    const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+    for (let i = 0; i < arch.entityCount; i++) {
+      if (slots[i] === slot) {
+        return arch.entityIds[i] as number;
+      }
+    }
+  }
+  throw new Error(`Could not find kart entity for multiplayer slot ${slot}`);
+}
 
 class RapierDebugRenderer {
   mesh: THREE.LineSegments;
@@ -252,6 +265,7 @@ export function createInGameSystemV2(
   componentRegistry: ComponentRegistry,
   ecs: ReactiveECS,
 ): System {
+  const isMultiplayer = ecs.resource(RegisteredGameMode).get("mode") === 1 && multiplayerSession.isActive;
   raceMusicRainbowWay.play();
   onCleanup(() => {
     raceMusicRainbowWay.stop();
@@ -347,6 +361,33 @@ export function createInGameSystemV2(
     document.removeEventListener("keydown", keyDownListener);
     document.removeEventListener("keyup", keyUpListener);
   });
+  // Drive rollback netcode tick in multiplayer mode (like RollbackNetcodeSystem does for V1)
+  if (isMultiplayer) {
+    const session = multiplayerSession.session;
+    if (session) {
+      let frameHandle = 0;
+      let accumulator = 0;
+      let lastTime = performance.now();
+      const stepMs = 1000 / 60;
+      let disposed = false;
+      const frame = () => {
+        if (disposed) return;
+        const now = performance.now();
+        accumulator += Math.min(now - lastTime, 250);
+        lastTime = now;
+        while (accumulator >= stepMs) {
+          session.tick(multiplayerSession.buildLocalInput(ecs));
+          accumulator -= stepMs;
+        }
+        frameHandle = requestAnimationFrame(frame);
+      };
+      frameHandle = requestAnimationFrame(frame);
+      onCleanup(() => {
+        disposed = true;
+        cancelAnimationFrame(frameHandle);
+      });
+    }
+  }
   let trackMinY: number = Number.NEGATIVE_INFINITY;
   createEffect(
     () => [ track(), curve(), start() ] as const,
@@ -363,49 +404,59 @@ export function createInGameSystemV2(
       {
         trackMinY = createTrackBody(world, curve.trackEval, track.track.width, 500, curve.curve).minY;
       }
-      let frame = curve.trackEval.getFrameAt(0.0);
-      camera()?.position.set(2, 2, 2).add(frame.position);
-      let matrix = new THREE.Matrix4().makeBasis(
-        frame.right,
-        frame.up,
-        frame.forward.clone().multiplyScalar(-1.0),
-      );
-      let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
-      let playerId2 = ecs.createEntity();
-      {
-        let ox = frame.position.x;
-        let oy = frame.position.y + 0.5;
-        let oz = frame.position.z;
-        let qx = q.x;
-        let qy = q.y;
-        let qz = q.z;
-        let qw = q.w;
-        ecs.addComponent(playerId2, componentRegistry.Transform3D, {
-          ox, oy, oz, qx, qy, qz, qw,
+      let playerId2: EntityID;
+      if (isMultiplayer) {
+        let slot = multiplayerSession.getLocalSlot();
+        playerId2 = findKartEntityForSlot(ecs, slot) as EntityID;
+        camera()?.position.set(2, 2, 2).add(
+          curve.trackEval.getFrameAt(0.0).position
+        );
+      } else {
+        let frame = curve.trackEval.getFrameAt(0.0);
+        camera()?.position.set(2, 2, 2).add(frame.position);
+        let matrix = new THREE.Matrix4().makeBasis(
+          frame.right,
+          frame.up,
+          frame.forward.clone().multiplyScalar(-1.0),
+        );
+        let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
+        playerId2 = ecs.createEntity();
+        {
+          let ox = frame.position.x;
+          let oy = frame.position.y + 0.5;
+          let oz = frame.position.z;
+          let qx = q.x;
+          let qy = q.y;
+          let qz = q.z;
+          let qw = q.w;
+          ecs.addComponent(playerId2, componentRegistry.Transform3D, {
+            ox, oy, oz, qx, qy, qz, qw,
+          });
+          ecs.addComponent(playerId2, componentRegistry.LastTransform3D, {
+            ox, oy, oz, qx, qy, qz, qw,
+          });
+        }
+        ecs.addComponent(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
+        ecs.addComponent(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
+        ecs.addComponent(playerId2, componentRegistry.StillTime, { time: 0.0, });
+        ecs.addComponent(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
+        ecs.addComponent(playerId2, RegisteredPlayerConfig, {
+          playerType: 0,
+          facingForward: 1,
+          useItemWasDown: 0,
         });
-        ecs.addComponent(playerId2, componentRegistry.LastTransform3D, {
-          ox, oy, oz, qx, qy, qz, qw,
+        ecs.addComponent(playerId2, RegisteredKartConfig, {
+          speed: 0.0,
+        });
+        onCleanup(() => {
+          ecs.destroyEntity(playerId2);
         });
       }
-      ecs.addComponent(playerId2, componentRegistry.Velocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.addComponent(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
-      ecs.addComponent(playerId2, componentRegistry.StillTime, { time: 0.0, });
-      ecs.addComponent(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
-      ecs.addComponent(playerId2, RegisteredPlayerConfig, {
-        playerType: 0,
-        facingForward: 1,
-        useItemWasDown: 0,
-      });
-      ecs.addComponent(playerId2, RegisteredKartConfig, {
-        speed: 0.0,
-      });
       setPlayerId(playerId2);
-      onCleanup(() => {
-        ecs.destroyEntity(playerId2);
-      });
     },
   );
   let ufoEntityIds = ecs.createQueryEntityIds(componentRegistry.Ufo, componentRegistry.Transform3D);
+  let wheelMeshGroup = new THREE.Group();
   let kartEntityIds = ecs.createQueryEntityIds(
     RegisteredKartConfig,
     componentRegistry.Transform3D,
@@ -523,7 +574,6 @@ export function createInGameSystemV2(
     },
   ));
   let rapierDebugRenderer: RapierDebugRenderer | undefined = undefined;
-  let wheelMeshGroup = new THREE.Group();
   if (SHOW_DEBUG_MESH) {
     createEffect(
       scene,
@@ -730,8 +780,27 @@ export function createInGameSystemV2(
         chassisBody.setAngvel(angularVelocity, true);
       }
     }
-    let keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
     for (let kartPhysics2 of kartsWithPhysics()) {
+      let entityId = kartPhysics2.kartEntityId;
+      let isLocalPlayer = entityId === playerId();
+
+      let kartUpDown = false, kartDownDown = false, kartLeftDown = false, kartRightDown = false, kartActionDown = false;
+      if (isLocalPlayer || !isMultiplayer) {
+        let keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
+        kartUpDown = keyboard.upDown !== 0;
+        kartDownDown = keyboard.downDown !== 0;
+        kartLeftDown = keyboard.leftDown !== 0;
+        kartRightDown = keyboard.rightDown !== 0;
+        kartActionDown = keyboard.actionDown !== 0;
+      } else {
+        let mask = multiplayerSession.v2RemoteInputs.get(entityId) ?? 0;
+        kartUpDown = (mask & 0b00001) !== 0;
+        kartDownDown = (mask & 0b00010) !== 0;
+        kartLeftDown = (mask & 0b00100) !== 0;
+        kartRightDown = (mask & 0b01000) !== 0;
+        kartActionDown = (mask & 0b10000) !== 0;
+      }
+
       const vehicle = kartPhysics2.vehicle;
       const chassisBody = vehicle.chassis();
       let rot = chassisBody.rotation();
@@ -743,11 +812,11 @@ export function createInGameSystemV2(
       let engineForce = 0.0;
       let steering = 0.0;
 
-      let actionPressed = keyboard.actionDown !== 0 || actionButton.pressed() || actionButton2.pressed();
+      let actionPressed = kartActionDown || (isLocalPlayer && (actionButton.pressed() || actionButton2.pressed()));
 
-      if (keyboard.upDown !== 0 || actionPressed) {
+      if (kartUpDown || actionPressed) {
         engineForce = 1.0;
-      } else if (keyboard.downDown !== 0 || joystickAnalog.y > 0.3) {
+      } else if (kartDownDown || (isLocalPlayer && joystickAnalog.y > 0.3)) {
         engineForce = -0.25;
       }
 
@@ -756,13 +825,13 @@ export function createInGameSystemV2(
       engineForce *= maxSpeedFactor;
 
       let targetSteering = 0;
-      if (Math.abs(joystickAnalog.x) > 0.1) {
+      if (isLocalPlayer && Math.abs(joystickAnalog.x) > 0.1) {
         targetSteering = -joystickAnalog.x * 2.0 * maxSteerDeg;
       } else {
-        if (keyboard.leftDown !== 0) {
+        if (kartLeftDown) {
           targetSteering = maxSteerDeg;
         }
-        if (keyboard.rightDown !== 0) {
+        if (kartRightDown) {
           targetSteering = -maxSteerDeg;
         }
       }
