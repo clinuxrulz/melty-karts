@@ -140,20 +140,7 @@ export class PeerJsConnections {
       return;
     }
     let tunnel: MessageTunnel = message[0] as MessageTunnel;
-    let requiredSize = message.length - MESSAGE_TUNNEL_TYPE_SIZE;
-    {
-      let nextSize = this.buffer.length;
-      while (requiredSize > nextSize) {
-        nextSize <<= 1;
-      }
-      if (nextSize !== this.buffer.length) {
-        this.buffer = new Uint8Array(nextSize);
-      }
-    }
-    for (let i = 0; i < message.length-1; ++i) {
-      this.buffer[i] = message[i + 1];
-    }
-    let message2 = new Uint8Array(this.buffer.buffer, 0, requiredSize);
+    let message2 = message.slice(1);
     switch (tunnel) {
       case MessageTunnel.PeerToPeerMessage: {
         this.onPeerToPeerMessage(peer, message2);
