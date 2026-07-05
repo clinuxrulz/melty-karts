@@ -67,7 +67,12 @@ const UI: Component<{
   });
 
   let ecs = props.ecs;
-  const isHost = () => snapshot().players.find((player) => player.id === snapshot().localPlayerId)?.isHost ?? false;
+  const isHost = () => {
+    const snap = snapshot();
+    const fromPlayers = snap.players.find((player) => player.id === snap.localPlayerId)?.isHost;
+    if (fromPlayers !== undefined) return fromPlayers;
+    return multiplayerSession.session?.isHost ?? false;
+  };
   const isActive = () => snapshot().status !== "idle";
   const isReady = () => snapshot().status === "lobby" || snapshot().status === "playing";
 
@@ -79,7 +84,7 @@ const UI: Component<{
         display: "flex",
         "flex-direction": "column",
         "align-items": "center",
-        "justify-content": "center",
+        "justify-content": "flex-start",
         padding: "24px",
         background: "#121212",
         color: "#ffffff",
@@ -112,7 +117,7 @@ const UI: Component<{
             <Switch>
               <Match when={isHost()}>
                 <select
-                  style={{ "padding": "10px", "border-radius": "15px", "font-size": "20px", }}
+                  style={{ "padding": "10px", "border-radius": "15px", "font-size": "20px", background: "#fff", color: "#000", border: "1px solid #888", }}
                   onChange={(e) => {
                     if (e.currentTarget.selectedOptions.length !== 1) {
                       return;
