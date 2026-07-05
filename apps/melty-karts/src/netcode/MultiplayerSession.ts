@@ -20,10 +20,10 @@ import {
 import { generateTrack } from "../models/Track";
 import { simulateKartStep } from "../systems/KartPhysicsSystem";
 import { createAISystem } from "../systems/AISystem";
-import { PeerJsTransport } from "./PeerJsTransport";
 import { makeInviteCode, inviteCodeToId } from "./InviteCode";
 import { placeMysteryBoxesAlongTrack } from "../systems/track-util";
 import { EntityID } from "@oasys/oecs";
+import { PeerJsConnections } from "./PeerJsConnections";
 
 type MultiplayerSnapshot = {
   status: "idle" | "hosting" | "joining" | "lobby" | "playing" | "error";
@@ -41,7 +41,7 @@ type InvitePayload = {
 };
 
 class MultiplayerSessionController {
-  #transport: PeerJsTransport | null = null;
+  #peerJsConnections: PeerJsConnections | null = null;
   #session: Session | null = null;
   #listeners = new Set<() => void>();
   #snapshot: MultiplayerSnapshot = {
@@ -125,9 +125,14 @@ class MultiplayerSessionController {
     const inviteCode = makeInviteCode();
     const hostPeerId = await inviteCodeToId(inviteCode, "peer");
     
-    const transport = new PeerJsTransport(hostPeerId);
-    await transport.ready;
-    const session = this.#createSession(ecs, transport);
+    const peerJsConnections = new PeerJsConnections({
+      localPeerId: hostPeerId,
+      onMessage(peer, message) {
+        
+      },
+    });
+    await peerJsConnections.ready;
+    const session = this.#createSession(ecs, peerJsConnections);
     
     // Attempt deterministic roomId if rollback-netcode allows
     const deterministicRoomId = await inviteCodeToId(inviteCode, "room");
@@ -139,7 +144,7 @@ class MultiplayerSessionController {
       roomId = await session.createRoom();
     }
 
-    const invite = { roomId, hostPeerId: transport.localPeerId };
+    const invite = { roomId, hostPeerId: peerJsConnections.localPeerId };
     const inviteUrl = new URL(window.location.href);
     inviteUrl.searchParams.set("mp", inviteCode);
     
@@ -167,9 +172,14 @@ class MultiplayerSessionController {
     ecs.setResource(RegisteredGameMode, { mode: 1 });
     this.#setSnapshot({ status: "joining", error: null, inviteCode: invite.roomId, invitePayload: invite.roomId });
     const localPeerId = `melty-${Math.random().toString(36).slice(2, 10)}`;
-    const transport = new PeerJsTransport(localPeerId);
-    await transport.ready;
-    const session = this.#createSession(ecs, transport);
+    const peerJsConnections = new PeerJsConnections({
+      localPeerId,
+      onMessage: (peer, message) => {
+        
+      },
+    });
+    await peerJsConnections.ready;
+    const session = this.#createSession(ecs, peerJsConnections);
     await session.joinRoom(invite.roomId, invite.hostPeerId);
     this.#setSnapshot({
       status: session.state === SessionState.Lobby ? "lobby" : "joining",
@@ -202,9 +212,9 @@ class MultiplayerSessionController {
 
   leave(): void {
     this.#session?.destroy();
-    this.#transport?.destroy();
+    this.#peerJsConnections?.destroy();
     this.#session = null;
-    this.#transport = null;
+    this.#peerJsConnections = null;
     this.#snapshot = {
       status: "idle",
       inviteUrl: null,
@@ -321,8 +331,8 @@ class MultiplayerSessionController {
     return new Uint8Array([]);
   }
 
-  #createSession(ecs: ReactiveECS, transport: PeerJsTransport): Session {
-    this.#transport = transport;
+  #createSession(ecs: ReactiveECS, peerJsConnections: PeerJsConnections): Session {
+    this.#peerJsConnections = peerJsConnections;
 
     const ignoredResources = new Set([
       RegisteredMasterState.toString(),
@@ -391,8 +401,8 @@ class MultiplayerSessionController {
 
     const session = createSession({
       game,
-      transport,
-      localPlayerId: transport.localPeerId as PlayerId,
+      transport: peerJsConnections.transport,
+      localPlayerId: peerJsConnections.localPeerId as PlayerId,
       config: {
         tickRate: 60,
         maxPlayers: 4,

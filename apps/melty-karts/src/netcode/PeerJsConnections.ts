@@ -18,7 +18,7 @@ enum MessageTunnel {
 const MESSAGE_TUNNEL_TYPE_SIZE = 1;
 
 export class PeerJsConnections {
-  private localPeerId: string;
+  readonly localPeerId: string;
   private peer: Peer;
   private connections = new Map<string, DataConnection>();
   private connectedPeers = new Set<string>();
@@ -59,10 +59,10 @@ export class PeerJsConnections {
         }
       },
       send(peerId, message, reliable) {
-        peerJsConnections.sendMessage(MessageTunnel.NetCodeMessage, peerId, message);
+        peerJsConnections.sendMessage2(MessageTunnel.NetCodeMessage, peerId, message);
       },
       broadcast(message, reliable) {
-        peerJsConnections.broadcast(MessageTunnel.NetCodeMessage, message);
+        peerJsConnections.broadcast2(MessageTunnel.NetCodeMessage, message);
       },
       onMessage: null,
       onConnect: null,
@@ -170,7 +170,15 @@ export class PeerJsConnections {
     this.transport.onError?.(peer, error, kind);
   }
 
-  private sendMessage(tunnel: MessageTunnel, peer: string, message: Uint8Array) {
+  sendMessage(peer: string, message: Uint8Array) {
+    this.sendMessage2(MessageTunnel.PeerToPeerMessage, peer, message);
+  }
+
+  broadcast(message: Uint8Array) {
+    this.broadcast2(MessageTunnel.PeerToPeerMessage, message);
+  }
+
+  private sendMessage2(tunnel: MessageTunnel, peer: string, message: Uint8Array) {
     let requiredSize = MESSAGE_TUNNEL_TYPE_SIZE + message.length;
     {
       let nextSize = this.buffer.length;
@@ -192,7 +200,7 @@ export class PeerJsConnections {
     dataConnection.send(new Uint8Array(this.buffer.buffer, 0, requiredSize));
   }
 
-  private broadcast(tunnel: MessageTunnel, message: Uint8Array) {
+  private broadcast2(tunnel: MessageTunnel, message: Uint8Array) {
     let requiredSize = MESSAGE_TUNNEL_TYPE_SIZE + message.length;
     {
       let nextSize = this.buffer.length;
@@ -215,5 +223,12 @@ export class PeerJsConnections {
       }
       dataConnection.send(message2);
     }
+  }
+
+  destroy() {
+    for (let dataConnection of this.connections.values()) {
+      dataConnection.close();
+    }
+    this.peer.destroy();
   }
 }
