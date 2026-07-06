@@ -1,7 +1,7 @@
 import { createSession, Session, type Game, type PlayerId, SessionState } from "rollback-netcode";
 import * as THREE from "three";
 import type { ReactiveECS, ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
-import { ComponentRegistry, loadEcsFromXml, obtainTrackPtNodes, generateTrackCurve } from "@melty-karts/modelling";
+import { ComponentRegistry, loadEcsFromXml, obtainTrackPtNodes, generateTrackCurve, TrackEvaluator } from "@melty-karts/modelling";
 import { createKart } from "../Kart";
 import {
   RegisteredGameMode,
@@ -400,18 +400,53 @@ class MultiplayerSessionController {
     const levelData = await levelResponse.text();
     loadEcsFromXml(componentRegistry, ecs, levelData);
 
+    let trackEntityId: EntityID | undefined;
+    ecs.ecs.query(componentRegistry.Track).forEach((arch) => {
+      for (let i = 0; i < arch.entityCount; i++) {
+        trackEntityId = arch.entityIds[i] as EntityID;
+      }
+    });
+    let curveData: { trackEval: TrackEvaluator } | undefined;
+    if (trackEntityId !== undefined) {
+      let trackPtNodes = obtainTrackPtNodes({ componentRegistry, ecs, trackId: trackEntityId });
+      if (trackPtNodes !== undefined) {
+        curveData = generateTrackCurve({ trackPtNodes });
+      }
+    }
+
     const playerIds = this.getOrderedPlayerIds();
     for (let slot = 0; slot < playerIds.length; slot++) {
       const playerTypeIdx = slot % 3;
       let entityId = ecs.createEntity();
+
+      let ox = 0, oy = 2 + slot, oz = 0;
+      let qx = 0, qy = 0, qz = 0, qw = 1;
+
+      if (curveData !== undefined) {
+        let frame = curveData.trackEval.getFrameAt(0.0);
+        let matrix = new THREE.Matrix4().makeBasis(
+          frame.right,
+          frame.up,
+          frame.forward.clone().multiplyScalar(-1.0),
+        );
+        let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
+        ox = frame.position.x;
+        oy = frame.position.y + 1.0;
+        oz = frame.position.z;
+        qx = q.x;
+        qy = q.y;
+        qz = q.z;
+        qw = q.w;
+      }
+
       ecs.addComponent(entityId, componentRegistry.Transform3D, {
-        ox: 0, oy: 2 + slot, oz: 0, qx: 0, qy: 0, qz: 0, qw: 1,
+        ox, oy, oz, qx, qy, qz, qw,
       });
       ecs.addComponent(entityId, componentRegistry.Velocity, { x: 0, y: 0, z: 0 });
       ecs.addComponent(entityId, componentRegistry.AngularVelocity, { x: 0, y: 0, z: 0 });
       ecs.addComponent(entityId, componentRegistry.CoyoteTime, { timeout: 0 });
       ecs.addComponent(entityId, componentRegistry.LastTransform3D, {
-        ox: 0, oy: 2 + slot, oz: 0, qx: 0, qy: 0, qz: 0, qw: 1,
+        ox, oy, oz, qx, qy, qz, qw,
       });
       ecs.addComponent(entityId, componentRegistry.StillTime, { time: 0 });
       ecs.addComponent(entityId, RegisteredKartConfig, { speed: 0.0 });
