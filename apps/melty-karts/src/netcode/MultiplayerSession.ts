@@ -424,11 +424,12 @@ class MultiplayerSessionController {
   buildLocalInput(ecs: ReactiveECS): Uint8Array {
     if (this.level() === "NewLevel") {
       const keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
+      const joystick = ecs.ecs.resource(RegisteredJoystickInput);
       let mask = 0;
-      if (keyboard.upDown !== 0) mask |= 0b00001;
-      if (keyboard.downDown !== 0) mask |= 0b00010;
-      if (keyboard.leftDown !== 0) mask |= 0b00100;
-      if (keyboard.rightDown !== 0) mask |= 0b01000;
+      if (keyboard.upDown !== 0 || joystick.joystickY < -0.2) mask |= 0b00001;
+      if (keyboard.downDown !== 0 || joystick.joystickY > 0.2) mask |= 0b00010;
+      if (keyboard.leftDown !== 0 || joystick.joystickX < -0.2) mask |= 0b00100;
+      if (keyboard.rightDown !== 0 || joystick.joystickX > 0.2) mask |= 0b01000;
       if (keyboard.actionDown !== 0) mask |= 0b10000;
       return new Uint8Array([mask]);
     }

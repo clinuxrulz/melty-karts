@@ -10,7 +10,7 @@ import RAPIER from "@dimforge/rapier3d";
 import { DynamicRayCastVehicleController } from "@dimforge/rapier3d/control";
 import { T } from "../t";
 import { createKart } from "../Kart";
-import { RegisteredFreeEntity, RegisteredGameMode, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { RegisteredFreeEntity, RegisteredGameMode, RegisteredJoystickInput, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { loadKartModel } from "../models/Kart";
 import Melty from "../models/melty";
@@ -753,6 +753,24 @@ export function createInGameSystemV2(
     (joyVal) => {
       joystickAnalog.x = joyVal.x;
       joystickAnalog.y = joyVal.y;
+      ecs.setResource(RegisteredJoystickInput, {
+        joystickX: joyVal.x,
+        joystickY: joyVal.y,
+      });
+      let upDown = joyVal.y < -0.2;
+      updateKeyboardInput({ upDown });
+    },
+  );
+  createEffect(
+    actionButton.pressed,
+    (actionDown) => {
+      updateKeyboardInput({ actionDown });
+    },
+  );
+  createEffect(
+    actionButton2.pressed,
+    (actionDown) => {
+      updateKeyboardInput({ actionDown });
     },
   );
 
@@ -785,7 +803,7 @@ export function createInGameSystemV2(
       let isLocalPlayer = entityId === playerId();
 
       let kartUpDown = false, kartDownDown = false, kartLeftDown = false, kartRightDown = false, kartActionDown = false;
-      if (isLocalPlayer || !isMultiplayer) {
+      if (!isMultiplayer) {
         let keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
         kartUpDown = keyboard.upDown !== 0;
         kartDownDown = keyboard.downDown !== 0;
