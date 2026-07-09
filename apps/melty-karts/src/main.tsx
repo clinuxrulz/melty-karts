@@ -32,8 +32,8 @@ function App() {
       dt = (t - lastT) / 1000.0;
     }
     lastT = t;
-    update(dt);
     if (!isMultiplayer()) {
+      update(dt);
       requestAnimationFrame(update3);
     }
   };

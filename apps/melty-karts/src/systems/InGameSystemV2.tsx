@@ -1,16 +1,18 @@
-import { ReactiveECS } from "@melty-karts/reactive-ecs";
+import { ReactiveECS, type ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
 import { System } from "./System";
 import { CatmullRomCurve4, ComponentRegistry, entityGetComponentData, generateTrackCurve, obtainTrackPtNodes, RenderTrack, ShowAll, TrackState, TrackEvaluator, transformGetMatrix } from "@melty-karts/modelling";
 import { Accessor, Component, createEffect, createMemo, createSignal, For, getOwner, mapArray, Match, onCleanup, onSettled, runWithOwner, Switch, untrack } from "solid-js";
 import * as THREE from "three";
 import { EntityID } from "@oasys/oecs";
+import type { ComponentDef } from "@oasys/oecs";
 import { Canvas, Entity, useFrame } from "solid-three";
 import { WebGPURenderer } from "three/webgpu";
 import RAPIER from "@dimforge/rapier3d";
 import { DynamicRayCastVehicleController } from "@dimforge/rapier3d/control";
+import { type Game, type PlayerId } from "rollback-netcode";
 import { T } from "../t";
 import { createKart } from "../Kart";
-import { RegisteredFreeEntity, RegisteredGameMode, RegisteredJoystickInput, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredNetworkSlot, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredVelocity } from "../World";
+import { RegisteredFreeEntity, RegisteredGameMode, RegisteredJoystickInput, RegisteredKartConfig, RegisteredKeyboardInput, RegisteredMasterState, RegisteredNetworkSlot, RegisteredOrientation, RegisteredPlayerConfig, RegisteredPosition, RegisteredSoundEnabled, RegisteredVelocity, RegisteredOrbitEnabled, RegisteredAIControlled, RegisteredInputControlled, RegisteredRaceStats, RegisteredLocalPlayerPosition } from "../World";
 import { multiplayerSession } from "../netcode/MultiplayerSession";
 import { loadKartModel } from "../models/Kart";
 import Melty from "../models/melty";
@@ -269,8 +271,12 @@ export function createInGameSystemV2(
   raceMusicRainbowWay.play();
   onCleanup(() => {
     raceMusicRainbowWay.stop();
+    currentWorld.free();
   });
-  let world = new RAPIER.World({ x: 0, y: -9.82, z: 0 });
+  let currentWorld: RAPIER.World = new RAPIER.World({ x: 0, y: -9.82, z: 0 });
+  if (isMultiplayer) {
+    multiplayerSession.rapierWorld = currentWorld;
+  }
   let trackIds = ecs.createQueryEntityIds(componentRegistry.Track);
   let trackId = createMemo(() => {
     let trackIds2 = trackIds();
@@ -368,16 +374,16 @@ export function createInGameSystemV2(
       let frameHandle = 0;
       let accumulator = 0;
       let lastTime = performance.now();
-      const stepMs = 1000 / 60;
+      const tickMs = 1000 / 60;
       let disposed = false;
       const frame = () => {
         if (disposed) return;
         const now = performance.now();
         accumulator += Math.min(now - lastTime, 250);
         lastTime = now;
-        while (accumulator >= stepMs) {
+        while (accumulator >= tickMs) {
           session.tick(multiplayerSession.buildLocalInput(ecs));
-          accumulator -= stepMs;
+          accumulator -= tickMs;
         }
         frameHandle = requestAnimationFrame(frame);
       };
@@ -387,8 +393,83 @@ export function createInGameSystemV2(
         cancelAnimationFrame(frameHandle);
       });
     }
+    multiplayerSession.onWorldRestored = (newWorld) => {
+      if (!newWorld) {
+        return false;
+      }
+      const kpList = kartsWithPhysics();
+      for (const kp of kpList) {
+        if (!newWorld.bodies.contains(kp.chassisHandle)) {
+          throw new Error(`New world did not contain expected chassis handle ${kp.chassisHandle}`);
+        }
+      }
+      const oldWorld = currentWorld;
+      for (const kp of kpList) {
+        // Destroy old vehicle controller (removes from set AND frees WASM memory)
+        oldWorld.removeVehicleController(kp.vehicle);
+      }
+      for (const kp of kpList) {
+        const newChassis = newWorld.getRigidBody(kp.chassisHandle);
+        // Create new vehicle controller with clean internal state
+        const newVehicle = newWorld.createVehicleController(newChassis);
+        newVehicle.indexUpAxis = 1;
+        newVehicle.setIndexForwardAxis = 2;
+        kp.wheelPositions.forEach((pos, i) => {
+          newVehicle.addWheel(
+            RAPIER.VectorOps.new(pos.x, pos.y, pos.z),
+            RAPIER.VectorOps.new(0, -1, 0),
+            RAPIER.VectorOps.new(-1, 0, 0),
+            kp.suspensionRestLength,
+            kp.wheelRadius
+          );
+          newVehicle.setWheelFrictionSlip(i, 3.5);
+          let isFront = i <= 1;
+          newVehicle.setWheelSuspensionStiffness(i, isFront ? 22 : 18);
+          newVehicle.setWheelSuspensionCompression(i, isFront ? 28 : 28);
+          newVehicle.setWheelSuspensionRelaxation(i, isFront ? 30 : 28);
+          newVehicle.setWheelMaxSuspensionForce(i, 2000);
+          newVehicle.setWheelMaxSuspensionTravel(i, 0.6);
+        });
+        kp.vehicle = newVehicle;
+        const cached = kartPhysicsCache.get(kp.kartEntityId);
+        if (cached) cached.vehicle = newVehicle;
+      }
+      currentWorld = newWorld;
+      multiplayerSession.rapierWorld = newWorld;
+      if (rapierDebugRenderer) rapierDebugRenderer.world = newWorld;
+      oldWorld.free();
+      return true;
+    };
   }
   let trackMinY: number = Number.NEGATIVE_INFINITY;
+  // Synchronously create track body before first tick so karts don't fall through
+  // the empty world while waiting for the SolidJS effect to fire at ~500ms.
+  {
+    let trackEntityId: EntityID | undefined;
+    const oecsQuery = ecs.ecs.query(componentRegistry.Track);
+    for (let i = 0; i < oecsQuery.archetypeCount; i++) {
+      const arch = oecsQuery.archetypes[i];
+      for (let j = 0; j < arch.entityCount; j++) {
+        trackEntityId = arch.entityIds[j] as EntityID;
+      }
+    }
+    if (trackEntityId !== undefined) {
+      let trackPtNodesData = obtainTrackPtNodes({ componentRegistry, ecs, trackId: trackEntityId });
+      if (trackPtNodesData !== undefined) {
+        let curveData = generateTrackCurve({ trackPtNodes: trackPtNodesData });
+        if (curveData !== undefined) {
+          let trackState = entityGetComponentData(ecs, trackEntityId, componentRegistry.Track) as TrackState | undefined;
+          trackMinY = createTrackBody(
+            currentWorld,
+            curveData.trackEval,
+            trackState?.width ?? 8,
+            500,
+            curveData.curve,
+          ).minY;
+        }
+      }
+    }
+  }
   createEffect(
     () => [ track(), curve(), start() ] as const,
     ([ track, curve, start, ]) => {
@@ -401,8 +482,8 @@ export function createInGameSystemV2(
       if (curve === undefined) {
         return;
       }
-      {
-        trackMinY = createTrackBody(world, curve.trackEval, track.track.width, 500, curve.curve).minY;
+      if (trackMinY === Number.NEGATIVE_INFINITY) {
+        trackMinY = createTrackBody(currentWorld, curve.trackEval, track.track.width, 500, curve.curve).minY;
       }
       let playerId2: EntityID;
       if (isMultiplayer) {
@@ -464,83 +545,88 @@ export function createInGameSystemV2(
     componentRegistry.AngularVelocity,
     componentRegistry.CoyoteTime,
   );
+  let kartPhysicsCache = new Map<EntityID, {
+    vehicle: DynamicRayCastVehicleController;
+    chassisHandle: number;
+    wheelPositions: { x: number; y: number; z: number }[];
+    wheelRadius: number;
+    suspensionRestLength: number;
+    wheelAxleDirs: { x: number; y: number; z: number }[];
+  }>();
   let kartsWithPhysics = createMemo(mapArray(
     kartEntityIds,
     (kartEntityId) => {
       let kartEntityId2 = untrack(kartEntityId);
       const wheelRadius = 0.25;
       const wheelPositions = [
-        { x: -0.4, y: 0.35, z: 0.4 },  // Front Left
-        { x: 0.4, y: 0.35, z: 0.4 },   // Front Right
-        { x: -0.4, y: 0.35, z: -0.4 }, // Rear Left
-        { x: 0.4, y: 0.35, z: -0.4 },  // Rear Right
+        { x: -0.4, y: 0.35, z: 0.4 },
+        { x: 0.4, y: 0.35, z: 0.4 },
+        { x: -0.4, y: 0.35, z: -0.4 },
+        { x: 0.4, y: 0.35, z: -0.4 },
       ];
 
-      let transform = untrack(() => entityGetComponentData(ecs, kartEntityId2, componentRegistry.Transform3D));
-      const initX = transform?.ox ?? 0;
-      const initY = transform?.oy ?? 0;
-      const initZ = transform?.oz ?? 0;
-      const initQx = transform?.qx ?? 0;
-      const initQy = transform?.qy ?? 0;
-      const initQz = transform?.qz ?? 0;
-      const initQw = transform?.qw ?? 1;
+      let cached = kartPhysicsCache.get(kartEntityId2);
+      if (!cached) {
+        let transform = untrack(() => entityGetComponentData(ecs, kartEntityId2, componentRegistry.Transform3D));
+        const initX = transform?.ox ?? 0;
+        const initY = transform?.oy ?? 0;
+        const initZ = transform?.oz ?? 0;
+        const initQx = transform?.qx ?? 0;
+        const initQy = transform?.qy ?? 0;
+        const initQz = transform?.qz ?? 0;
+        const initQw = transform?.qw ?? 1;
 
-      const chassisDesc = RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(initX, initY, initZ)
-        .setRotation({ x: initQx, y: initQy, z: initQz, w: initQw })
-        .setCanSleep(false)
-        .setLinearDamping(0.1)
-        .setAngularDamping(5.0)
-        .setAdditionalMass(5.0);
-      chassisDesc.centerOfMass = { x: 0, y: 0.08, z: 0.25 };
-      const chassisBody = world.createRigidBody(chassisDesc);
-      // Small, flat collider positioned at the body center
-      // The visual mesh sits on top, wheels extend below
-      const chassisCollider = RAPIER.ColliderDesc.cuboid(0.3, 0.2, 0.6)
-        .setTranslation(0, 0.35, 0)
-        .setRestitution(0.0)
-        .setFriction(0.8);
-      world.createCollider(chassisCollider, chassisBody);
+        const chassisDesc = RAPIER.RigidBodyDesc.dynamic()
+          .setTranslation(initX, initY, initZ)
+          .setRotation({ x: initQx, y: initQy, z: initQz, w: initQw })
+          .setCanSleep(false)
+          .setCcdEnabled(true)
+          .setLinearDamping(0.1)
+          .setAngularDamping(5.0)
+          .setAdditionalMass(5.0);
+        chassisDesc.centerOfMass = { x: 0, y: 0.08, z: 0.25 };
+        const chassisBody = currentWorld.createRigidBody(chassisDesc);
+        const chassisHandle = chassisBody.handle;
+        const chassisCollider = RAPIER.ColliderDesc.cuboid(0.3, 0.2, 0.6)
+          .setTranslation(0, 0.35, 0)
+          .setRestitution(0.0)
+          .setFriction(0.8);
+        currentWorld.createCollider(chassisCollider, chassisBody);
 
-      const broadPhase = world.broadPhase;
-      const narrowPhase = world.narrowPhase;
-      const bodies = world.bodies;
-      const colliders = world.colliders;
+        const vehicle = currentWorld.createVehicleController(chassisBody);
 
-      const vehicle = new DynamicRayCastVehicleController(
-        chassisBody,
-        broadPhase,
-        narrowPhase,
-        bodies,
-        colliders
-      );
+        vehicle.indexUpAxis = 1;
+        vehicle.setIndexForwardAxis = 2;
 
-      vehicle.indexUpAxis = 1;
-      vehicle.setIndexForwardAxis = 2;
+        const suspensionRestLength = 0.1;
 
-      const suspensionRestLength = 0.1;//0.35;
+        wheelPositions.forEach((pos, i) => {
+          vehicle.addWheel(
+            RAPIER.VectorOps.new(pos.x, pos.y, pos.z),
+            RAPIER.VectorOps.new(0, -1, 0),
+            RAPIER.VectorOps.new(-1, 0, 0),
+            suspensionRestLength,
+            wheelRadius
+          );
+          vehicle.setWheelFrictionSlip(i, 3.5);
+          let isFront = i <= 1;
+          vehicle.setWheelSuspensionStiffness(i, isFront ? 22 : 18);
+          vehicle.setWheelSuspensionCompression(i, isFront ? 28 : 28);
+          vehicle.setWheelSuspensionRelaxation(i, isFront ? 30 : 28);
+          vehicle.setWheelMaxSuspensionForce(i, 2000);
+          vehicle.setWheelMaxSuspensionTravel(i, 0.6);
+        });
 
-      wheelPositions.forEach((pos, i) => {
-        vehicle.addWheel(
-          RAPIER.VectorOps.new(pos.x, pos.y, pos.z),
-          RAPIER.VectorOps.new(0, -1, 0),
-          RAPIER.VectorOps.new(-1, 0, 0),
+        cached = {
+          vehicle,
+          chassisHandle,
+          wheelPositions,
+          wheelRadius,
           suspensionRestLength,
-          wheelRadius
-        );
-        vehicle.setWheelFrictionSlip(i, 3.5);
-        let isFront = i <= 1;
-        vehicle.setWheelSuspensionStiffness(i, isFront ? 22 : 18);
-        vehicle.setWheelSuspensionCompression(i, isFront ? 28 : 28);
-        vehicle.setWheelSuspensionRelaxation(i, isFront ? 30 : 28);
-        vehicle.setWheelMaxSuspensionForce(i, 2000);
-        vehicle.setWheelMaxSuspensionTravel(i, 0.6);
-      });
-
-      onCleanup(() => {
-        vehicle.free();
-        world.removeRigidBody(chassisBody);
-      });
+          wheelAxleDirs: wheelPositions.map(() => ({ x: -1, y: 0, z: 0 })),
+        };
+        kartPhysicsCache.set(kartEntityId2, cached);
+      }
 
       const wheelMeshes: THREE.Mesh[] = [];
       for (let i = 0; i < 4; i++) {
@@ -567,9 +653,13 @@ export function createInGameSystemV2(
 
       return {
         kartEntityId: kartEntityId2,
-        vehicle,
-        wheelAxleDirs: wheelPositions.map(() => ({ x: -1, y: 0, z: 0 })),
+        vehicle: cached.vehicle,
+        chassisHandle: cached.chassisHandle,
+        wheelAxleDirs: cached.wheelAxleDirs,
         wheelMeshes,
+        wheelRadius: cached.wheelRadius,
+        suspensionRestLength: cached.suspensionRestLength,
+        wheelPositions: cached.wheelPositions,
       };
     },
   ));
@@ -581,7 +671,7 @@ export function createInGameSystemV2(
         if (scene === undefined) {
           return;
         }
-        rapierDebugRenderer = new RapierDebugRenderer(scene, world);
+        rapierDebugRenderer = new RapierDebugRenderer(scene, currentWorld);
         scene.add(wheelMeshGroup);
         onCleanup(() => {
           scene.remove(wheelMeshGroup);
@@ -589,15 +679,18 @@ export function createInGameSystemV2(
       },
     )
   }
+  let triggerRender: (() => void) | undefined;
   let UI: Component = () => {
     return (
       <ShowAll whenAll={[ track, trackPtNodes, curve, ]}>
         {([ track, trackPtNodes, curve, ]) => (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <Canvas
+              frameloop="never"
               gl={(canvas) => new WebGPURenderer({ canvas })}
               ref={(ref) => {
                 runWithOwner(null, () => {
+                  triggerRender = () => ref.render(performance.now());
                   ref.camera.position.set(5, 5, 5);
                   ref.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
                   setScene(ref.scene);
@@ -747,18 +840,14 @@ export function createInGameSystemV2(
     colour: () => "red",
     specialSlidePress: () => true,
   });
-  let joystickAnalog = { x: 0, y: 0 };
   createEffect(
     joystick.value,
     (joyVal) => {
-      joystickAnalog.x = joyVal.x;
-      joystickAnalog.y = joyVal.y;
-      ecs.setResource(RegisteredJoystickInput, {
-        joystickX: joyVal.x,
-        joystickY: joyVal.y,
-      });
+      let leftDown = joyVal.x < -0.2;
+      let rightDown = joyVal.x > 0.2;
       let upDown = joyVal.y < -0.2;
-      updateKeyboardInput({ upDown });
+      let downDown = joyVal.y > 0.2;
+      updateKeyboardInput({ leftDown, rightDown, upDown, downDown, });
     },
   );
   createEffect(
@@ -830,11 +919,11 @@ export function createInGameSystemV2(
       let engineForce = 0.0;
       let steering = 0.0;
 
-      let actionPressed = kartActionDown || (isLocalPlayer && (actionButton.pressed() || actionButton2.pressed()));
+      let actionPressed = kartActionDown;
 
       if (kartUpDown || actionPressed) {
         engineForce = 1.0;
-      } else if (kartDownDown || (isLocalPlayer && joystickAnalog.y > 0.3)) {
+      } else if (kartDownDown) {
         engineForce = -0.25;
       }
 
@@ -843,15 +932,11 @@ export function createInGameSystemV2(
       engineForce *= maxSpeedFactor;
 
       let targetSteering = 0;
-      if (isLocalPlayer && Math.abs(joystickAnalog.x) > 0.1) {
-        targetSteering = -joystickAnalog.x * 2.0 * maxSteerDeg;
-      } else {
-        if (kartLeftDown) {
-          targetSteering = maxSteerDeg;
-        }
-        if (kartRightDown) {
-          targetSteering = -maxSteerDeg;
-        }
+      if (kartLeftDown) {
+        targetSteering = maxSteerDeg;
+      }
+      if (kartRightDown) {
+        targetSteering = -maxSteerDeg;
       }
       steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
 
@@ -893,11 +978,13 @@ export function createInGameSystemV2(
     while (tmp > 0.0) {
       const fixedDt = 1 / (60 * 5);
       tmp -= fixedDt;
-      world.timestep = fixedDt;
+      const w = currentWorld;
+      if (!w || !w.integrationParameters) break;
+      w.timestep = fixedDt;
       for (let kartPhysics2 of kartsWithPhysics()) {
         kartPhysics2.vehicle.updateVehicle(fixedDt);
       }
-      world.step();
+      w.step();
     }
     rapierDebugRenderer?.update();
     for (let kartPhysics2 of kartsWithPhysics()) {
@@ -1301,14 +1388,178 @@ export function createInGameSystemV2(
         tmpV1.set(playerPosX, playerPosY, playerPosZ);
         tmpQ1.set(playerOrientX, playerOrientY, playerOrientZ, playerOrientW);
         tmpV2.set(0, 2, -5).applyQuaternion(tmpQ1).add(tmpV1);
-      }
-      camera2.position.lerp(tmpV2, 0.05);
-      let tmpQ2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI).premultiply(tmpQ1);
-      camera2.quaternion.slerp(tmpQ2, 0.05);
     }
+    camera2.position.lerp(tmpV2, 0.05);
+    let tmpQ2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI).premultiply(tmpQ1);
+    camera2.quaternion.slerp(tmpQ2, 0.05);
+    }
+    triggerRender?.();
   };
+
+  if (isMultiplayer) {
+    const kartCompKey = RegisteredKartConfig.id.toString();
+    const ufoCompKey = componentRegistry.Ufo.id.toString();
+    const ignoredResources = new Set([
+      RegisteredMasterState.toString(),
+      RegisteredKeyboardInput.toString(),
+      RegisteredJoystickInput.toString(),
+      RegisteredSoundEnabled.toString(),
+      RegisteredOrbitEnabled.toString(),
+    ]);
+
+    const compDefMap = new Map<string, ComponentDef>();
+    for (const [k, v] of Object.entries(componentRegistry)) {
+      if (v && typeof (v as ComponentDef).id === 'number') {
+        compDefMap.set((v as ComponentDef).id.toString(), v as ComponentDef);
+      }
+    }
+    for (const def of [
+      RegisteredKartConfig, RegisteredPlayerConfig, RegisteredNetworkSlot,
+      RegisteredAIControlled, RegisteredInputControlled, RegisteredOrientation,
+      RegisteredRaceStats, RegisteredLocalPlayerPosition, RegisteredFreeEntity,
+    ]) {
+      compDefMap.set(def.id.toString(), def);
+    }
+
+    const v2Game: Game = {
+      serialize: () => {
+        const snapshot = ecs.serialize(ignoredResources);
+        snapshot.entities = snapshot.entities.filter(e =>
+          e.components.some(c => c.componentKey === kartCompKey) ||
+          e.components.some(c => c.componentKey === ufoCompKey)
+        );
+        const ecsJson = JSON.stringify(snapshot);
+        return new TextEncoder().encode(ecsJson);
+      },
+
+      deserialize: (data) => {
+        const snapshot = JSON.parse(new TextDecoder().decode(data)) as ReactiveECSSnapshot;
+
+        const targetIds = new Set(snapshot.entities.map(e => e.id as EntityID));
+
+        const currentKartIds: EntityID[] = [];
+        for (const arch of ecs.query(RegisteredKartConfig)) {
+          for (let i = 0; i < arch.entityCount; i++) {
+            currentKartIds.push(arch.entityIds[i] as EntityID);
+          }
+        }
+        const currentUfoIds: EntityID[] = [];
+        for (const arch of ecs.query(componentRegistry.Ufo)) {
+          for (let i = 0; i < arch.entityCount; i++) {
+            currentUfoIds.push(arch.entityIds[i] as EntityID);
+          }
+        }
+
+        for (const id of currentKartIds) {
+          if (!targetIds.has(id) && ecs.ecs.isAlive(id)) {
+            ecs.destroyEntity(id);
+          }
+        }
+        for (const id of currentUfoIds) {
+          if (!targetIds.has(id) && ecs.ecs.isAlive(id)) {
+            ecs.destroyEntity(id);
+          }
+        }
+
+        for (const entityDef of snapshot.entities) {
+          const eid = entityDef.id as EntityID;
+
+          if (!ecs.ecs.isAlive(eid)) {
+            while (!ecs.ecs.isAlive(eid)) {
+              ecs.createEntity();
+            }
+          }
+
+          const targetCompKeys = new Set(entityDef.components.map(c => c.componentKey));
+
+          for (const [compKey, def] of compDefMap) {
+            if (ecs.ecs.hasComponent(eid, def) && !targetCompKeys.has(compKey)) {
+              ecs.ecs.removeComponent(eid, def);
+            }
+          }
+
+          for (const comp of entityDef.components) {
+            const def = compDefMap.get(comp.componentKey);
+            if (!def) continue;
+
+            if (!ecs.ecs.hasComponent(eid, def)) {
+              if (Object.keys(comp.values).length === 0) {
+                ecs.ecs.addComponent(eid, def as ComponentDef<Record<string, never>>);
+              } else {
+                ecs.ecs.addComponent(eid, def as ComponentDef<any>, comp.values);
+              }
+            } else {
+              for (const [field, value] of Object.entries(comp.values)) {
+                (ecs.ecs as any).setField(eid, def, field, value);
+              }
+            }
+          }
+
+          // Sync ECS state back into existing rapier bodies for kart entities
+          if (entityDef.components.some(c => c.componentKey === kartCompKey)) {
+            const cached = kartPhysicsCache.get(eid);
+            if (cached) {
+              const body = currentWorld.getRigidBody(cached.chassisHandle);
+              if (body) {
+                const tx = entityDef.components.find(c => c.componentKey === componentRegistry.Transform3D.id.toString());
+                if (tx) {
+                  body.setTranslation({ x: tx.values.ox ?? 0, y: tx.values.oy ?? 0, z: tx.values.oz ?? 0 }, true);
+                  body.setRotation({ x: tx.values.qx ?? 0, y: tx.values.qy ?? 0, z: tx.values.qz ?? 0, w: tx.values.qw ?? 1 }, true);
+                }
+                const vel = entityDef.components.find(c => c.componentKey === componentRegistry.Velocity.id.toString());
+                if (vel) {
+                  body.setLinvel({ x: vel.values.x ?? 0, y: vel.values.y ?? 0, z: vel.values.z ?? 0 }, true);
+                }
+                const angVel = entityDef.components.find(c => c.componentKey === componentRegistry.AngularVelocity.id.toString());
+                if (angVel) {
+                  body.setAngvel({ x: angVel.values.x ?? 0, y: angVel.values.y ?? 0, z: angVel.values.z ?? 0 }, true);
+                }
+              }
+            }
+          }
+        }
+      },
+
+      step: (inputs) => {
+        const slotMap = new Map<number, number>();
+        for (const arch of ecs.query(RegisteredNetworkSlot)) {
+          const slots = arch.getColumnRead(RegisteredNetworkSlot, "slot") as Uint8Array;
+          for (let i = 0; i < arch.entityCount; i++) {
+            slotMap.set(slots[i], Number(arch.entityIds[i]));
+          }
+        }
+        const playerIds = multiplayerSession.getOrderedPlayerIds();
+        for (let slot = 0; slot < playerIds.length; slot++) {
+          const entityId = slotMap.get(slot) as EntityID;
+          if (entityId === undefined) continue;
+          const input = inputs.get(playerIds[slot] as PlayerId);
+          const mask = input?.[0] ?? 0;
+          multiplayerSession.v2RemoteInputs.set(Number(entityId), mask);
+        }
+        update(1 / 60);
+      },
+
+      hash: () => {
+        const snapshot = ecs.serialize(ignoredResources);
+        snapshot.entities = snapshot.entities.filter(e =>
+          e.components.some(c => c.componentKey === kartCompKey) ||
+          e.components.some(c => c.componentKey === ufoCompKey)
+        );
+        const json = JSON.stringify(snapshot);
+        let hash = 2166136261;
+        for (let i = 0; i < json.length; i++) {
+          hash ^= json.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+      },
+    };
+
+    multiplayerSession.setGameImpl(v2Game);
+  }
+
   return {
     ui: () => UI,
-    update,
+    update: isMultiplayer ? undefined : update,
   };
 }

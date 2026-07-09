@@ -1,7 +1,36 @@
 import { createSession, Session, type Game, type PlayerId, SessionState } from "rollback-netcode";
+
+class MutableGame implements Game {
+  #inner: Game;
+
+  constructor(initial: Game) {
+    this.#inner = initial;
+  }
+
+  setInner(game: Game): void {
+    this.#inner = game;
+  }
+
+  serialize(): Uint8Array {
+    return this.#inner.serialize();
+  }
+
+  deserialize(data: Uint8Array): void {
+    this.#inner.deserialize(data);
+  }
+
+  step(inputs: Map<PlayerId, Uint8Array>): void {
+    this.#inner.step(inputs);
+  }
+
+  hash(): number {
+    return this.#inner.hash();
+  }
+}
 import * as THREE from "three";
 import type { ReactiveECS, ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
 import { ComponentRegistry, loadEcsFromXml, obtainTrackPtNodes, generateTrackCurve, TrackEvaluator } from "@melty-karts/modelling";
+import RAPIER from "@dimforge/rapier3d";
 import { createKart } from "../Kart";
 import {
   RegisteredGameMode,
@@ -53,6 +82,7 @@ class MultiplayerSessionController {
   private setLevel: Setter<"Procedural" | "NewLevel">;
   #peerJsConnections: PeerJsConnections | null = null;
   #session: Session | null = null;
+  #mutableGame: MutableGame | null = null;
   #listeners = new Set<() => void>();
   #snapshot: MultiplayerSnapshot = {
     status: "idle",
@@ -65,6 +95,8 @@ class MultiplayerSessionController {
   };
   #update: ((dt: number) => void) | undefined = undefined;
   v2RemoteInputs: Map<number, number> = new Map();
+  rapierWorld?: RAPIER.World;
+  onWorldRestored?: (newWorld: RAPIER.World) => boolean;
 
   constructor() {
     let [ level, setLevel, ] = createSignal<"Procedural" | "NewLevel">("Procedural");
@@ -139,6 +171,10 @@ class MultiplayerSessionController {
     message[0] = MessageType.SelectLevel;
     message[1] = level === "Procedural" ? 0 : 1;
     return message;
+  }
+
+  setGameImpl(game: Game): void {
+    this.#mutableGame?.setInner(game);
   }
 
   selectLevel(level: "Procedural" | "NewLevel") {
@@ -485,8 +521,44 @@ class MultiplayerSessionController {
     ]);
 
     const game: Game = {
-      serialize: () => new TextEncoder().encode(JSON.stringify(ecs.serialize(ignoredResources))),
+      serialize: () => {
+        const ecsJson = JSON.stringify(ecs.serialize(ignoredResources));
+        const ecsBytes = new TextEncoder().encode(ecsJson);
+        if (this.rapierWorld) {
+          const rapierData = this.rapierWorld.takeSnapshot();
+          const combined = new Uint8Array(4 + rapierData.length + ecsBytes.length);
+          const dv = new DataView(combined.buffer, combined.byteOffset, combined.byteLength);
+          dv.setUint32(0, rapierData.length, true);
+          combined.set(rapierData, 4);
+          combined.set(ecsBytes, 4 + rapierData.length);
+          return combined;
+        }
+        return ecsBytes;
+      },
       deserialize: (data) => {
+        if (data.length > 4) {
+          const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+          const rapierLen = dv.getUint32(0, true);
+          if (rapierLen > 0 && rapierLen < 100000000 && 4 + rapierLen < data.length) {
+            const rapierData = data.slice(4, 4 + rapierLen);
+            const ecsBytes = data.slice(4 + rapierLen);
+            const newWorld = RAPIER.World.restoreSnapshot(rapierData);
+            if (!newWorld) {
+              const snapshot = JSON.parse(new TextDecoder().decode(ecsBytes)) as ReactiveECSSnapshot;
+              ecs.deserialize(snapshot);
+              return;
+            }
+            const accepted = this.onWorldRestored?.(newWorld) ?? true;
+            if (accepted) {
+              this.rapierWorld = newWorld;
+            } else {
+              newWorld.free();
+            }
+            const snapshot = JSON.parse(new TextDecoder().decode(ecsBytes)) as ReactiveECSSnapshot;
+            ecs.deserialize(snapshot);
+            return;
+          }
+        }
         const snapshot = JSON.parse(new TextDecoder().decode(data)) as ReactiveECSSnapshot;
         ecs.deserialize(snapshot);
       },
@@ -563,8 +635,11 @@ class MultiplayerSessionController {
       hash: () => ecs.hash(ignoredResources),
     };
 
+    const mutableGame = new MutableGame(game);
+    this.#mutableGame = mutableGame;
+
     const session = createSession({
-      game,
+      game: mutableGame,
       transport: peerJsConnections.transport,
       localPlayerId: peerJsConnections.localPeerId as PlayerId,
       config: {
