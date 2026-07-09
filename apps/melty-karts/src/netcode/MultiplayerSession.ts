@@ -30,7 +30,7 @@ class MutableGame implements Game {
 import * as THREE from "three";
 import type { ReactiveECS, ReactiveECSSnapshot } from "@melty-karts/reactive-ecs";
 import { ComponentRegistry, loadEcsFromXml, obtainTrackPtNodes, generateTrackCurve, TrackEvaluator } from "@melty-karts/modelling";
-import RAPIER from "@dimforge/rapier3d";
+import RAPIER from "@dimforge/rapier3d-deterministic";
 import { createKart } from "../Kart";
 import {
   RegisteredGameMode,

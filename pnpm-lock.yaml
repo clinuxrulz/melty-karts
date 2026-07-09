@@ -75,7 +75,7 @@ importers:
 
   apps/melty-karts:
     dependencies:
-      '@dimforge/rapier3d':
+      '@dimforge/rapier3d-deterministic':
         specifier: ^0.19.3
         version: 0.19.3
       '@melty-karts/modelling':
@@ -440,8 +440,8 @@ packages:
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
 
-  '@dimforge/rapier3d@0.19.3':
-    resolution: {integrity: sha512-tkD1tvHTDML0W9s9rUYAsx0btO9LbVTnMBKJWVgOsas5haGFbYY+pzr5hbwYysv/IJmgmMrIFoVWIcsaCUE9ow==}
+  '@dimforge/rapier3d-deterministic@0.19.3':
+    resolution: {integrity: sha512-/BCLXWU7jOUT2oCunp4A9ccrhsOmK/YDbFMY5O/ZHhgQE0LuqGlZsBYj36mjhCTIfeDzMdBV6glemxPjSQ3grg==}
 
   '@esbuild/aix-ppc64@0.28.1':
     resolution: {integrity: sha512-Svl7tq8k/08+p6CXPpRjQ1fKX+1odH/BQbb48fV6fj3CWHhsoIOoY87w1oHXm0qEpkIK3ZfVgp0hed3XBXzXMQ==}
@@ -1992,7 +1992,7 @@ snapshots:
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
-  '@dimforge/rapier3d@0.19.3': {}
+  '@dimforge/rapier3d-deterministic@0.19.3': {}
 
   '@esbuild/aix-ppc64@0.28.1':
     optional: true

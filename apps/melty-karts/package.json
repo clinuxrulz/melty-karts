@@ -21,7 +21,7 @@
     "vite-plugin-wasm": "^3.6.0"
   },
   "dependencies": {
-    "@dimforge/rapier3d": "^0.19.3",
+    "@dimforge/rapier3d-deterministic": "^0.19.3",
     "@melty-karts/modelling": "workspace: *",
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "0.4.0",
