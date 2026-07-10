@@ -552,6 +552,7 @@ export function createInGameSystemV2(
     wheelRadius: number;
     suspensionRestLength: number;
     wheelAxleDirs: { x: number; y: number; z: number }[];
+    currentSteering: number;
   }>();
   let kartsWithPhysics = createMemo(mapArray(
     kartEntityIds,
@@ -624,6 +625,7 @@ export function createInGameSystemV2(
           wheelRadius,
           suspensionRestLength,
           wheelAxleDirs: wheelPositions.map(() => ({ x: -1, y: 0, z: 0 })),
+          currentSteering: 0,
         };
         kartPhysicsCache.set(kartEntityId2, cached);
       }
@@ -807,7 +809,6 @@ export function createInGameSystemV2(
   let tmpV2 = new THREE.Vector3();
   let tmpQ1 = new THREE.Quaternion();
   let maxSteerDeg = 15 * Math.PI / 180;
-  let currentSteering = 0;
   let steeringLerpSpeed = 8.0;
   let joystick = Joystick({
     position: createMemo(() =>
@@ -938,7 +939,10 @@ export function createInGameSystemV2(
       if (kartRightDown) {
         targetSteering = -maxSteerDeg;
       }
-      steering = currentSteering += (targetSteering - currentSteering) * Math.min(1, steeringLerpSpeed * dt);
+      let cached = kartPhysicsCache.get(entityId)!;
+      let cs = cached.currentSteering + (targetSteering - cached.currentSteering) * Math.min(1, steeringLerpSpeed * dt);
+      cached.currentSteering = cs;
+      steering = cs;
 
       let coyoteTime = ecs.ecs.getField(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout");
       if (
