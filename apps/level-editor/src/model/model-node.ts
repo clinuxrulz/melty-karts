@@ -39,6 +39,7 @@ export class ModelNodeSpec {
         {},
         {
           get(target, p, receiver) {
+            if (typeof p === "symbol" || p === "then") return undefined;
             return entity.getField(componentDef as ComponentDef, p as any);
           },
         },
@@ -132,6 +133,7 @@ export class ResolvedModelNode {
         {},
         {
           get(target, p, receiver) {
+            if (typeof p === "symbol" || p === "then") return undefined;
             return entity.getField(componentDef as ComponentDef, p as any);
           },
         },

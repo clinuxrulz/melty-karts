@@ -295,6 +295,7 @@ export function createEditTrackPtNodesMode(params: {
           {} as any,
           {
             get(target, p, receiver) {
+              if (typeof p === "symbol" || p === "then") return undefined;
               return entity.getField(componentRegistry.LoopDaLoop, p as any);
             },
           },
@@ -309,6 +310,7 @@ export function createEditTrackPtNodesMode(params: {
           {} as any,
           {
             get(target, p, receiver) {
+              if (typeof p === "symbol" || p === "then") return undefined;
               return entity.getField(componentRegistry.Spiral, p as any);
             },
           },
