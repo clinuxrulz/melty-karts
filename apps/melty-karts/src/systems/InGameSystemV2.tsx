@@ -521,6 +521,7 @@ export function createInGameSystemV2(
         ecs.addComponent(playerId2, componentRegistry.AngularVelocity, { x: 0.0, y: 0.0, z: 0.0, });
         ecs.addComponent(playerId2, componentRegistry.StillTime, { time: 0.0, });
         ecs.addComponent(playerId2, componentRegistry.CoyoteTime, { timeout: 0.0, });
+        ecs.addComponent(playerId2, componentRegistry.CurrentSteering, { steering: 0.0, });
         ecs.addComponent(playerId2, RegisteredPlayerConfig, {
           playerType: 0,
           facingForward: 1,
@@ -552,7 +553,6 @@ export function createInGameSystemV2(
     wheelRadius: number;
     suspensionRestLength: number;
     wheelAxleDirs: { x: number; y: number; z: number }[];
-    currentSteering: number;
   }>();
   let kartsWithPhysics = createMemo(mapArray(
     kartEntityIds,
@@ -625,7 +625,6 @@ export function createInGameSystemV2(
           wheelRadius,
           suspensionRestLength,
           wheelAxleDirs: wheelPositions.map(() => ({ x: -1, y: 0, z: 0 })),
-          currentSteering: 0,
         };
         kartPhysicsCache.set(kartEntityId2, cached);
       }
@@ -939,9 +938,9 @@ export function createInGameSystemV2(
       if (kartRightDown) {
         targetSteering = -maxSteerDeg;
       }
-      let cached = kartPhysicsCache.get(entityId)!;
-      let cs = cached.currentSteering + (targetSteering - cached.currentSteering) * Math.min(1, steeringLerpSpeed * dt);
-      cached.currentSteering = cs;
+      let cs = ecs.ecs.getField(entityId, componentRegistry.CurrentSteering, "steering")!;
+      cs = cs + (targetSteering - cs) * Math.min(1, steeringLerpSpeed * dt);
+      ecs.setField(entityId, componentRegistry.CurrentSteering, "steering", cs);
       steering = cs;
 
       let coyoteTime = ecs.ecs.getField(kartPhysics2.kartEntityId, componentRegistry.CoyoteTime, "timeout");

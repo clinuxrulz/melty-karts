@@ -17,6 +17,7 @@ import { mkSpiralComponent } from "./spiral-component";
 import { mkUfoTargetComponent } from "./ufo-target-component";
 import { mkLastTransform3DComponent } from "./last-transform-3d-component";
 import { mkCoyoteTimeComponent } from "./coyote-time-component";
+import { mkCurrentSteeringComponent } from "./current-steering-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -47,6 +48,7 @@ export function registerComponents(ecs: ECS) {
     AngularVelocity: mkAngularVelocityComponent(proxiedEcs),
     Child: mkChildComponent(proxiedEcs),
     CoyoteTime: mkCoyoteTimeComponent(proxiedEcs),
+    CurrentSteering: mkCurrentSteeringComponent(proxiedEcs),
     Id: mkId(proxiedEcs),
     LastAngularVelocity: mkLastAngularVelocityComponent(proxiedEcs),
     LastTransform3D: mkLastTransform3DComponent(proxiedEcs),

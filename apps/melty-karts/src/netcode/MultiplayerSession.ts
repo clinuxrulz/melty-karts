@@ -492,6 +492,7 @@ class MultiplayerSessionController {
       ecs.addComponent(entityId, componentRegistry.Velocity, { x: 0, y: 0, z: 0 });
       ecs.addComponent(entityId, componentRegistry.AngularVelocity, { x: 0, y: 0, z: 0 });
       ecs.addComponent(entityId, componentRegistry.CoyoteTime, { timeout: 0 });
+      ecs.addComponent(entityId, componentRegistry.CurrentSteering, { steering: 0 });
       ecs.addComponent(entityId, componentRegistry.LastTransform3D, {
         ox, oy, oz, qx, qy, qz, qw,
       });
