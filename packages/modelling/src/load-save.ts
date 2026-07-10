@@ -12,13 +12,15 @@ export function loadEcsFromXml(
   let parser = new DOMParser();
   let xmlDoc = parser.parseFromString(xmlData, "application/xml");
   if (clearExisting) {
+    let allIds: EntityID[] = [];
     ecs.ecs.query().forEach((arch) => {
       for (let i = 0; i < arch.entityCount; ++i) {
-        let entityId = arch.entityIds[i] as EntityID;
-        ecs.destroyEntity(entityId);
+        allIds.push(arch.entityIds[i] as EntityID);
       }
     });
-    ecs.ecs.flush();
+    for (let id of allIds) {
+      ecs.despawn(id);
+    }
   }
   let loadEntity = (parentId: EntityID | undefined, element: Element) => {
     let tagName = element.tagName;
@@ -27,7 +29,7 @@ export function loadEcsFromXml(
     if (componentSchema === undefined) {
       return;
     }
-    let entityId = ecs.createEntity();
+    let entityId = ecs.spawn();
     let object: Record<string,number> = {};
     for (let fieldName in componentSchema) {
       let attrValue = element.getAttribute(fieldName);

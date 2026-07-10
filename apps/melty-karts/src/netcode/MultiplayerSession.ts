@@ -354,6 +354,17 @@ class MultiplayerSessionController {
   }
 
   prepareRace(ecs: ReactiveECS): void {
+    // Clear any existing entities from a previous game
+    const allIds: EntityID[] = [];
+    ecs.ecs.query().forEach((arch) => {
+      for (let i = 0; i < arch.entityCount; ++i) {
+        allIds.push(arch.entityIds[i] as EntityID);
+      }
+    });
+    for (const id of allIds) {
+      if (ecs.ecs.isAlive(id)) ecs.despawn(id);
+    }
+
     const playerIds = this.getOrderedPlayerIds();
     const { curve } = generateTrack(42);
     for (let slot = 0; slot < playerIds.length; slot++) {
@@ -453,7 +464,7 @@ class MultiplayerSessionController {
     const playerIds = this.getOrderedPlayerIds();
     for (let slot = 0; slot < playerIds.length; slot++) {
       const playerTypeIdx = slot % 3;
-      let entityId = ecs.createEntity();
+      let entityId = ecs.spawn();
 
       let ox = 0, oy = 2 + slot, oz = 0;
       let qx = 0, qy = 0, qz = 0, qw = 1;
@@ -494,8 +505,8 @@ class MultiplayerSessionController {
 
   buildLocalInput(ecs: ReactiveECS): Uint8Array {
     if (this.level() === "NewLevel") {
-      const keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
-      const joystick = ecs.ecs.resource(RegisteredJoystickInput);
+      const keyboard = ecs.ecs.resources.get(RegisteredKeyboardInput);
+      const joystick = ecs.ecs.resources.get(RegisteredJoystickInput);
       let mask = 0;
       if (keyboard.upDown !== 0 || joystick.joystickY < -0.2) mask |= 0b00001;
       if (keyboard.downDown !== 0 || joystick.joystickY > 0.2) mask |= 0b00010;
@@ -504,7 +515,7 @@ class MultiplayerSessionController {
       if (keyboard.actionDown !== 0) mask |= 0b10000;
       return new Uint8Array([mask]);
     }
-    const keyboard = ecs.ecs.resource((RegisteredGameMode as unknown) as never);
+    const keyboard = ecs.ecs.resources.get((RegisteredGameMode as unknown) as never);
     void keyboard;
     return new Uint8Array([]);
   }
@@ -513,11 +524,11 @@ class MultiplayerSessionController {
     this.#peerJsConnections = peerJsConnections;
 
     const ignoredResources = new Set([
-      RegisteredMasterState.toString(),
-      RegisteredKeyboardInput.toString(),
-      RegisteredJoystickInput.toString(),
-      RegisteredSoundEnabled.toString(),
-      RegisteredOrbitEnabled.toString(),
+      RegisteredMasterState.description!,
+      RegisteredKeyboardInput.description!,
+      RegisteredJoystickInput.description!,
+      RegisteredSoundEnabled.description!,
+      RegisteredOrbitEnabled.description!,
     ]);
 
     const game: Game = {

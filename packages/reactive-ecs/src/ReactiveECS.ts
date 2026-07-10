@@ -120,7 +120,7 @@ class ReactiveResource<T> {
     this.#triggerStore = triggerStore;
     this.#ecs = ecs;
     this.#key = key;
-    this.#resourceKeyStr = `resource:${key.toString()}`;
+    this.#resourceKeyStr = `resource:${key.description!}`;
     this.#fieldRefs = new Map();
   }
 
@@ -130,7 +130,7 @@ class ReactiveResource<T> {
 
   #getField(field: string): any {
     const observer = getObserver();
-    const resource = this.#ecs.resource(this.#key);
+    const resource = this.#ecs.resources.get(this.#key);
     if (observer === null) {
       return (resource as any)[field];
     }
@@ -140,7 +140,7 @@ class ReactiveResource<T> {
       ref = new ReactiveRef(
         this.#triggerStore,
         key,
-        () => (this.#ecs.resource(this.#key) as any)[field],
+        () => (this.#ecs.resources.get(this.#key) as any)[field],
         () => this.#triggerStore.dirty(key),
         () => {
           this.#fieldRefs.delete(field);
@@ -188,7 +188,7 @@ class ReactiveEntity {
     if (observer === null) {
       return this.#ecs.hasComponent(this.#id, def);
     }
-    const key = `entity:${this.#id}:has:${def.id}`;
+    const key = `entity:${this.#id}:has:${def.id.toString()}`;
     let ref = this.#componentRefs.get(key);
     if (ref === undefined) {
       ref = new ReactiveRef(
@@ -210,7 +210,7 @@ class ReactiveEntity {
     if (observer === null) {
       return this.#ecs.getField(this.#id, def, field);
     }
-    const key = `entity:${this.#id}:${def.id}:${field}`;
+    const key = `entity:${this.#id}:${def.id.toString()}:${field}`;
     let ref = this.#fieldRefs.get(key);
     if (ref === undefined) {
       ref = new ReactiveRef(
@@ -257,14 +257,14 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
     return this.#query.archetypeCount;
   }
 
-  count(): number {
+  get entityCount(): number {
     const observer = getObserver();
     if (observer === null) {
-      return this.#query.count();
+      return this.#query.entityCount;
     }
     this.#triggerStore.track(`${this.#queryKey}:count`);
     this.#triggerStore.track("world:entities");
-    return this.#query.count();
+    return this.#query.entityCount;
   }
 
   get archetypes() {
@@ -279,15 +279,10 @@ class ReactiveQuery<Defs extends readonly ComponentDef[]> {
 
   *[Symbol.iterator]() {
     const observer = getObserver();
-    if (observer === null) {
-      for (let i = 0; i < this.#query.archetypeCount; ++i) {
-        let arch = this.#query.archetypes[i];
-        yield arch;
-      }
-      return;
+    if (observer !== null) {
+      this.#triggerStore.track(`${this.#queryKey}:archetypes`);
+      this.#triggerStore.track("world:entities");
     }
-    this.#triggerStore.track(`${this.#queryKey}:archetypes`);
-    this.#triggerStore.track("world:entities");
     for (let i = 0; i < this.#query.archetypeCount; ++i) {
       let arch = this.#query.archetypes[i];
       yield new ReactiveArchetype(this.#triggerStore, this.#ecs, arch as any, this.#queryKey);
@@ -408,34 +403,34 @@ export class ReactiveECS {
       return def;
     }) as typeof ecs.registerTag;
 
-    const registerResource = ecs.registerResource.bind(ecs);
-    ecs.registerResource = (<T>(key: ResourceKey<T>, value: T) => {
+    const registerResource = ecs.resources.register.bind(ecs);
+    ecs.resources.register = (<T>(key: ResourceKey<T>, value: T) => {
       registerResource(key, value);
       const fields = Object.keys(value as any);
       this.#resourceMetadata.set(key, { fields: [...fields] });
-      this.#resourcesByKey.set(key.toString(), key);
-    }) as typeof ecs.registerResource;
+      this.#resourcesByKey.set(key.description!, key);
+    }) as typeof ecs.resources.register;
 
-    const setResource = ecs.setResource.bind(ecs);
-    ecs.setResource = (<T>(key: ResourceKey<T>, value: T) => {
+    const setResource = ecs.resources.set.bind(ecs);
+    ecs.resources.set = (<T>(key: ResourceKey<T>, value: T) => {
       setResource(key, value);
       for (const field of Object.keys(value as any)) {
-        this.#triggers.dirty(`resource:${key.toString()}:${field}`);
+        this.#triggers.dirty(`resource:${key.description}:${field}`);
       }
-    }) as typeof ecs.setResource;
+    }) as typeof ecs.resources.set;
 
-    const createEntity = ecs.createEntity.bind(ecs);
-    ecs.createEntity = (() => {
-      const id = createEntity();
+    const spawn = ecs.spawn.bind(ecs);
+    ecs.spawn = (() => {
+      const id = spawn();
       this.#aliveEntities.add(id);
       return id;
-    }) as typeof ecs.createEntity;
+    }) as typeof ecs.spawn;
 
-    const destroyEntityDeferred = ecs.destroyEntity.bind(ecs);
-    ecs.destroyEntity = ((id: EntityID) => {
+    const despawnDeferred = ecs.despawn.bind(ecs);
+    ecs.despawn = ((id: EntityID) => {
       this.#aliveEntities.delete(id);
-      destroyEntityDeferred(id);
-    }) as typeof ecs.destroyEntity;
+      despawnDeferred(id);
+    }) as typeof ecs.despawn;
   }
 
   get ecs(): ECS {
@@ -486,21 +481,21 @@ export class ReactiveECS {
     return new ReactiveEntity(this.#triggers, this.#ecs, id);
   }
 
-  createEntity(): EntityID {
-    const id = this.#ecs.createEntity();
+  spawn(): EntityID {
+    const id = this.#ecs.spawn();
     untrack(() => this.#triggers.dirty("world:entities"));
     return id;
   }
 
-  destroyEntity(id: EntityID): void {
-    this.#ecs.destroyEntity(id);
+  despawn(id: EntityID): void {
+    this.#ecs.despawn(id);
     untrack(() => this.#triggers.dirty("world:entities"));
   }
 
   addComponent(entity_id: EntityID, def: ComponentDef<Record<string, never>>): this;
   addComponent<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, values: FieldValues<S>): this;
   addComponent(entity_id: EntityID, def: ComponentDef, values?: Record<string, number>): this {
-    const key = `entity:${entity_id}:has:${def.id}`;
+    const key = `entity:${entity_id}:has:${def.id.toString()}`;
     this.#ecs.addComponent(entity_id, def, values as any);
     untrack(() => {
       this.#triggers.dirty(key);
@@ -510,7 +505,7 @@ export class ReactiveECS {
   }
 
   removeComponent(entity_id: EntityID, def: ComponentDef): this {
-    const key = `entity:${entity_id}:has:${def.id}`;
+    const key = `entity:${entity_id}:has:${def.id.toString()}`;
     this.#ecs.removeComponent(entity_id, def);
     untrack(() => {
       this.#triggers.dirty(key);
@@ -520,27 +515,27 @@ export class ReactiveECS {
   }
 
   setField<S extends ComponentSchema>(entity_id: EntityID, def: ComponentDef<S>, field: string & keyof S, value: number): void {
-    const key = `entity:${entity_id}:${def.id}:${field}`;
+    const key = `entity:${entity_id}:${def.id.toString()}:${field}`;
     this.#ecs.setField(entity_id, def, field, value);
     untrack(() => this.#triggers.dirty(key));
   }
 
   setResource<T>(key: ResourceKey<T>, values: T): void {
-    this.#ecs.setResource(key, values);
+    this.#ecs.resources.set(key, values);
   }
 
   serialize(ignoredResourceKeys: Set<string> = new Set()): ReactiveECSSnapshot {
     const resources = [...this.#resourceMetadata.entries()]
-      .filter(([key]) => !ignoredResourceKeys.has(key.toString()))
-      .sort(([a], [b]) => a.toString().localeCompare(b.toString()))
+      .filter(([key]) => !ignoredResourceKeys.has(key.description!))
+      .sort(([a], [b]) => a.description!.localeCompare(b.description!))
       .map(([key, metadata]) => {
-        const reader = this.#ecs.resource(key);
+        const reader = this.#ecs.resources.get(key);
         const values: Record<string, number> = {};
         for (const field of metadata.fields) {
           values[field] = (reader as any)[field];
         }
         return {
-          resourceKey: key.toString(),
+          resourceKey: key.description!,
           values,
         };
       });
@@ -579,7 +574,7 @@ export class ReactiveECS {
 
     for (const id of [...this.#aliveEntities]) {
       if (!targetIds.has(id) && this.#ecs.isAlive(id)) {
-        this.destroyEntity(id);
+        this.despawn(id);
       }
     }
     // Note: base ECS doesn't have flush() exposed in d.ts, but it might be internal or part of update.
@@ -597,7 +592,7 @@ export class ReactiveECS {
 
     for (const entity of snapshot.entities.sort((a, b) => a.id - b.id)) {
       while (!this.#ecs.isAlive(entity.id as EntityID)) {
-        const created = this.createEntity();
+        const created = this.spawn();
         if (Number(created) > entity.id) {
           throw new Error(`Cannot recreate entity ${entity.id}; ECS entity sequence has advanced past snapshot`);
         }

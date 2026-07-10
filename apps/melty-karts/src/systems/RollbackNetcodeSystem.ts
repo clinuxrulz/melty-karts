@@ -44,8 +44,8 @@ export function createRollbackNetcodeSystem(ecs: ReactiveECS): { dispose: () => 
 }
 
 function readLocalInput(ecs: ReactiveECS): Uint8Array {
-  const keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
-  const joystick = ecs.ecs.resource(RegisteredJoystickInput);
+  const keyboard = ecs.ecs.resources.get(RegisteredKeyboardInput);
+  const joystick = ecs.ecs.resources.get(RegisteredJoystickInput);
 
   const left = keyboard.leftDown !== 0 || joystick.joystickX < -0.2;
   const right = keyboard.rightDown !== 0 || joystick.joystickX > 0.2;

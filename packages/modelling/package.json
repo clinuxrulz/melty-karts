@@ -7,7 +7,7 @@
   },
   "peerDependencies": {
     "@melty-karts/reactive-ecs": "workspace:*",
-    "@oasys/oecs": "0.4.0",
+    "@oasys/oecs": "0.5.3",
     "@solidjs/web": "2.0.0-beta.10",
     "solid-js": "2.0.0-beta.10",
     "solid-three": "*",

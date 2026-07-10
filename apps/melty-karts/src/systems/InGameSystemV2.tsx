@@ -339,7 +339,7 @@ export function createInGameSystemV2(
     rightDown?: boolean,
     actionDown?: boolean,
   }) => {
-    let s = { ...ecs.ecs.resource(RegisteredKeyboardInput) };
+    let s = { ...ecs.ecs.resources.get(RegisteredKeyboardInput) };
     if (params.upDown !== undefined) s.upDown = params.upDown ? 1 : 0;
     if (params.downDown !== undefined) s.downDown = params.downDown ? 1 : 0;
     if (params.leftDown !== undefined) s.leftDown = params.leftDown ? 1 : 0;
@@ -501,7 +501,7 @@ export function createInGameSystemV2(
           frame.forward.clone().multiplyScalar(-1.0),
         );
         let q = new THREE.Quaternion().setFromRotationMatrix(matrix);
-        playerId2 = ecs.createEntity();
+        playerId2 = ecs.spawn();
         {
           let ox = frame.position.x;
           let oy = frame.position.y + 0.5;
@@ -530,7 +530,7 @@ export function createInGameSystemV2(
           speed: 0.0,
         });
         onCleanup(() => {
-          ecs.destroyEntity(playerId2);
+          ecs.despawn(playerId2);
         });
       }
       setPlayerId(playerId2);
@@ -893,7 +893,7 @@ export function createInGameSystemV2(
 
       let kartUpDown = false, kartDownDown = false, kartLeftDown = false, kartRightDown = false, kartActionDown = false;
       if (!isMultiplayer) {
-        let keyboard = ecs.ecs.resource(RegisteredKeyboardInput);
+        let keyboard = ecs.ecs.resources.get(RegisteredKeyboardInput);
         kartUpDown = keyboard.upDown !== 0;
         kartDownDown = keyboard.downDown !== 0;
         kartLeftDown = keyboard.leftDown !== 0;
@@ -1178,6 +1178,8 @@ export function createInGameSystemV2(
     }
     // Ufo
     {
+      let flyOffUfos: EntityID[] = [];
+      let releasedTargets: EntityID[] = [];
       let query = ecs.ecs.query(componentRegistry.Ufo, componentRegistry.Transform3D);
       for (let i = 0; i < query.archetypeCount; ++i) {
         let arch = query.archetypes[i];
@@ -1310,7 +1312,7 @@ export function createInGameSystemV2(
                 } else {
                   ecs.setField(ufoEntityId, componentRegistry.Ufo, "stage", UfoStage.FLY_OFF);
                   ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", UFO_FLY_OFF_TIMEOUT);
-                  ecs.removeComponent(targetEntityId, componentRegistry.UfoTarget);
+                  releasedTargets.push(targetEntityId);
                 }
               }
               break;
@@ -1323,14 +1325,20 @@ export function createInGameSystemV2(
               if (timeout > 0.0) {
                 ecs.setField(ufoEntityId, componentRegistry.Ufo, "timeout", timeout);
               } else {
-                ecs.removeComponent(ufoEntityId, componentRegistry.Ufo);
-                ecs.removeComponent(ufoEntityId, componentRegistry.Transform3D);
-                ecs.addComponent(ufoEntityId, RegisteredFreeEntity);
+                flyOffUfos.push(ufoEntityId);
               }
               break;
             }
           }
         }
+      }
+      for (let id of releasedTargets) {
+        ecs.removeComponent(id, componentRegistry.UfoTarget);
+      }
+      for (let id of flyOffUfos) {
+        ecs.removeComponent(id, componentRegistry.Ufo);
+        ecs.removeComponent(id, componentRegistry.Transform3D);
+        ecs.addComponent(id, RegisteredFreeEntity);
       }
     }
     // camera chase player
@@ -1400,11 +1408,11 @@ export function createInGameSystemV2(
     const kartCompKey = RegisteredKartConfig.id.toString();
     const ufoCompKey = componentRegistry.Ufo.id.toString();
     const ignoredResources = new Set([
-      RegisteredMasterState.toString(),
-      RegisteredKeyboardInput.toString(),
-      RegisteredJoystickInput.toString(),
-      RegisteredSoundEnabled.toString(),
-      RegisteredOrbitEnabled.toString(),
+      RegisteredMasterState.description!,
+      RegisteredKeyboardInput.description!,
+      RegisteredJoystickInput.description!,
+      RegisteredSoundEnabled.description!,
+      RegisteredOrbitEnabled.description!,
     ]);
 
     const compDefMap = new Map<string, ComponentDef>();
@@ -1452,12 +1460,12 @@ export function createInGameSystemV2(
 
         for (const id of currentKartIds) {
           if (!targetIds.has(id) && ecs.ecs.isAlive(id)) {
-            ecs.destroyEntity(id);
+            ecs.despawn(id);
           }
         }
         for (const id of currentUfoIds) {
           if (!targetIds.has(id) && ecs.ecs.isAlive(id)) {
-            ecs.destroyEntity(id);
+            ecs.despawn(id);
           }
         }
 
@@ -1466,7 +1474,7 @@ export function createInGameSystemV2(
 
           if (!ecs.ecs.isAlive(eid)) {
             while (!ecs.ecs.isAlive(eid)) {
-              ecs.createEntity();
+              ecs.spawn();
             }
           }
 

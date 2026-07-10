@@ -21,6 +21,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
 
       const entities: { id: EntityID; progress: number; finished: number; rank: number }[] = [];
       let allFinished = true;
+      let aiTakeovers: { id: EntityID; targetT: number }[] = [];
 
       for (const arch of ecs.query(RegisteredRaceStats, RegisteredPosition)) {
         const entityIds = arch.entityIds;
@@ -51,7 +52,7 @@ export function createRaceSystem(ecs: ReactiveECS): System {
                 finished = 1;
                 // Once finished, ensure AI takes over
                 if (!ecs.entity(entityId).hasComponent(RegisteredAIControlled)) {
-                  ecs.addComponent(entityId, RegisteredAIControlled, { targetT: currentT });
+                  aiTakeovers.push({ id: entityId, targetT: currentT });
                 }
               }
             } else if (lastT < 0.2 && currentT > 0.8) {
@@ -69,6 +70,9 @@ export function createRaceSystem(ecs: ReactiveECS): System {
 
           entities.push({ id: entityId, progress, finished, rank });
         }
+      }
+      for (let take of aiTakeovers) {
+        ecs.addComponent(take.id, RegisteredAIControlled, { targetT: take.targetT });
       }
 
       // First pass: identify how many have already finished and what ranks are taken

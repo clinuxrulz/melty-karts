@@ -17,7 +17,7 @@ export function placeMysteryBoxesAlongTrack(ecs: ReactiveECS, track: THREE.Catmu
     perp.crossVectors(dir, up);
     let u = (rng() - 0.5) * TRACK_WIDTH;
     pt.addScaledVector(perp, u);
-    let mysteryBox = ecs.createEntity();
+    let mysteryBox = ecs.spawn();
     ecs.addComponent(
       mysteryBox,
       RegisteredMysteryBox,

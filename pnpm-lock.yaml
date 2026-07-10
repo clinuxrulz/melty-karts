@@ -21,8 +21,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/reactive-ecs
       '@oasys/oecs':
-        specifier: 0.4.0
-        version: 0.4.0(solid-js@2.0.0-beta.10)
+        specifier: 0.5.3
+        version: 0.5.3(solid-js@2.0.0-beta.10)
       '@solidjs/signals':
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10
@@ -85,8 +85,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/reactive-ecs
       '@oasys/oecs':
-        specifier: 0.4.0
-        version: 0.4.0(solid-js@2.0.0-beta.10)
+        specifier: 0.5.3
+        version: 0.5.3(solid-js@2.0.0-beta.10)
       '@solidjs/signals':
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10
@@ -229,8 +229,8 @@ importers:
         specifier: workspace:*
         version: link:../reactive-ecs
       '@oasys/oecs':
-        specifier: 0.4.0
-        version: 0.4.0(solid-js@2.0.0-beta.10)
+        specifier: 0.5.3
+        version: 0.5.3(solid-js@2.0.0-beta.10)
       '@solidjs/web':
         specifier: 2.0.0-beta.10
         version: 2.0.0-beta.10(solid-js@2.0.0-beta.10)
@@ -266,8 +266,8 @@ importers:
   packages/reactive-ecs:
     devDependencies:
       '@oasys/oecs':
-        specifier: 0.4.0
-        version: 0.4.0(solid-js@2.0.0-beta.10)
+        specifier: 0.5.3
+        version: 0.5.3(solid-js@2.0.0-beta.10)
       '@playwright/test':
         specifier: ^1.59.1
         version: 1.61.1
@@ -628,8 +628,9 @@ packages:
     resolution: {integrity: sha512-h9u4u/jiIRKbq25PM+zymTyW6bhTzELvOoUd+AvYriWOAKpLGnIamaET3pnHYoI5iYphAHBI4ayx0MehR+VVPQ==}
     engines: {node: '>= 10'}
 
-  '@oasys/oecs@0.4.0':
-    resolution: {integrity: sha512-kCPGTsS5WRW2jrKMGrqI3snQLDclfx3XiWQCjJX8PR02ucZfUMYgLC3sB0D5DSHgbXmm556Krgv9+0MmoZ2WpQ==}
+  '@oasys/oecs@0.5.3':
+    resolution: {integrity: sha512-iXIKpuYmVP+MS8F9byPp+VUzjEgyNy5xg4jEkB7ziYqNau2FKbSZWWPYDbnW78IFtLb5zd4peNkRf5QB4QCeAQ==}
+    engines: {node: '>=20'}
     peerDependencies:
       solid-js: ^1.9.3
     peerDependenciesMeta:
@@ -2095,7 +2096,7 @@ snapshots:
 
   '@msgpack/msgpack@2.8.0': {}
 
-  '@oasys/oecs@0.4.0(solid-js@2.0.0-beta.10)':
+  '@oasys/oecs@0.5.3(solid-js@2.0.0-beta.10)':
     optionalDependencies:
       solid-js: 2.0.0-beta.10
 

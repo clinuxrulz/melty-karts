@@ -138,12 +138,12 @@ export class EcsCommands {
       let command = this.commands[i];
       switch (command.type) {
         case CommandType.CreateEntity: {
-          let entityId = ecs.createEntity();
+          let entityId = ecs.spawn();
           command.callback!(entityId);
           break;
         }
         case CommandType.DestroyEntity: {
-          ecs.destroyEntity(command.entityId!);
+          ecs.despawn(command.entityId!);
           break;
         }
         case CommandType.AddComponent: {

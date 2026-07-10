@@ -4,7 +4,7 @@ import { EntityID } from "@oasys/oecs";
 
 let _rnd_result: [ number, number, ] = [ 0, 0.0, ];
 export function rng(ecs: ReactiveECS): number {
-  let seed = ecs.ecs.resource(RegisteredRng).seed;
+  let seed = ecs.ecs.resources.get(RegisteredRng).seed;
   mulberry32v2(seed, _rnd_result);
   seed = _rnd_result[0];
   ecs.setResource(RegisteredRng, { seed, });
@@ -31,5 +31,5 @@ export function getFreeEntityOrCreate(ecs: ReactiveECS): EntityID {
       return entityId;
     }
   }
-  return ecs.createEntity();
+  return ecs.spawn();
 }

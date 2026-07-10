@@ -5,7 +5,7 @@ export const IdGenResource = resourceKey<{
 }>("IdGen");
 
 export function registerIdGenResource(ecs: ECS) {
-  ecs.registerResource(
+  ecs.resources.register(
     IdGenResource,
     {
       nextId: 0,

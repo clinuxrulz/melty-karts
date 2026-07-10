@@ -13,7 +13,7 @@ export function getOrCreateId(registry: ComponentRegistry, ecs: ReactiveECS, ent
   if (ecs.ecs.hasComponent(entityId, registry.Id)) {
     return ecs.ecs.getField(entityId, registry.Id, "id");
   }
-  let idGen = ecs.ecs.resource(IdGenResource);
+  let idGen = ecs.ecs.resources.get(IdGenResource);
   let id = idGen.nextId++;
   ecs.addComponent(entityId, registry.Id, { "id": id, });
   return id;

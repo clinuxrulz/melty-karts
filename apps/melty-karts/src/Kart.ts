@@ -15,7 +15,7 @@ export function createKart(params: {
 }): EntityID {
   const ecs = params.reactiveEcs;
   
-  const entityId = ecs.createEntity();
+  const entityId = ecs.spawn();
   ecs.addComponent(entityId, RegisteredPosition, { x: params.position.x, y: params.position.y, z: params.position.z });
   ecs.addComponent(entityId, RegisteredVelocity, { x: params.velocity.x, y: params.velocity.y, z: params.velocity.z });
   ecs.addComponent(entityId, RegisteredOrientation, { x: 0.0, y: 0.0, z: 0.0, w: 1.0, });

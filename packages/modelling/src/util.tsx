@@ -12,7 +12,12 @@ export function entityGetComponentData<S extends ComponentSchema>(ecs: ReactiveE
     {} as any,
     {
       get(target, p, receiver) {
-        return entity.getField(componentDef as ComponentDef, p as any);
+        if (typeof p !== 'string') return undefined;
+        try {
+          return entity.getField(componentDef as ComponentDef, p as any);
+        } catch {
+          return undefined;
+        }
       },
     },
   );

@@ -40,12 +40,12 @@ export const enum MasterState {
   IN_GAME_V2 = 6,
 };
 export const RegisteredMasterState = resourceKey<{ masterState: MasterState }>("MasterState");
-baseEcs.registerResource(RegisteredMasterState, {
+baseEcs.resources.register(RegisteredMasterState, {
   "masterState": MasterState.INTRO_SCREEN,
 });
 
 export const RegisteredTime = resourceKey<{ time: number }>("Time");
-baseEcs.registerResource(RegisteredTime, { time: 0.0 });
+baseEcs.resources.register(RegisteredTime, { time: 0.0 });
 
 // For Handling the Ready-Steady-Go state at the start of the race
 export const enum ReadySteadyGoStage {
@@ -59,19 +59,19 @@ export const RegisteredInGameState = resourceKey<{
   readySteadyGoStage: ReadySteadyGoStage;
   readySteadyGoCurrentTimeout: number;
 }>("InGameState");
-baseEcs.registerResource(RegisteredInGameState, {
+baseEcs.resources.register(RegisteredInGameState, {
   isReadySteadyGo: 0,
   readySteadyGoStage: ReadySteadyGoStage.READY,
   readySteadyGoCurrentTimeout: defaultReadySteadyGoConfig.readyBeep.duration,
 });
 
 export const RegisteredPreReadySteadyGoDelay = resourceKey<{ delay: number }>("PreReadySteadyGoDelay");
-baseEcs.registerResource(RegisteredPreReadySteadyGoDelay, {
+baseEcs.resources.register(RegisteredPreReadySteadyGoDelay, {
   delay: 1.0,
 });
 
 export const RegisteredPreReadySteadyGoDelayFinished = resourceKey<{ value: number }>("PreReadySteadyGoDelayFinished");
-baseEcs.registerResource(RegisteredPreReadySteadyGoDelayFinished, {
+baseEcs.resources.register(RegisteredPreReadySteadyGoDelayFinished, {
   value: 0,
 });
 //
@@ -246,7 +246,7 @@ export const RegisteredKeyBindings = resourceKey<{
   driftKey: number;
   useItemKey: number;
 }>("KeyBindings");
-baseEcs.registerResource(RegisteredKeyBindings, {
+baseEcs.resources.register(RegisteredKeyBindings, {
   upKey: readStoredKeyBinding("upKey", "ArrowUp"),
   downKey: readStoredKeyBinding("downKey", "ArrowDown"),
   leftKey: readStoredKeyBinding("leftKey", "ArrowLeft"),
@@ -257,19 +257,19 @@ baseEcs.registerResource(RegisteredKeyBindings, {
 });
 
 export const RegisteredGlobalGravity = resourceKey<{ x: number; y: number; z: number }>("GlobalGravity");
-baseEcs.registerResource(RegisteredGlobalGravity, GlobalGravity.schema);
+baseEcs.resources.register(RegisteredGlobalGravity, GlobalGravity.schema);
 
 export const RegisteredSoundEnabled = resourceKey<{ enabled: number }>("SoundEnabled");
-baseEcs.registerResource(RegisteredSoundEnabled, { enabled: 1 });
+baseEcs.resources.register(RegisteredSoundEnabled, { enabled: 1 });
 
 export const RegisteredOrbitEnabled = resourceKey<{ enabled: number }>("OrbitEnabled");
-baseEcs.registerResource(RegisteredOrbitEnabled, { enabled: 0 });
+baseEcs.resources.register(RegisteredOrbitEnabled, { enabled: 0 });
 
 export const RegisteredGameMode = resourceKey<{ mode: number }>("GameMode");
-baseEcs.registerResource(RegisteredGameMode, { mode: 0 });
+baseEcs.resources.register(RegisteredGameMode, { mode: 0 });
 
 export const RegisteredLocalPlayerConfig = resourceKey<{ playerType: PlayerTypeEnum }>("LocalPlayerConfig");
-baseEcs.registerResource(RegisteredLocalPlayerConfig, { playerType: 0 as PlayerTypeEnum });
+baseEcs.resources.register(RegisteredLocalPlayerConfig, { playerType: 0 as PlayerTypeEnum });
 
 export const RegisteredKeyboardInput = resourceKey<{
   upDown: number;
@@ -280,7 +280,7 @@ export const RegisteredKeyboardInput = resourceKey<{
   driftDown: number;
   useItemDown: number;
 }>("KeyboardInput");
-baseEcs.registerResource(RegisteredKeyboardInput, {
+baseEcs.resources.register(RegisteredKeyboardInput, {
   upDown: 0,
   downDown: 0,
   leftDown: 0,
@@ -291,7 +291,7 @@ baseEcs.registerResource(RegisteredKeyboardInput, {
 });
 
 export const RegisteredJoystickInput = resourceKey<{ joystickX: number; joystickY: number }>("JoystickInput");
-baseEcs.registerResource(RegisteredJoystickInput, {
+baseEcs.resources.register(RegisteredJoystickInput, {
   joystickX: 0.0,
   joystickY: 0.0,
 });
@@ -299,7 +299,7 @@ baseEcs.registerResource(RegisteredJoystickInput, {
 export const MAX_LAPS = 3;
 
 export const RegisteredRaceResults = resourceKey<{ finished: number }>("RaceResults");
-baseEcs.registerResource(RegisteredRaceResults, {
+baseEcs.resources.register(RegisteredRaceResults, {
   finished: 0, // 0: in progress, 1: results ready
 });
 
@@ -311,7 +311,7 @@ export const RegisteredRaceRankings = resourceKey<{
   rank5: number;
   rank6: number;
 }>("RaceRankings");
-baseEcs.registerResource(RegisteredRaceRankings, {
+baseEcs.resources.register(RegisteredRaceRankings, {
   rank1: -1, // EntityIDs or -1
   rank2: -1,
   rank3: -1,
@@ -321,7 +321,7 @@ baseEcs.registerResource(RegisteredRaceRankings, {
 });
 
 export const RegisteredRng = resourceKey<{ seed: number }>("Rng");
-baseEcs.registerResource(RegisteredRng, {
+baseEcs.resources.register(RegisteredRng, {
   seed: 42,
 });
 
@@ -330,9 +330,9 @@ export function World(): {
 } {
   baseEcs.startup();
   
-  //baseEcs.setResource(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
-  baseEcs.setResource(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
-  baseEcs.setResource(RegisteredJoystickInput, { joystickX: 0.0, joystickY: 0.0, });
+  //baseEcs.resources.set(RegisteredMasterState, { "masterState": MasterState.IN_GAME, });
+  baseEcs.resources.set(RegisteredGlobalGravity, { x: 0.0, y: -10.0, z: 0.0 });
+  baseEcs.resources.set(RegisteredJoystickInput, { joystickX: 0.0, joystickY: 0.0, });
   
   return {
     ecs: reactiveEcs,

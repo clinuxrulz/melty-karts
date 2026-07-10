@@ -45,7 +45,7 @@ export class CommandExecutor {
       case "createEntity": {
         let entityId = this.getFreeEntityId();
         if (entityId === undefined) {
-          entityId = this.ecs.createEntity();
+          entityId = this.ecs.spawn();
         }
         let nextCommand = command.fn(entityId);
         return Command.seq([
