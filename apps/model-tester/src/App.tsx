@@ -13,6 +13,7 @@ import Lightning from "../../melty-karts/src/models/Lightning";
 import SlotMachine from "../../melty-karts/src/models/SlotMachine";
 import Explosion from "../../melty-karts/src/models/Explosion";
 import Ufo from "../../melty-karts/src/models/Ufo";
+import Bed from "../../melty-rpg/src/models/Bed";
 
 const App: Component = () => {
   let [ state, setState, ] = createStore<{
@@ -28,7 +29,8 @@ const App: Component = () => {
       | "Lightning"
       | "SlotMachine"
       | "Explosion"
-      | "Ufo",
+      | "Ufo"
+      | "Bed",
   }>({
     model: "SolidLogo",
   });
@@ -376,6 +378,9 @@ const App: Component = () => {
               showTractorBeam
             />
           </Match>
+          <Match when={state.model === "Bed"}>
+            <Bed/>
+          </Match>
         </Switch>
       </Canvas>
       <select
@@ -406,6 +411,7 @@ const App: Component = () => {
         <option value="SlotMachine" selected={state.model === "SlotMachine"}>Slot Machine</option>
         <option value="Explosion" selected={state.model === "Explosion"}>Explosion</option>
         <option value="Ufo" selected={state.model === "Ufo"}>Ufo</option>
+        <option value="Bed" selected={state.model === "Bed"}>Bed</option>
       </select>
     </div>
   );
