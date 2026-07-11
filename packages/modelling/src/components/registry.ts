@@ -18,6 +18,7 @@ import { mkUfoTargetComponent } from "./ufo-target-component";
 import { mkLastTransform3DComponent } from "./last-transform-3d-component";
 import { mkCoyoteTimeComponent } from "./coyote-time-component";
 import { mkCurrentSteeringComponent } from "./current-steering-component";
+import { mkBedComponent } from "./bed-component";
 
 export function registerComponents(ecs: ECS) {
   registerIdGenResource(ecs);
@@ -46,6 +47,7 @@ export function registerComponents(ecs: ECS) {
   return {
     componentTypeToSchemaMap,
     AngularVelocity: mkAngularVelocityComponent(proxiedEcs),
+    Bed: mkBedComponent(proxiedEcs),
     Child: mkChildComponent(proxiedEcs),
     CoyoteTime: mkCoyoteTimeComponent(proxiedEcs),
     CurrentSteering: mkCurrentSteeringComponent(proxiedEcs),
