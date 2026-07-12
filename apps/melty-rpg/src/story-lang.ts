@@ -176,13 +176,55 @@ export function Fn<A extends unknown[] = [], R = void>(fn: (a: ArrayToNodesOfArr
   };
 }
 
+function buildBlock(body: () => VoidLike): Node<void> {
+  let oldBlockScope = blockScope;
+  blockScope = [];
+  try {
+    let r = body();
+    return node({
+      type: "seq",
+      params: [ ...blockScope, wrapValueLike(r as unknown as ValueLike) as Node<unknown> ],
+    }) as Node<void>;
+  } finally {
+    blockScope = oldBlockScope;
+  }
+}
+
 type ElseIfChain = {
   ElseIf: (a: BooleanLike, body: () => VoidLike) => ElseIfChain,
   Else: (body: () => VoidLike) => void,
 };
 
 export function If(a: BooleanLike, body: () => VoidLike): ElseIfChain {
-  throw new Error("TODO");
+  let ifNode = node({
+    type: "if",
+    params: [
+      wrapValueLike(a) as Node<unknown>,
+      buildBlock(body) as Node<unknown>
+    ],
+  });
+  assertBlockScope("If", (scope) => {
+    scope.push(ifNode);
+  });
+  let deepestIf = ifNode;
+  const chain: ElseIfChain = {
+    ElseIf: (cond, nextBody) => {
+      let nextIf = node({
+        type: "if",
+        params: [
+          wrapValueLike(cond) as Node<unknown>,
+          buildBlock(nextBody) as Node<unknown>
+        ],
+      });
+      deepestIf.params![2] = nextIf as Node<unknown>;
+      deepestIf = nextIf;
+      return chain;
+    },
+    Else: (elseBody) => {
+      deepestIf.params![2] = buildBlock(elseBody) as Node<unknown>;
+    },
+  };
+  return chain;
 }
 
 export function delay(time: NumberLike) {
@@ -227,3 +269,5 @@ let introSequence = Fn(() => {
     // . . .
   });
 });
+
+console.log(introSequence([]));
