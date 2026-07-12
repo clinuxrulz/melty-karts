@@ -256,7 +256,7 @@ export function awaitActionPress() {
 }
 
 export function askYesNo(): Node<boolean> {
-  let varName = `ecs.resource(Input).isYes`;
+  let varName = `ctx.resource("Input").isYes`;
   assertBlockScope("askYesNo", (blockScope) => {
     blockScope.push(node({ type: "askYesNo", value: { varName, }, }));
   });
@@ -264,11 +264,11 @@ export function askYesNo(): Node<boolean> {
 }
 
 export function obtainVar<A>(componentDef: string, field: string): Node<A> {
-  return var_(`ecs.resource(${componentDef}).${field}`);
+  return var_(`ctx.resource("${componentDef}").${field}`);
 }
 
 let introSequence = Fn(() => {
-  delay(1000);
+  delay(1.0);
   dialog("Melty: Boy. Morning already?");
   awaitActionPress();
   dialog("Melty: Time to get ready for the day! Who knows what adventures today holds!");
@@ -293,7 +293,6 @@ interface StageBlock {
 
 interface CompileCtx {
   nextStageId: number;
-  storedVarNames: Set<string>;
 }
 
 function compileStage(
@@ -322,9 +321,6 @@ function compileStage(
     }
     case "var": {
       let varName: string = (node.value as any).varName;
-      if (ctx.storedVarNames.has(varName)) {
-        return { blocks: [], entryStage: nextStage, value: `ctx.${varName}` };
-      }
       return { blocks: [], entryStage: nextStage, value: varName };
     }
     case "add": {
@@ -467,9 +463,10 @@ function compileStage(
               `  ctx._cacheDialogChars = undefined;`,
               `  ctx.dialogAtCharIdx = 0;`,
               `  ctx.stage = ${exitStageId};`,
+              `} else {`,
+              `  ctx.addDialogLetter(ctx._cacheDialogChars[ctx.dialogAtCharIdx]);`,
+              `  ctx.stage = ${stage2Id};`,
               `}`,
-              `addDialogLetter(ctx._cacheDialogChars[ctx.dialogAtCharIdx]);`,
-              `ctx.stage = ${stage2Id};`,
             ],
           },
           {
@@ -493,7 +490,8 @@ function compileStage(
         blocks: [{
           stageId,
           lines: [
-            `if (!ecs.resource("Input").actionPressed) { return; }`,
+            `if (!ctx.resource("Input").actionPressed) { return; }`,
+            `ctx.resource("Input").actionPressed = false;`,
             `ctx.stage = ${nextStage};`,
           ],
         }],
@@ -508,37 +506,20 @@ function compileStage(
         blocks: [{
           stageId,
           lines: [
-            `let result = askYesNo();`,
+            `let result = ctx.askYesNo();`,
             `if (result === undefined) { return; }`,
-            `ctx.${varName} = result;`,
+            `${varName} = result;`,
             `ctx.stage = ${nextStage};`,
           ],
         }],
         entryStage: stageId,
-        value: `ctx.${varName}`,
+        value: varName,
       };
     }
     default: {
       return { blocks: [], entryStage: nextStage, value: "undefined" };
     }
   }
-}
-
-function collectStoredVarNames(node: ValueLike | Node<unknown>): Set<string> {
-  let names = new Set<string>();
-  function walk(n: ValueLike | Node<unknown>): void {
-    if (n && typeof n === "object" && "type" in n) {
-      let node = n as Node<unknown>;
-      if (node.type === "askYesNo") {
-        names.add((node.value as any).varName);
-      }
-      for (let param of (node as any).params ?? []) {
-        walk(param);
-      }
-    }
-  }
-  walk(node);
-  return names;
 }
 
 function renumberStages(blocks: StageBlock[], entryStage: number): { blocks: StageBlock[]; entryStage: number } {
@@ -561,12 +542,11 @@ export function compile(node: ValueLike | Node<unknown>): {
   code: string[],
   value: string,
 } {
-  let storedVarNames = collectStoredVarNames(node);
-  let ctx: CompileCtx = { nextStageId: 0, storedVarNames };
+  let ctx: CompileCtx = { nextStageId: 0 };
   let result = compileStage(node, ctx, -1);
   let remapped = renumberStages(result.blocks, result.entryStage);
   let lines: string[] = [];
-  lines.push("export function storyUpdate(ecs, ctx, dt) {");
+  lines.push("export function storyUpdate(ctx, dt) {");
   lines.push("  while (ctx.stage !== -1) {");
   lines.push("    switch (ctx.stage) {");
   for (let block of remapped.blocks) {
