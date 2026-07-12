@@ -1,41 +1,116 @@
+const __brand = Symbol();
 
-let __brand = Symbol();
-export interface Node<A> {
-  [__brand]: A,
-
-  type: string,
-  params?: Node<unknown>[],
-  value?: unknown,
-
-  assign: (value: Node<A>) => void;
+export interface BaseNode<A> {
+  [__brand]: A;
+  type: string;
+  params?: BaseNode<unknown>[];
+  value?: unknown;
+  assign(value: BaseNode<A>): void;
 }
+export type Node<A> = BaseNode<A> 
+  & (A extends number ? {
+    add(other: NumberLike): Node<number>,
+    sub(other: NumberLike): Node<number>,
+    mult(other: NumberLike): Node<number>,
+    div(other: NumberLike): Node<number>,
+  } : {})
+  & (A extends boolean ? {
+    and(other: BooleanLike): Node<boolean>
+  } : {});
+
+class NodeImpl<A> implements BaseNode<A> {
+  declare [__brand]: A;
+  type: string;
+  params?: BaseNode<unknown>[];
+  value?: unknown;
+
+  constructor(config: { type: string; params?: BaseNode<unknown>[]; value?: unknown }) {
+    this.type = config.type;
+    this.params = config.params;
+    this.value = config.value;
+  }
+
+  assign(value: BaseNode<A>): void {
+    assertBlockScope("assign", (blockScope) => {
+      blockScope.push(new Node({
+        type: "assign",
+        params: [
+          this,
+          value,
+        ],
+      }));
+    });
+  }
+
+  add(other: NumberLike): Node<number> {
+    return new Node({
+      type: "add",
+      params: [
+        this,
+        wrapValueLike(other),
+      ],
+    }) as Node<number>;
+  }
+
+  sub(other: NumberLike): Node<number> {
+    return new Node({
+      type: "sub",
+      params: [
+        this,
+        wrapValueLike(other),
+      ],
+    });
+  }
+
+  mult(other: NumberLike): Node<number> {
+    return new Node({
+      type: "mult",
+      params: [
+        this,
+        wrapValueLike(other),
+      ],
+    });
+  }
+
+  div(other: NumberLike): Node<number> {
+    return new Node({
+      type: "div",
+      params: [
+        this,
+        wrapValueLike(other),
+      ],
+    });
+  }
+
+  and(other: BooleanLike): Node<boolean> {
+    return new Node({
+      type: "and",
+      params: [
+        this,
+        wrapValueLike(other),
+      ],
+    });
+  }
+}
+
+export const Node = NodeImpl as unknown as new <A>(config: { 
+  type: string; 
+  params?: BaseNode<unknown>[]; 
+  value?: unknown 
+}) => Node<A>;
 
 function node<A>(params: {
   type: string,
   params?: Node<unknown>[],
   value?: unknown,
 }): Node<A> {
-  let selfNode: Node<A> = {
-    ...params,
-    assign: (value) => {
-      assertBlockScope("assign", (blockScope) => {
-        blockScope.push(node({
-          type: "assign",
-          params: [
-            selfNode as Node<unknown>,
-            value as Node<unknown>,
-          ],
-        }))
-      })
-    },
-  };
-  return selfNode;
+  return new Node<A>(params);
 }
 
-export type BooleanLike = boolean | Node<boolean>;
-export type NumberLike = number | Node<number>;
-export type StringLike = string | Node<string>;
-export type VoidLike = void | Node<void>;
+export type BooleanLike = boolean | BaseNode<boolean>;
+export type NumberLike = number | BaseNode<number>;
+export type StringLike = string | BaseNode<string>;
+export type VoidLike = void | BaseNode<void>;
 export type ValueLike = BooleanLike | NumberLike | StringLike | VoidLike;
 
 type ExtractTypeFromValueLike<A extends ValueLike> =
@@ -133,7 +208,7 @@ export function askYesNo(): Node<boolean> {
 }
 
 export function obtainVar<A>(componentDef: string, field: string): Node<A> {
-  throw new Error("TODO");
+  return node({ type: "obtainVar", value: { componentDef, field, }, });
 }
 
 let introSequence = Fn(() => {
