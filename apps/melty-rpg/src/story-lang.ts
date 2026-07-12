@@ -256,7 +256,7 @@ export function awaitActionPress() {
 }
 
 export function askYesNo(): Node<boolean> {
-  let varName = `x${nextVarId++}`;
+  let varName = `ecs.resource(Input).isYes`;
   assertBlockScope("askYesNo", (blockScope) => {
     blockScope.push(node({ type: "askYesNo", value: { varName, }, }));
   });
@@ -451,17 +451,39 @@ function compileStage(
     }
     case "dialog": {
       let text = compileStage(node.params![0], ctx, nextStage);
-      let stageId = ctx.nextStageId++;
+      let stage1Id = ctx.nextStageId++;
+      let stage2Id = ctx.nextStageId++;
+      let exitStageId = nextStage;
       return {
-        blocks: [{
-          stageId,
-          lines: [
-            ...text.blocks.flatMap(b => b.lines),
-            `dialog(${text.value});`,
-            `ctx.stage = ${nextStage};`,
-          ],
-        }],
-        entryStage: stageId,
+        blocks: [
+          {
+            stageId: stage1Id,
+            lines: [
+              ...text.blocks.flatMap(b => b.lines),
+              `if (ctx._cacheDialogChars === undefined) {`,
+              `  ctx._cacheDialogChars = [ ...${text.value}, ];`,
+              `}`,
+              `if (ctx.dialogAtCharIdx >= ctx._cacheDialogChars.length) {`,
+              `  ctx._cacheDialogChars = undefined;`,
+              `  ctx.dialogAtCharIdx = 0;`,
+              `  ctx.stage = ${exitStageId};`,
+              `}`,
+              `addDialogLetter(ctx._cacheDialogChars[ctx.dialogAtCharIdx]);`,
+              `ctx.stage = ${stage2Id};`,
+            ],
+          },
+          {
+            stageId: stage2Id,
+            lines: [
+              `ctx.delayTimer = (ctx.delayTimer ?? 0) + dt;`,
+              `if (ctx.delayTimer < 0.2) { return; }`,
+              `ctx.delayTimer = undefined;`,
+              `ctx.dialogAtCharIdx++;`,
+              `ctx.stage = ${stage1Id};`,
+            ],
+          },
+        ],
+        entryStage: stage1Id,
         value: "undefined",
       };
     }
@@ -544,7 +566,7 @@ export function compile(node: ValueLike | Node<unknown>): {
   let result = compileStage(node, ctx, -1);
   let remapped = renumberStages(result.blocks, result.entryStage);
   let lines: string[] = [];
-  lines.push("function storyUpdate(ecs, ctx, dt) {");
+  lines.push("export function storyUpdate(ecs, ctx, dt) {");
   lines.push("  while (ctx.stage !== -1) {");
   lines.push("    switch (ctx.stage) {");
   for (let block of remapped.blocks) {
