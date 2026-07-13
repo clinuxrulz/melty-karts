@@ -25,6 +25,7 @@ import { Command } from "./model/commands";
 import { loadEcsFromXml, saveEcsToXml } from "@melty-karts/modelling";
 import { fileOpen, fileSave } from "browser-fs-access";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { createInsertModelMode } from "./model/modes/insert-model-mode";
 
 // @ts-ignore
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -204,8 +205,12 @@ const App: Component = () => {
         }))
         break;
       }
+      case "insertModel": {
+        setMode(() => createInsertModelMode(modeParams));
+        break;
+      }
       default:
-        let x: never = operation.type;
+        let x: never = operation;
         throw new Error(`Unreachable ${x}`);
     }
   };
@@ -402,7 +407,7 @@ const App: Component = () => {
         <Overlay3d/>
       </Canvas>
       <div
-        class="flex flex-col md:flex-row"
+        class="flex flex-col-reverse md:flex-row"
         style={{
           "position": "absolute",
           "left": "0",
@@ -413,176 +418,197 @@ const App: Component = () => {
           "overflow": "hidden",
         }}
       >
-        <Show when={sideForm()}>
-          {(sideForm) => {
-            let SideForm = untrack(sideForm);
-            return (
-              <div
-                class="h-[30%] md:h-auto md:w-1/4"
-                style={{
-                  "background-color": "rgba(0,0,0,0.5)",
-                  "overflow": "hidden",
-                }}
-              >
-                <div style="pointer-events: auto; display: inline-block; height: 100%; overflow: auto;">
-                  <SideForm/>
+        <div
+          class="p-1"
+          style="background-color: rgba(0,0,0,0.5);"
+        >
+          <div style="pointer-events: auto;">
+            <button
+              class="btn btn-primary"
+              onClick={() => {
+                doOperation(Operation.insertModel());
+              }}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+        <div
+          class="flex grow flex-col md:flex-row"
+        >
+          <Show when={sideForm()}>
+            {(sideForm) => {
+              let SideForm = untrack(sideForm);
+              return (
+                <div
+                  class="h-[30%] md:h-auto md:w-1/4"
+                  style={{
+                    "background-color": "rgba(0,0,0,0.5)",
+                    "overflow": "hidden",
+                  }}
+                >
+                  <div style="pointer-events: auto; display: inline-block; height: 100%; overflow: auto;">
+                    <SideForm/>
+                  </div>
+                </div>
+              );
+            }}
+          </Show>
+          <div style="flex-grow: 1; position: relative;">
+            <div
+              style={{
+                "position": "absolute",
+                "left": "0",
+                "top": "0",
+              }}
+            >
+              <div style="margin: 5px; background-color: rgba(0, 0, 0, 0.5);">
+              {/*
+                <Show when={canvasSize()}>
+                  {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
+                </Show><br/>
+                <Show when={mousePos()}>
+                  {(mousePos) => (<>MousePos: {Math.floor(mousePos().x)} x {Math.floor(mousePos().y)}</>)}
+                </Show><br/>
+                <Show when={mouseRay()}>
+                  {(mouseRay) => (
+                    <>
+                      Mouse Ray Origin: ({mouseRay().origin.x.toFixed(3)}, {mouseRay().origin.y.toFixed(3)}, {mouseRay().origin.z.toFixed(3)})<br/>
+                      Mouse Ray Direction: ({mouseRay().direction.x.toFixed(3)}, {mouseRay().direction.y.toFixed(3)}, {mouseRay().direction.z.toFixed(3)})
+                    </>
+                  )}
+                </Show><br/>
+                */}
+                <div style={{ "pointer-events": "auto", }}>
+                  <Instructions/>
                 </div>
               </div>
-            );
-          }}
-        </Show>
-        <div style="flex-grow: 1; position: relative;">
-          <div
-            style={{
-              "position": "absolute",
-              "left": "0",
-              "top": "0",
-            }}
-          >
-            <div style="margin: 5px; background-color: rgba(0, 0, 0, 0.5);">
-              <Show when={canvasSize()}>
-                {(canvasSize) => (<>Canvas Size: {Math.floor(canvasSize().x)} x {Math.floor(canvasSize().y)}</>)}
-              </Show><br/>
-              <Show when={mousePos()}>
-                {(mousePos) => (<>MousePos: {Math.floor(mousePos().x)} x {Math.floor(mousePos().y)}</>)}
-              </Show><br/>
-              <Show when={mouseRay()}>
-                {(mouseRay) => (
-                  <>
-                    Mouse Ray Origin: ({mouseRay().origin.x.toFixed(3)}, {mouseRay().origin.y.toFixed(3)}, {mouseRay().origin.z.toFixed(3)})<br/>
-                    Mouse Ray Direction: ({mouseRay().direction.x.toFixed(3)}, {mouseRay().direction.y.toFixed(3)}, {mouseRay().direction.z.toFixed(3)})
-                  </>
-                )}
-              </Show><br/>
-              <div style={{ "pointer-events": "auto", }}>
-                <Instructions/>
+            </div>
+            <div
+              style={{
+                "position": "absolute",
+                "top": "5px",
+                "right": "5px",
+                "pointer-events": "auto",
+              }}
+            >
+              <div
+                class="tooltip"
+                data-tip={`Undo ${undoRedoManager.undoDescription() ?? ""}`}
+              >
+                <button
+                  class="btn btn-primary"
+                  disabled={!undoRedoManager.hasUndo()}
+                  onClick={() => undoRedoManager.undo()}
+                >
+                  Undo
+                </button>
               </div>
-            </div>
-          </div>
-          <div
-            style={{
-              "position": "absolute",
-              "top": "5px",
-              "right": "5px",
-              "pointer-events": "auto",
-            }}
-          >
-            <div
-              class="tooltip"
-              data-tip={`Undo ${undoRedoManager.undoDescription() ?? ""}`}
-            >
-              <button
-                class="btn btn-primary"
-                disabled={!undoRedoManager.hasUndo()}
-                onClick={() => undoRedoManager.undo()}
+              <div
+                class="tooltip"
+                data-tip={`Redo ${undoRedoManager.redoDescription() ?? ""}`}
               >
-                Undo
-              </button>
-            </div>
-            <div
-              class="tooltip"
-              data-tip={`Redo ${undoRedoManager.redoDescription() ?? ""}`}
-            >
-              <button
-                class="btn btn-primary ml-1"
-                disabled={!undoRedoManager.hasRedo()}
-                onClick={() => undoRedoManager.redo()}
-              >
-                Redo
-              </button>
-            </div>
-            {(() => {
-              let name = fileName();
-              if (name) {
-                return (
-                  <span class="ml-2 text-sm text-base-content/70 max-w-40 truncate inline-block align-middle">
-                    {name}
-                  </span>
-                );
-              }
-            })()}
-            <button
-              class="btn btn-primary ml-2"
-              onClick={async () => {
-                let xmlData = saveEcsToXml(
-                  componentRegistry,
-                  modelNodeRegistry.primaryComponentTypes,
-                  ecs,
-                );
-                let blob = new Blob([ xmlData ], { type: "application/xml", });
-                let existingHandle = fileHandle();
-                if (existingHandle) {
-                  await fileSave(
-                    blob,
-                    { fileName: "level.melty-karts-level.xml" },
-                    existingHandle,
+                <button
+                  class="btn btn-primary ml-1"
+                  disabled={!undoRedoManager.hasRedo()}
+                  onClick={() => undoRedoManager.redo()}
+                >
+                  Redo
+                </button>
+              </div>
+              {(() => {
+                let name = fileName();
+                if (name) {
+                  return (
+                    <span class="ml-2 text-sm text-base-content/70 max-w-40 truncate inline-block align-middle">
+                      {name}
+                    </span>
                   );
-                } else {
+                }
+              })()}
+              <button
+                class="btn btn-primary ml-2"
+                onClick={async () => {
+                  let xmlData = saveEcsToXml(
+                    componentRegistry,
+                    modelNodeRegistry.primaryComponentTypes,
+                    ecs,
+                  );
+                  let blob = new Blob([ xmlData ], { type: "application/xml", });
+                  let existingHandle = fileHandle();
+                  if (existingHandle) {
+                    await fileSave(
+                      blob,
+                      { fileName: "level.melty-karts-level.xml" },
+                      existingHandle,
+                    );
+                  } else {
+                    await fileSave(blob, {
+                      fileName: "level.melty-karts-level.xml",
+                      extensions: [".xml"],
+                    });
+                  }
+                }}
+              >
+                Save
+              </button>
+              <button
+                class="btn btn-outline btn-primary ml-1"
+                onClick={async () => {
+                  let xmlData = saveEcsToXml(
+                    componentRegistry,
+                    modelNodeRegistry.primaryComponentTypes,
+                    ecs,
+                  );
+                  let blob = new Blob([ xmlData ], { type: "application/xml", });
                   await fileSave(blob, {
                     fileName: "level.melty-karts-level.xml",
                     extensions: [".xml"],
                   });
-                }
-              }}
-            >
-              Save
-            </button>
-            <button
-              class="btn btn-outline btn-primary ml-1"
-              onClick={async () => {
-                let xmlData = saveEcsToXml(
-                  componentRegistry,
-                  modelNodeRegistry.primaryComponentTypes,
-                  ecs,
-                );
-                let blob = new Blob([ xmlData ], { type: "application/xml", });
-                await fileSave(blob, {
-                  fileName: "level.melty-karts-level.xml",
-                  extensions: [".xml"],
-                });
-              }}
-            >
-              Save As
-            </button>
-            {untrack(() => {
-              return (
-                <button
-                  class="btn btn-primary ml-1"
-                  onClick={async () => {
-                    let blob;
-                    try {
-                      blob = await fileOpen({
-                        extensions: [".xml"],
-                        description: "Melty Karts Level",
-                      });
-                    } catch {
-                      return;
-                    }
-                    let handle = (blob as any).handle as FileSystemFileHandle | undefined;
-                    let xmlData = await blob.text();
-                    try {
-                      loadEcsFromXml(
-                        componentRegistry,
-                        ecs,
-                        xmlData,
-                      );
-                      undoRedoManager.clear();
-                      if (handle) {
-                        setFileHandle(handle);
-                        setFileName(blob.name || "Untitled");
+                }}
+              >
+                Save As
+              </button>
+              {untrack(() => {
+                return (
+                  <button
+                    class="btn btn-primary ml-1"
+                    onClick={async () => {
+                      let blob;
+                      try {
+                        blob = await fileOpen({
+                          extensions: [".xml"],
+                          description: "Melty Karts Level",
+                        });
+                      } catch {
+                        return;
                       }
-                    } catch (e) {
-                      console.error(e);
-                      alert("Failed to load file.");
-                    }
-                  }}
-                >
-                  Load
-                </button>
-              );
-            })}
+                      let handle = (blob as any).handle as FileSystemFileHandle | undefined;
+                      let xmlData = await blob.text();
+                      try {
+                        loadEcsFromXml(
+                          componentRegistry,
+                          ecs,
+                          xmlData,
+                        );
+                        undoRedoManager.clear();
+                        if (handle) {
+                          setFileHandle(handle);
+                          setFileName(blob.name || "Untitled");
+                        }
+                      } catch (e) {
+                        console.error(e);
+                        alert("Failed to load file.");
+                      }
+                    }}
+                  >
+                    Load
+                  </button>
+                );
+              })}
+            </div>
+            <OverlayHtml/>
           </div>
-          <OverlayHtml/>
         </div>
       </div>
     </div>

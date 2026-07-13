@@ -10,6 +10,7 @@ export { registerComponents, type ComponentRegistry } from "./components/registr
 export { type ComponentDefGetSchemaType, type ComponentDefGetDataType } from "./components/util";
 export { loadEcsFromXml, saveEcsToXml } from "./load-save";
 export { obtainTrackPtNodes, generateTrackCurve } from "./track-curve-gen";
+export { default as RenderBed } from "./renderers/RenderBed";
 export { default as RenderTrack } from "./renderers/RenderTrack";
 export { entityGetComponentData } from "./util";
 export { ShowAll } from "./util";

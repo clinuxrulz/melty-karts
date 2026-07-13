@@ -48,8 +48,9 @@ export class CommandExecutor {
           entityId = this.ecs.spawn();
         }
         let nextCommand = command.fn(entityId);
+        let reverseNextCommand = this.performCommand(nextCommand);
         return Command.seq([
-          this.performCommand(nextCommand),
+          reverseNextCommand,
           Command.destroyEntity(entityId),
         ]);
       }
