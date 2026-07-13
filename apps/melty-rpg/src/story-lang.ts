@@ -473,7 +473,7 @@ function compileStage(
             stageId: stage2Id,
             lines: [
               `ctx.delayTimer = (ctx.delayTimer ?? 0) + dt;`,
-              `if (ctx.delayTimer < 0.2) { return; }`,
+              `if (ctx.delayTimer < 0.05) { return; }`,
               `ctx.delayTimer = undefined;`,
               `ctx.dialogAtCharIdx++;`,
               `ctx.stage = ${stage1Id};`,

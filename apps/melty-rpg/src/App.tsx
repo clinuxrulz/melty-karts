@@ -71,7 +71,9 @@ let introSequence = Fn(() => {
   let r = obtainVar<boolean>("GameRes", "yesNoVal");
   r.assign(askYesNo());
   If(r, () => {
+    dialog("You jumped out of bed.");
   }).Else(() => {
+    dialog("You went back to sleep.");
   });
 });
 
