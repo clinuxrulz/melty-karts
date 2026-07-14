@@ -26,6 +26,7 @@ import { loadEcsFromXml, saveEcsToXml } from "@melty-karts/modelling";
 import { fileOpen, fileSave } from "browser-fs-access";
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { createInsertModelMode } from "./model/modes/insert-model-mode";
+import InfiniteGrid from "./InfiniteGrid";
 
 // @ts-ignore
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -381,6 +382,7 @@ const App: Component = () => {
         <T.AmbientLight
           intensity={2.0}
         />
+        <InfiniteGrid/>
         <T.GridHelper/>
         <For each={modelNodes()}>
           {(modelNode) => (

@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  solid-js: 2.0.0-beta.10
+  '@solidjs/web': 2.0.0-beta.10
+  babel-preset-solid: 2.0.0-beta.10
+
 importers:
 
   .:
@@ -714,7 +719,7 @@ packages:
     resolution: {integrity: sha512-iXIKpuYmVP+MS8F9byPp+VUzjEgyNy5xg4jEkB7ziYqNau2FKbSZWWPYDbnW78IFtLb5zd4peNkRf5QB4QCeAQ==}
     engines: {node: '>=20'}
     peerDependencies:
-      solid-js: ^1.9.3
+      solid-js: 2.0.0-beta.10
     peerDependenciesMeta:
       solid-js:
         optional: true
@@ -877,7 +882,7 @@ packages:
   '@solidjs/web@2.0.0-beta.10':
     resolution: {integrity: sha512-Ox7MBv19kuxHoHhWoLCCcc6aykSgaqzWvWT7RB66VqlFnQ8Lid2ncd30g5L4XC0GB+MN/WZVb68tiYrAFUDIAg==}
     peerDependencies:
-      solid-js: ^2.0.0-beta.10
+      solid-js: 2.0.0-beta.10
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1173,7 +1178,7 @@ packages:
     resolution: {integrity: sha512-lzGgPsh1fVtBJDl+UWLTCgimzPMda7X2Xzq7asCCOq/zHRwiF5vF3Eb3xj65dGyi7YpgVROTwJEpj+XiroKaww==}
     peerDependencies:
       '@babel/core': ^7.0.0
-      solid-js: ^2.0.0-beta.10
+      solid-js: 2.0.0-beta.10
     peerDependenciesMeta:
       solid-js:
         optional: true
@@ -1634,16 +1639,16 @@ packages:
   solid-refresh@0.8.0-next.7:
     resolution: {integrity: sha512-fqkPRAeiE0tqfo2ZljeQBIXwfYssU2w1FmaWFrXmnV33B/CfGfez7BjtOF0Y1/orUNRXI/DZcJlJThHllcCMsA==}
     peerDependencies:
-      solid-js: '>=2.0.0-beta.7 <2.0.0-experimental.0'
+      solid-js: 2.0.0-beta.10
 
   solid-three@https://pkg.pr.new/solid-three@dcd9e3d:
     resolution: {integrity: sha512-0qijbb7d1mJ9HZc1dhiUZpxB74n3zxKtTuI6zAzA0xoRXRTuc6bA9qn45sM7kDEv5MhRzbJ5OeZvdtfji64lbg==, tarball: https://pkg.pr.new/solid-three@dcd9e3d}
     version: 0.3.0-next.12
     peerDependencies:
       '@solidjs/signals': '*'
-      '@solidjs/web': '*'
+      '@solidjs/web': 2.0.0-beta.10
       '@types/three': '*'
-      solid-js: '*'
+      solid-js: 2.0.0-beta.10
       three: '*'
 
   source-map-js@1.2.1:
@@ -1752,9 +1757,9 @@ packages:
   vite-plugin-solid@3.0.0-next.5:
     resolution: {integrity: sha512-hcn3mzevQDv6Oyo/Zv5LXdOrlWwKGeGVxNhc9fUq3AcN9aO6KABy52yq5cvnPDo3qaxmvOJVbNS1H4V5rx7AQg==}
     peerDependencies:
-      '@solidjs/web': '>=2.0.0-beta.0 <2.0.0-experimental.0'
+      '@solidjs/web': 2.0.0-beta.10
       '@testing-library/jest-dom': ^5.16.6 || ^5.17.0 || ^6.*
-      solid-js: '>=2.0.0-beta.0 <2.0.0-experimental.0'
+      solid-js: 2.0.0-beta.10
       vite: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@testing-library/jest-dom':
