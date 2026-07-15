@@ -1,7 +1,7 @@
 import { Component } from "solid-js";
 import * as THREE from "three";
 import { T } from "./t";
-import { bool, cameraPosition, cameraProjectionMatrix, cameraProjectionMatrixInverse, cameraViewMatrix, cameraWorldMatrix, float, Fn, If, mix, normalize, positionGeometry, positionWorld, vec3, vec4 } from "three/tsl";
+import { bool, cameraPosition, cameraProjectionMatrix, cameraProjectionMatrixInverse, cameraViewMatrix, cameraWorldMatrix, float, Fn, If, max, mix, normalize, positionGeometry, positionWorld, vec3, vec4 } from "three/tsl";
 import { MeshBasicNodeMaterial, Node } from "three/webgpu";
 
 let getGrid = Fn(([ size, p ]: [ Node<"float">, Node<"vec3"> ]) => {
@@ -12,7 +12,6 @@ let getGrid = Fn(([ size, p ]: [ Node<"float">, Node<"vec3"> ]) => {
 });
 
 let calcColourAndDepth = Fn(() => {
-  let uScale = float(1.0).toConst();
   let isOrthographic = (cameraProjectionMatrix as any)[2][3].equal(0.0).toVar();
 
   let skyColour = vec3(0.3, 0.4, 0.6);
@@ -62,8 +61,16 @@ let calcColourAndDepth = Fn(() => {
       colour.assign(groundColour);
     }).Else(() => {
       let p = ro.add(rd.mul(ro.y.negate().div(rd.y))).toVar();
-      let g1 = getGrid(uScale.mul(1.0), p).toVar();
-      let g2 = getGrid(uScale.mul(10.0), p).toVar();
+      let refDist = float(1.0).toVar();
+      If(isOrthographic, () => {
+        refDist.assign(float(1.0).div(max((cameraProjectionMatrix as any)[0][0].abs(), float(0.001))));
+      }).Else(() => {
+        refDist.assign(cameraPosition.y.abs().mul(0.1).max(float(0.001)));
+      });
+      let exponent = refDist.log().div(float(Math.log(10))).floor().clamp(-3, 6);
+      let minorSize = float(10.0).pow(exponent);
+      let g1 = getGrid(minorSize, p).toVar();
+      let g2 = getGrid(minorSize.mul(10.0), p).toVar();
       let fc = vec4(1.0, 1.0, 1.0, g2.mix(g1, g1).mul(fadeFactor)).toVar();
       let fca = fc.a.mul(0.5).mix(fc.a, g2);
       If(fca.lessThanEqual(0.0), () => {
