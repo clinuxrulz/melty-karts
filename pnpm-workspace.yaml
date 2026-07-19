@@ -4,3 +4,6 @@ packages:
 allowBuilds:
   '@swc/core': true
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@random-mesh/rmsl-three@0.1.1'
+  - '@random-mesh/rmsl@1.0.6'

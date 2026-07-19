@@ -383,7 +383,6 @@ const App: Component = () => {
           intensity={2.0}
         />
         <InfiniteGrid/>
-        <T.GridHelper/>
         <For each={modelNodes()}>
           {(modelNode) => (
             <Show when={modelNode().render?.()}>

@@ -23,6 +23,8 @@
     "@melty-karts/modelling": "workspace:*",
     "@melty-karts/reactive-ecs": "workspace:*",
     "@oasys/oecs": "0.5.3",
+    "@random-mesh/rmsl": "^1.0.6",
+    "@random-mesh/rmsl-three": "^0.1.1",
     "@solidjs/signals": "2.0.0-beta.10",
     "@solidjs/web": "2.0.0-beta.10",
     "@tailwindcss/vite": "^4.3.0",
